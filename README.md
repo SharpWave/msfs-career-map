@@ -60,6 +60,10 @@ npm start       # serves API + client on http://localhost:3080
   current METARs for the large and medium airports in range are fetched in batches and their
   dot rings turn green/blue/red/magenta for VFR/MVFR/IFR/LIFR as they arrive (only reports under
   90 minutes old count; METARs are reused for five minutes between searches).
+- **SimBrief**: give an aircraft its ICAO type designator (the aircraft form suggests common ones,
+  e.g. `AEST`, `PA24`, `TBM8`) and every planner candidate gets a SimBrief link, in the popup and
+  as the **SB** button in the list, that opens SimBrief's dispatch page with origin, destination,
+  aircraft type and registration already filled in.
 - **Airport details**: click any airport dot (visited or planner candidate) for a popup with its
   Wikipedia lead image and blurb, the live METAR with flight category (via aviationweather.gov),
   runways, and links to Wikipedia, the official site, SkyVector and the decoded METAR/TAF page.

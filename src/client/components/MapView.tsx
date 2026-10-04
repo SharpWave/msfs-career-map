@@ -4,6 +4,7 @@ import { Circle, CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer,
 import { bearing, type LatLng } from "../geo";
 import { aircraftLabel, airportTypeLabel, airportWhere, fmtDateTime, fmtDuration, fmtFt, fmtNm, hopDurationMin, runwaySummary } from "../format";
 import { CATEGORY_COLORS, categoryFor, isFresh, metarBrief, metarStation, type FlightCategory, type MetarMap } from "../metar";
+import { legFor } from "../simbrief";
 import { headMarkerHtml } from "../icons";
 import { planLonShift, type AirportNode, type RenderData, type RenderHop } from "../paths";
 import type { Aircraft, PlanCandidate, PlanResult } from "../types";
@@ -144,6 +145,7 @@ export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap, 
             airport={openCandidate}
             extra={<div className="tip-route">{legLine(openCandidate)}</div>}
             onUse={() => onPickCandidate(openCandidate)}
+            simbrief={legFor(plan.origin, openCandidate, planAircraft)}
           />
         </Popup>
       )}

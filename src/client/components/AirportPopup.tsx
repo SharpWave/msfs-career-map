@@ -3,6 +3,7 @@ import { useMap } from "react-leaflet";
 import { api } from "../api";
 import { airportWhere } from "../format";
 import { metarStation } from "../metar";
+import { simbriefUrl, type SimbriefLeg } from "../simbrief";
 import type { Airport, Metar, WikiSummary } from "../types";
 import { RunwayInfo } from "./RunwayInfo";
 
@@ -12,13 +13,15 @@ interface Props {
   extra?: ReactNode;
   /** When given, shows a "use as next destination" button. */
   onUse?: () => void;
+  /** When given, adds a SimBrief link that starts a flight plan for this leg. */
+  simbrief?: SimbriefLeg;
 }
 
 /**
  * Click popup for an airport: Wikipedia image + blurb, live METAR, runways, outbound links.
  * Mounted only while the popup is open, so the fetches happen on demand.
  */
-export function AirportPopup({ airport, extra, onUse }: Props) {
+export function AirportPopup({ airport, extra, onUse, simbrief }: Props) {
   const map = useMap();
   const [wiki, setWiki] = useState<WikiSummary | null | "loading">("loading");
   const [metar, setMetar] = useState<Metar | null | "loading">("loading");
@@ -93,6 +96,21 @@ export function AirportPopup({ airport, extra, onUse }: Props) {
       {wiki !== "loading" && wiki?.extract && <p className="apop-extract">{clip(wiki.extract, 260)}</p>}
 
       <div className="apop-links">
+        {simbrief && (
+          <a
+            href={simbriefUrl(simbrief)}
+            target="_blank"
+            rel="noreferrer"
+            className="sb"
+            title={
+              simbrief.type
+                ? `Start a SimBrief plan ${simbrief.orig} → ${simbrief.dest} as ${simbrief.type}`
+                : `Start a SimBrief plan ${simbrief.orig} → ${simbrief.dest} (set a SimBrief type on the aircraft to pre-fill it)`
+            }
+          >
+            SimBrief
+          </a>
+        )}
         {wikiUrl && (
           <a href={wikiUrl} target="_blank" rel="noreferrer">
             Wikipedia

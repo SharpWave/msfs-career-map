@@ -111,6 +111,7 @@ function addColumnIfMissing(table: string, column: string, ddl: string) {
 }
 addColumnIfMissing("aircraft", "cruise_kts", "REAL");
 addColumnIfMissing("aircraft", "min_runway_ft", "INTEGER");
+addColumnIfMissing("aircraft", "simbrief_type", "TEXT");
 addColumnIfMissing("airports", "wikipedia_link", "TEXT");
 addColumnIfMissing("airports", "home_link", "TEXT");
 

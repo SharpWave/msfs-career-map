@@ -119,6 +119,8 @@ export interface AircraftRow {
   visible: number;
   cruise_kts: number | null;
   min_runway_ft: number | null;
+  /** ICAO type designator SimBrief knows, e.g. "AEST", "TBM8", "C172". */
+  simbrief_type: string | null;
   created_at: string;
 }
 
@@ -145,6 +147,12 @@ function minRunwayFt(v: unknown): number | null {
   return n === 0 ? null : n;
 }
 
+function simbriefType(v: unknown): string | null {
+  const s = optStr(v)?.toUpperCase() ?? null;
+  if (s !== null && !/^[A-Z0-9]{2,6}$/.test(s)) throw new HttpError(400, "SimBrief type must be an ICAO designator like C172 or TBM8");
+  return s;
+}
+
 api.get("/aircraft", wrap((_req, res) => res.json(aircraftList.all())));
 
 api.post("/aircraft", wrap((req, res) => {
@@ -154,10 +162,10 @@ api.post("/aircraft", wrap((req, res) => {
   const color = optStr(b.color) ?? "#ff6b35";
   if (!COLOR_RE.test(color)) throw new HttpError(400, "color must be #rrggbb");
   const r = db
-    .prepare(`INSERT INTO aircraft (name, livery, color, icon, notes, cruise_kts, min_runway_ft) VALUES (?,?,?,?,?,?,?)`)
+    .prepare(`INSERT INTO aircraft (name, livery, color, icon, notes, cruise_kts, min_runway_ft, simbrief_type) VALUES (?,?,?,?,?,?,?,?)`)
     .run(
       name, optStr(b.livery) ?? "", color, optStr(b.icon) ?? "builtin:twin-piston", optStr(b.notes) ?? "",
-      cruiseKts(b.cruise_kts), minRunwayFt(b.min_runway_ft),
+      cruiseKts(b.cruise_kts), minRunwayFt(b.min_runway_ft), simbriefType(b.simbrief_type),
     );
   res.status(201).json(requireAircraft(Number(r.lastInsertRowid)));
 }));
@@ -170,7 +178,7 @@ api.put("/aircraft/:id", wrap((req, res) => {
   if (!name) throw new HttpError(400, "name is required");
   const color = b.color === undefined ? cur.color : optStr(b.color) ?? cur.color;
   if (!COLOR_RE.test(color)) throw new HttpError(400, "color must be #rrggbb");
-  db.prepare(`UPDATE aircraft SET name=?, livery=?, color=?, icon=?, notes=?, visible=?, cruise_kts=?, min_runway_ft=? WHERE id=?`).run(
+  db.prepare(`UPDATE aircraft SET name=?, livery=?, color=?, icon=?, notes=?, visible=?, cruise_kts=?, min_runway_ft=?, simbrief_type=? WHERE id=?`).run(
     name,
     b.livery === undefined ? cur.livery : optStr(b.livery) ?? "",
     color,
@@ -179,6 +187,7 @@ api.put("/aircraft/:id", wrap((req, res) => {
     b.visible === undefined ? cur.visible : b.visible ? 1 : 0,
     b.cruise_kts === undefined ? cur.cruise_kts : cruiseKts(b.cruise_kts),
     b.min_runway_ft === undefined ? cur.min_runway_ft : minRunwayFt(b.min_runway_ft),
+    b.simbrief_type === undefined ? cur.simbrief_type : simbriefType(b.simbrief_type),
     id,
   );
   res.json(requireAircraft(id));

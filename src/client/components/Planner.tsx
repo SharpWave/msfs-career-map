@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { aircraftLabel, airportTypeLabel, airportWhere, fmtDuration, fmtFt, fmtNm, runwaySummary } from "../format";
 import { categoryFor, type MetarMap } from "../metar";
+import { legFor, simbriefUrl } from "../simbrief";
 import type { AppState, PlanCandidate, PlanResult } from "../types";
 import { AirportInput } from "./AirportInput";
 
@@ -256,6 +257,15 @@ export function Planner({ state, plan, metars, selectedId, onPlan, onPick, onFoc
                     {airportWhere(c) && <> · {airportWhere(c)}</>}
                   </span>
                 </button>
+                <a
+                  className="small sb-btn"
+                  href={simbriefUrl(legFor(plan.origin, c, state.aircraft.find((a) => a.id === plan.aircraft_id)))}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Start a SimBrief plan for this leg"
+                >
+                  SB
+                </a>
                 <button type="button" className="small use" onClick={() => onPick(c)} title="Use as the next hop's destination">
                   Use
                 </button>

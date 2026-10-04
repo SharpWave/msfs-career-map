@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "../api";
 import { BUILTIN_ICONS, BUILTIN_KEYS, PALETTE, builtinSvg, iconInnerHtml, nextColor } from "../icons";
+import { COMMON_TYPES } from "../simbrief";
 import type { Aircraft } from "../types";
 
 interface Props {
@@ -21,6 +22,7 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [cruise, setCruise] = useState(initial?.cruise_kts?.toString() ?? "");
   const [minRunway, setMinRunway] = useState(initial?.min_runway_ft?.toString() ?? "");
+  const [simbriefType, setSimbriefType] = useState(initial?.simbrief_type ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,6 +53,8 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
     if (cruiseKts !== null && (!Number.isFinite(cruiseKts) || cruiseKts <= 0)) return setError("Cruise speed must be a positive number of knots.");
     const minRunwayFt = minRunway.trim() === "" ? null : Number(minRunway);
     if (minRunwayFt !== null && (!Number.isFinite(minRunwayFt) || minRunwayFt < 0)) return setError("Minimum runway must be a number of feet.");
+    const sbType = simbriefType.trim().toUpperCase();
+    if (sbType && !/^[A-Z0-9]{2,6}$/.test(sbType)) return setError("SimBrief type should be an ICAO designator like C172 or TBM8.");
     setBusy(true);
     try {
       const body = {
@@ -61,6 +65,7 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
         notes: notes.trim(),
         cruise_kts: cruiseKts,
         min_runway_ft: minRunwayFt,
+        simbrief_type: sbType || null,
       };
       const saved = initial ? await api.updateAircraft(initial.id, body) : await api.createAircraft(body);
       if (pendingImage) await api.uploadIcon(saved.id, pendingImage);
@@ -173,6 +178,28 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
           <input type="number" min={0} step={1} value={minRunway} onChange={(e) => setMinRunway(e.target.value)} placeholder="e.g. 3000" />
         </label>
       </div>
+
+      <label>
+        <span>
+          SimBrief aircraft type <em>(ICAO designator, pre-fills SimBrief links)</em>
+        </span>
+        <input
+          className="code"
+          list="simbrief-types"
+          value={simbriefType}
+          onChange={(e) => setSimbriefType(e.target.value.toUpperCase())}
+          placeholder="e.g. AEST, PA24, TBM8"
+          maxLength={6}
+          spellCheck={false}
+        />
+        <datalist id="simbrief-types">
+          {COMMON_TYPES.map(([code, label]) => (
+            <option key={code} value={code}>
+              {label}
+            </option>
+          ))}
+        </datalist>
+      </label>
 
       <label>
         <span>Notes</span>

@@ -49,6 +49,8 @@ export interface Aircraft {
   visible: number;
   cruise_kts: number | null;
   min_runway_ft: number | null;
+  /** ICAO type designator SimBrief knows, e.g. "AEST", "TBM8", "C172". */
+  simbrief_type: string | null;
   created_at: string;
 }
 
@@ -82,6 +84,7 @@ export interface AircraftInput {
   notes: string;
   cruise_kts: number | null;
   min_runway_ft: number | null;
+  simbrief_type: string | null;
   visible?: boolean;
 }
 
