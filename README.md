@@ -30,6 +30,11 @@ npm run build   # bundles the client into dist/
 npm start       # serves API + client on http://localhost:3080
 ```
 
+Or double-click **`start.cmd`**: it installs dependencies and builds on first run, starts the
+server (or reuses one that is already up), and opens the app in your browser. Close its window to
+stop the server. `powershell -File scripts\install-shortcut.ps1` puts a **MSFS Career Map**
+shortcut with the app icon on your desktop that does the same thing.
+
 ## Using it
 
 - **Fleet**: click **+ Aircraft**, give it a name and livery/registration (that pairing is the unit
