@@ -711,6 +711,89 @@ button.icon:hover:not(:disabled) {
   font-weight: 650;
 }
 
+.map-toolbar > button.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #15100c;
+  font-weight: 650;
+}
+
+.map-toolbar .seg button.hz.on {
+  background: var(--hz);
+  border-color: var(--hz);
+  color: #0b0f14;
+}
+
+.toolbar-note {
+  font-size: 12px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  padding: 4px 8px;
+  border-radius: 7px;
+}
+
+.map-toolbar {
+  flex-wrap: wrap;
+  max-width: calc(100% - 24px);
+}
+
+/* flags (live weather / darkness checks) */
+
+.flag {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  vertical-align: 1px;
+  background: #475569;
+  color: #fff;
+}
+
+.flag-ifr { background: #dc2626; }
+.flag-xwind { background: #ea580c; }
+.flag-dark { background: #4c1d95; }
+.flag-night { background: #334155; }
+
+.cand-list li.blocked .cand-main {
+  opacity: 0.55;
+}
+
+.tip-flag,
+.apop-flags li {
+  margin-top: 3px;
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.tip-flag.blocking,
+.apop-flags li.blocking {
+  color: #fca5a5;
+}
+
+.apop-flags {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0 0;
+  border-top: 1px solid var(--border);
+}
+
+.apop-terrain {
+  border-top: 1px solid var(--border);
+  padding-top: 7px;
+}
+
+.apop-warn {
+  margin-top: 4px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+  color: #ffb3b3;
+  font-size: 12px;
+}
+
 .map-empty {
   position: absolute;
   z-index: 900;

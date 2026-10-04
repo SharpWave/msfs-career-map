@@ -60,6 +60,21 @@ npm start       # serves API + client on http://localhost:3080
   current METARs for the large and medium airports in range are fetched in batches and their
   dot rings turn green/blue/red/magenta for VFR/MVFR/IFR/LIFR as they arrive (only reports under
   90 minutes old count; METARs are reused for five minutes between searches).
+- **What limits where a plane can go**: beyond cruise speed and minimum runway, each aircraft can
+  have a **service ceiling**, a **pressurised / has oxygen** flag, a **max crosswind**, and an
+  **IFR capable** flag. The planner drops fields the plane can't operate from (above the ceiling
+  minus a 2,000 ft pattern, or above 10,000 ft without oxygen, since the pattern would top
+  12,000 ft). From the live METARs it then flags, and by default hides, airports that are IFR/LIFR
+  for a VFR-only plane, whose best runway's crosswind (gusts included) beats the limit, or that
+  will be dark at the ETA with no runway lighting. Night arrivals at lit fields are tagged but
+  kept. The click popup also samples **terrain along the leg** (Copernicus DEM via Open-Meteo),
+  shows the highest point and a minimum en-route altitude (1,000 ft clearance, 2,000 ft over high
+  terrain), and warns when that altitude exceeds the ceiling or needs oxygen.
+- **Overlays**: **Night** shades the half of the world past sunset and, darker, past civil
+  twilight, refreshed every minute. **Ice / Turb / IFR / Storms** shade the current G-AIRMET
+  (CONUS) and SIGMET (worldwide) hazard areas from aviationweather.gov, the same areas SimBrief
+  puts in its briefing, with base/top altitudes and validity on hover; refreshed every ten
+  minutes. G-AIRMETs show the forecast snapshot nearest to now.
 - **SimBrief**: give an aircraft its ICAO type designator (the aircraft form offers SimBrief's own
   list of about 200 profiles, searchable by code or name, refreshed daily) and every planner
   candidate gets a SimBrief link, in the popup and
@@ -100,6 +115,8 @@ All JSON, under `/api`:
 | GET | `/metar/:icao` | Latest METAR from aviationweather.gov, decoded |
 | GET | `/metars?ids=A,B,C` | Same for up to 500 stations at once (unreported ones are null) |
 | GET | `/simbrief/aircraft` | SimBrief's aircraft type list, cached daily |
+| GET | `/hazards` | Current G-AIRMET / SIGMET areas, normalised, cached 10 min |
+| GET | `/terrain?from=lat,lon&to=lat,lon` | Terrain profile along a leg with a suggested minimum altitude |
 | GET | `/plan?aircraft_id=&max_minutes=` | Airports in range of where the aircraft is parked; optional `types=`, `paved=1`, `min_runway_ft=`, `from=`, `limit=` |
 | GET/POST | `/aircraft` | List / create |
 | PUT/DELETE | `/aircraft/:id` | Update / delete (deletes its hops) |

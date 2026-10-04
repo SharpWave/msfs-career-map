@@ -5,6 +5,10 @@ import { bearing, type LatLng } from "../geo";
 import { aircraftLabel, airportTypeLabel, airportWhere, fmtDateTime, fmtDuration, fmtFt, fmtNm, hopDurationMin, runwaySummary } from "../format";
 import { CATEGORY_COLORS, categoryFor, isFresh, metarBrief, metarStation, type FlightCategory, type MetarMap } from "../metar";
 import { legFor } from "../simbrief";
+import { isBlocked, type Flag } from "../constraints";
+import { NightLayer } from "./NightLayer";
+import { HazardLayer } from "./HazardLayer";
+import type { HazardKind } from "../types";
 import { headMarkerHtml } from "../icons";
 import { planLonShift, type AirportNode, type RenderData, type RenderHop } from "../paths";
 import type { Aircraft, PlanCandidate, PlanResult } from "../types";
@@ -82,6 +86,8 @@ function candidateStyle(type: string): { radius: number; color: string; weight: 
 export interface Focus {
   key: number;
   points: LatLng[];
+  /** When set, centre on the first point at this zoom instead of fitting the points. */
+  zoom?: number;
 }
 
 interface Props {
@@ -93,10 +99,32 @@ interface Props {
   basemap: Basemap;
   plan: PlanResult | null;
   metars: MetarMap;
+  flags: Map<string, Flag[]>;
+  hideFlagged: boolean;
+  now: Date;
+  nightOn: boolean;
+  hazardKinds: Set<HazardKind>;
+  onHazardStatus?: (s: { count: number; fetched_at: string | null; error: string | null }) => void;
   onPickCandidate: (c: PlanCandidate) => void;
 }
 
-export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap, plan, metars, onPickCandidate }: Props) {
+export function MapView({
+  data,
+  aircraft,
+  selectedId,
+  onSelect,
+  focus,
+  basemap,
+  plan,
+  metars,
+  flags,
+  hideFlagged,
+  now,
+  nightOn,
+  hazardKinds,
+  onHazardStatus,
+  onPickCandidate,
+}: Props) {
   const { hops, nodes, heads } = data;
   const tiles = TILES[basemap];
   const byId = new Map(aircraft.map((a) => [a.id, a]));
@@ -113,6 +141,10 @@ export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap, 
       {tiles.labels && <TileLayer key={`${basemap}-labels`} url={tiles.labels} maxNativeZoom={tiles.maxZoom} maxZoom={19} zIndex={2} />}
       <FitController focus={focus} />
       <Resizer />
+
+      {/* weather hazard areas and day/night shading sit under everything */}
+      {hazardKinds.size > 0 && <HazardLayer kinds={hazardKinds} now={now} onStatus={onHazardStatus} />}
+      {nightOn && <NightLayer now={now} />}
 
       {/* 0. planner: range ring and reachable airports, under everything else */}
       {plan && (
@@ -131,7 +163,7 @@ export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap, 
           pathOptions={{ color: "#ffffff", weight: 1, opacity: 0.6, fill: false }}
         />
       )}
-      {plan && <CandidateLayer plan={plan} shift={planShift} metars={metars} onClick={setOpenCandidate} />}
+      {plan && <CandidateLayer plan={plan} shift={planShift} metars={metars} flags={flags} hideFlagged={hideFlagged} onClick={setOpenCandidate} />}
       {plan && openCandidate && (
         <Popup
           position={[openCandidate.lat, openCandidate.lon + planShift]}
@@ -146,6 +178,8 @@ export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap, 
             extra={<div className="tip-route">{legLine(openCandidate)}</div>}
             onUse={() => onPickCandidate(openCandidate)}
             simbrief={legFor(plan.origin, openCandidate, planAircraft)}
+            leg={{ from: plan.origin, aircraft: planAircraft }}
+            flags={flags.get(openCandidate.ident)}
           />
         </Popup>
       )}
@@ -255,7 +289,7 @@ function legLine(c: PlanCandidate): string {
 const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
 
 /** Hover tooltip for a candidate, as plain HTML so thousands of markers stay cheap. */
-function candidateTooltipHtml(c: PlanCandidate, metars: MetarMap): string {
+function candidateTooltipHtml(c: PlanCandidate, metars: MetarMap, flags: Flag[] | undefined): string {
   const where = airportWhere(c);
   const rwy = runwaySummary(c);
   const st = metarStation(c);
@@ -267,6 +301,7 @@ function candidateTooltipHtml(c: PlanCandidate, metars: MetarMap): string {
   } else if (m) {
     weather = `<div class="tip-sub muted">METAR stale (${esc(metarBrief(m))})</div>`;
   }
+  const flagHtml = (flags ?? []).map((f) => `<div class="tip-flag${f.blocking ? " blocking" : ""}">${esc(f.text)}</div>`).join("");
   return (
     `<div class="tip-title">${esc(c.ident)} · ${esc(c.name)}</div>` +
     (where ? `<div class="tip-sub">${esc(where)}</div>` : "") +
@@ -274,7 +309,8 @@ function candidateTooltipHtml(c: PlanCandidate, metars: MetarMap): string {
     `<div class="tip-sub">${esc(airportTypeLabel(c.type))}${c.elevation_ft != null ? ` · elev ${esc(fmtFt(c.elevation_ft))}` : ""}` +
     `${rwy ? ` · ${esc(rwy)}` : " · no runway data"}</div>` +
     weather +
-    `<div class="tip-hint">Click for photo, weather, links, and to use as the next destination</div>`
+    flagHtml +
+    `<div class="tip-hint">Click for photo, weather, terrain, links, and to use as the next destination</div>`
   );
 }
 
@@ -291,43 +327,64 @@ function ringStyle(c: PlanCandidate, cat: FlightCategory | null): { color: strin
  * component per marker would not. As METARs arrive, only the markers whose category changed
  * are restyled.
  */
+interface MarkerEntry {
+  marker: L.CircleMarker;
+  c: PlanCandidate;
+  cat: FlightCategory | null;
+  faded: boolean;
+}
+
+/** Opacity for a candidate: faded when its flags rule it out and the planner is hiding those. */
+const fadeStyle = (faded: boolean) => (faded ? { opacity: 0.25, fillOpacity: 0.12 } : { opacity: 0.95, fillOpacity: 0.9 });
+
 function CandidateLayer({
   plan,
   shift,
   metars,
+  flags,
+  hideFlagged,
   onClick,
 }: {
   plan: PlanResult;
   shift: number;
   metars: MetarMap;
+  flags: Map<string, Flag[]>;
+  hideFlagged: boolean;
   onClick: (c: PlanCandidate) => void;
 }) {
   const map = useMap();
-  const markers = useRef(new Map<string, { marker: L.CircleMarker; c: PlanCandidate; cat: FlightCategory | null }>());
+  const markers = useRef(new Map<string, MarkerEntry>());
   const metarsRef = useRef(metars);
   metarsRef.current = metars;
+  const flagsRef = useRef(flags);
+  flagsRef.current = flags;
 
   useEffect(() => {
     const renderer = L.canvas({ padding: 0.5 });
     const group = L.layerGroup();
-    const reg = new Map<string, { marker: L.CircleMarker; c: PlanCandidate; cat: FlightCategory | null }>();
+    const reg = new Map<string, MarkerEntry>();
     for (const c of plan.candidates) {
       const s = candidateStyle(c.type);
       const cat = categoryFor(c, metarsRef.current);
       const ring = ringStyle(c, cat);
+      const faded = hideFlagged && isBlocked(flagsRef.current.get(c.ident));
       const m = L.circleMarker([c.lat, c.lon + shift], {
         renderer,
         radius: s.radius,
         color: ring.color,
         weight: ring.weight,
         fillColor: candidateColor(c),
-        fillOpacity: 0.9,
-        opacity: 0.95,
+        ...fadeStyle(faded),
       });
-      m.bindTooltip(() => candidateTooltipHtml(c, metarsRef.current), { direction: "top", offset: [0, -s.radius], className: "tip", opacity: 1 });
+      m.bindTooltip(() => candidateTooltipHtml(c, metarsRef.current, flagsRef.current.get(c.ident)), {
+        direction: "top",
+        offset: [0, -s.radius],
+        className: "tip",
+        opacity: 1,
+      });
       m.on("click", () => onClick(c));
       group.addLayer(m);
-      reg.set(c.ident, { marker: m, c, cat });
+      reg.set(c.ident, { marker: m, c, cat, faded });
     }
     markers.current = reg;
     group.addTo(map);
@@ -335,17 +392,20 @@ function CandidateLayer({
       group.remove();
       markers.current = new Map();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plan, shift, map, onClick]);
 
-  // Recolor rings as METARs land.
+  // Recolor rings as METARs land, and fade/unfade as flags or the hide toggle change.
   useEffect(() => {
     for (const entry of markers.current.values()) {
       const cat = categoryFor(entry.c, metars);
-      if (cat === entry.cat) continue;
+      const faded = hideFlagged && isBlocked(flags.get(entry.c.ident));
+      if (cat === entry.cat && faded === entry.faded) continue;
       entry.cat = cat;
-      entry.marker.setStyle(ringStyle(entry.c, cat));
+      entry.faded = faded;
+      entry.marker.setStyle({ ...ringStyle(entry.c, cat), ...fadeStyle(faded) });
     }
-  }, [metars]);
+  }, [metars, flags, hideFlagged]);
 
   return null;
 }
@@ -407,6 +467,10 @@ function FitController({ focus }: { focus: Focus | null }) {
   const map = useMap();
   useEffect(() => {
     if (!focus || focus.points.length === 0) return;
+    if (focus.zoom != null) {
+      map.setView(focus.points[0], focus.zoom);
+      return;
+    }
     const bounds = L.latLngBounds(focus.points);
     if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
       map.flyTo(focus.points[0], Math.max(map.getZoom(), 9), { duration: 0.6 });

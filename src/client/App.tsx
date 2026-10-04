@@ -3,7 +3,9 @@ import { api } from "./api";
 import type { LatLng } from "./geo";
 import { buildRenderData, focusPoints, planBounds, planLonShift } from "./paths";
 import { METAR_REUSE_MS, metarStation, type MetarMap } from "./metar";
-import type { AppState, Hop, PlanCandidate, PlanResult } from "./types";
+import { assessCandidate, type Flag } from "./constraints";
+import { HAZARD_STYLE } from "./components/HazardLayer";
+import type { AppState, HazardKind, Hop, PlanCandidate, PlanResult } from "./types";
 import { MapView, type Basemap, type Focus } from "./components/MapView";
 import { Sidebar } from "./components/Sidebar";
 import type { HopPreset } from "./components/HopForm";
@@ -24,6 +26,32 @@ function readBasemap(): Basemap {
   return "dark";
 }
 
+const HAZARD_TOGGLES: HazardKind[] = ["ICE", "TURB", "IFR", "CONVECTIVE"];
+/** Mountain obscuration rides with IFR; ash and cyclones with convective. */
+const HAZARD_GROUPS: Record<string, HazardKind[]> = {
+  ICE: ["ICE"],
+  TURB: ["TURB"],
+  IFR: ["IFR", "MT_OBSC"],
+  CONVECTIVE: ["CONVECTIVE", "VA", "TC"],
+};
+
+function readPref<T>(key: string, fallback: T, parse: (s: string) => T): T {
+  try {
+    const v = localStorage.getItem(key);
+    return v === null ? fallback : parse(v);
+  } catch {
+    return fallback;
+  }
+}
+
+function writePref(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function App() {
   const [state, setState] = useState<AppState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,8 +62,38 @@ export function App() {
   const [plan, setPlan] = useState<PlanResult | null>(null);
   const [hopPreset, setHopPreset] = useState<HopPreset | null>(null);
   const [metars, setMetars] = useState<MetarMap>(() => new Map());
+  const [now, setNow] = useState(() => new Date());
+  const [nightOn, setNightOn] = useState(() => readPref("nightOn", true, (s) => s === "1"));
+  const [hazardToggles, setHazardToggles] = useState<Set<HazardKind>>(() =>
+    readPref("hazards", new Set<HazardKind>(), (s) => new Set(s.split(",").filter(Boolean) as HazardKind[])),
+  );
+  const [hazardStatus, setHazardStatus] = useState<{ count: number; fetched_at: string | null; error: string | null } | null>(null);
+  const [hideFlagged, setHideFlagged] = useState(true);
   const seq = useRef(0);
   const didInitialFit = useRef(false);
+
+  // A minute tick drives the day/night overlay and the "dark at ETA" checks.
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  const hazardKinds = useMemo(() => new Set<HazardKind>([...hazardToggles].flatMap((k) => HAZARD_GROUPS[k] ?? [k])), [hazardToggles]);
+
+  const toggleHazard = (k: HazardKind) =>
+    setHazardToggles((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      writePref("hazards", [...next].join(","));
+      return next;
+    });
+
+  const toggleNight = () =>
+    setNightOn((v) => {
+      writePref("nightOn", v ? "0" : "1");
+      return !v;
+    });
 
   // After each search, fetch METARs for the large and medium candidates in batches, merging each
   // batch into the cache as it lands so the map colors in progressively. Entries younger than
@@ -77,6 +135,18 @@ export function App() {
   }, [plan]);
 
   const data = useMemo(() => buildRenderData(state), [state]);
+
+  // Live-weather and clock checks for every planner candidate.
+  const flags = useMemo(() => {
+    const out = new Map<string, Flag[]>();
+    if (!plan || !state) return out;
+    const aircraft = state.aircraft.find((a) => a.id === plan.aircraft_id);
+    for (const c of plan.candidates) {
+      const f = assessCandidate(c, aircraft, metars, now);
+      if (f.length) out.set(c.ident, f);
+    }
+    return out;
+  }, [plan, state, metars, now]);
 
   const reload = useCallback(async () => {
     try {
@@ -144,6 +214,12 @@ export function App() {
     if (!state || autoPlanned.current) return;
     autoPlanned.current = true;
     const q = new URLSearchParams(window.location.search);
+    if (q.get("wx")) setHazardToggles(new Set(q.get("wx") === "1" ? HAZARD_TOGGLES : (q.get("wx")!.split(",") as HazardKind[])));
+    if (q.get("night")) setNightOn(q.get("night") === "1");
+    const view = q.get("view")?.split(",").map(Number);
+    if (view && view.length === 3 && view.every(Number.isFinite)) {
+      setFocus({ key: ++seq.current, points: [[view[0], view[1]]], zoom: view[2] });
+    }
     const aircraftId = Number(q.get("plan"));
     const minutes = Number(q.get("minutes") ?? 90);
     if (!aircraftId || !minutes) return;
@@ -171,6 +247,9 @@ export function App() {
           reload={reload}
           plan={plan}
           metars={metars}
+          flags={flags}
+          hideFlagged={hideFlagged}
+          onHideFlagged={setHideFlagged}
           onPlan={onPlan}
           onPickCandidate={pickCandidate}
           onFocusCandidate={focusCandidate}
@@ -192,6 +271,12 @@ export function App() {
             basemap={basemap}
             plan={plan}
             metars={metars}
+            flags={flags}
+            hideFlagged={hideFlagged}
+            now={now}
+            nightOn={nightOn}
+            hazardKinds={hazardKinds}
+            onHazardStatus={setHazardStatus}
             onPickCandidate={pickCandidate}
           />
         ) : (
@@ -209,6 +294,28 @@ export function App() {
               </button>
             ))}
           </div>
+          <button type="button" className={nightOn ? "on" : ""} onClick={toggleNight} title="Day/night shading (civil twilight)">
+            Night
+          </button>
+          <div className="seg" title="Weather hazard areas from aviationweather.gov (G-AIRMET / SIGMET)">
+            {HAZARD_TOGGLES.map((k) => (
+              <button
+                type="button"
+                key={k}
+                className={hazardToggles.has(k) ? "on hz" : "hz"}
+                style={hazardToggles.has(k) ? ({ "--hz": HAZARD_STYLE[k].color } as React.CSSProperties) : undefined}
+                onClick={() => toggleHazard(k)}
+                title={`${HAZARD_STYLE[k].label}${k === "IFR" ? " + mountain obscuration" : k === "CONVECTIVE" ? " + volcanic ash, cyclones" : ""}`}
+              >
+                {k === "ICE" ? "Ice" : k === "TURB" ? "Turb" : k === "IFR" ? "IFR" : "Storms"}
+              </button>
+            ))}
+          </div>
+          {hazardKinds.size > 0 && hazardStatus && (
+            <span className="toolbar-note" title={hazardStatus.fetched_at ? `fetched ${new Date(hazardStatus.fetched_at).toLocaleTimeString()}` : ""}>
+              {hazardStatus.error ? "hazards unavailable" : `${hazardStatus.count} areas`}
+            </span>
+          )}
           <button type="button" onClick={() => requestFocus(focusPoints(data))} title="Zoom to every path">
             Fit all
           </button>

@@ -51,7 +51,9 @@ CREATE TABLE IF NOT EXISTS runways (
   lighted       INTEGER NOT NULL DEFAULT 0,
   closed        INTEGER NOT NULL DEFAULT 0,
   le_ident      TEXT,
-  he_ident      TEXT
+  he_ident      TEXT,
+  le_heading    REAL,
+  he_heading    REAL
 );
 CREATE INDEX IF NOT EXISTS runways_airport ON runways(airport_ident);
 
@@ -63,7 +65,8 @@ CREATE TABLE IF NOT EXISTS airport_rwy (
   runway_count  INTEGER NOT NULL,
   surfaces      TEXT,
   paved         INTEGER NOT NULL DEFAULT 0,
-  lighted       INTEGER NOT NULL DEFAULT 0
+  lighted       INTEGER NOT NULL DEFAULT 0,
+  headings      TEXT
 );
 
 -- Small key/value cache for fetched reference data (e.g. SimBrief's aircraft list).
@@ -92,6 +95,13 @@ CREATE TABLE IF NOT EXISTS aircraft (
   icon       TEXT NOT NULL DEFAULT 'builtin:twin-piston',
   notes      TEXT NOT NULL DEFAULT '',
   visible    INTEGER NOT NULL DEFAULT 1,
+  cruise_kts    REAL,
+  min_runway_ft INTEGER,
+  simbrief_type TEXT,
+  ceiling_ft    INTEGER,
+  oxygen        INTEGER NOT NULL DEFAULT 0,
+  max_xwind_kts INTEGER,
+  ifr_capable   INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
@@ -119,8 +129,15 @@ function addColumnIfMissing(table: string, column: string, ddl: string) {
 addColumnIfMissing("aircraft", "cruise_kts", "REAL");
 addColumnIfMissing("aircraft", "min_runway_ft", "INTEGER");
 addColumnIfMissing("aircraft", "simbrief_type", "TEXT");
+addColumnIfMissing("aircraft", "ceiling_ft", "INTEGER");
+addColumnIfMissing("aircraft", "oxygen", "INTEGER NOT NULL DEFAULT 0");
+addColumnIfMissing("aircraft", "max_xwind_kts", "INTEGER");
+addColumnIfMissing("aircraft", "ifr_capable", "INTEGER NOT NULL DEFAULT 1");
 addColumnIfMissing("airports", "wikipedia_link", "TEXT");
 addColumnIfMissing("airports", "home_link", "TEXT");
+addColumnIfMissing("runways", "le_heading", "REAL");
+addColumnIfMissing("runways", "he_heading", "REAL");
+addColumnIfMissing("airport_rwy", "headings", "TEXT");
 
 export function airportCount(): number {
   const row = db.prepare("SELECT COUNT(*) AS n FROM airports").get() as { n: number };

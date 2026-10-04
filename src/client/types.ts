@@ -3,6 +3,8 @@ export type SurfaceClass = "paved" | "grass" | "gravel" | "dirt" | "water" | "sn
 export interface Runway {
   le_ident: string | null;
   he_ident: string | null;
+  le_heading: number | null;
+  he_heading: number | null;
   length_ft: number | null;
   width_ft: number | null;
   surface: string | null;
@@ -34,6 +36,8 @@ export interface Airport {
   rwy_surfaces: string | null;
   rwy_paved: number;
   rwy_lighted: number;
+  /** Comma-separated true headings, one end of each open runway, e.g. "162,52". */
+  rwy_headings: string | null;
   /** Present on single-airport lookups, map state and planner results. */
   runways?: Runway[];
 }
@@ -51,6 +55,14 @@ export interface Aircraft {
   min_runway_ft: number | null;
   /** ICAO type designator SimBrief knows, e.g. "AEST", "TBM8", "C172". */
   simbrief_type: string | null;
+  /** Service ceiling, feet. */
+  ceiling_ft: number | null;
+  /** 1 when pressurised or carrying oxygen. */
+  oxygen: number;
+  /** Maximum demonstrated crosswind, knots. */
+  max_xwind_kts: number | null;
+  /** 0 for VFR-only aircraft. */
+  ifr_capable: number;
   created_at: string;
 }
 
@@ -85,7 +97,44 @@ export interface AircraftInput {
   cruise_kts: number | null;
   min_runway_ft: number | null;
   simbrief_type: string | null;
+  ceiling_ft: number | null;
+  oxygen: boolean;
+  max_xwind_kts: number | null;
+  ifr_capable: boolean;
   visible?: boolean;
+}
+
+export type HazardKind = "ICE" | "TURB" | "IFR" | "MT_OBSC" | "CONVECTIVE" | "VA" | "TC";
+
+export interface Hazard {
+  id: string;
+  source: "gairmet" | "sigmet" | "isigmet";
+  kind: HazardKind;
+  label: string;
+  severity: string | null;
+  base_ft: number | null;
+  top_ft: number | null;
+  valid_from: string | null;
+  valid_to: string | null;
+  forecast_hour: number | null;
+  coords: [number, number][];
+  fir: string | null;
+  raw: string | null;
+}
+
+export interface HazardSet {
+  hazards: Hazard[];
+  fetched_at: string;
+  errors: string[];
+}
+
+export interface TerrainResult {
+  samples: { lat: number; lon: number; ft: number }[];
+  max_ft: number;
+  max_at: { lat: number; lon: number };
+  clearance_ft: number;
+  min_altitude_ft: number;
+  oxygen_altitude_ft: number;
 }
 
 export interface HopInput {
@@ -147,6 +196,9 @@ export interface PlanResult {
   min_runway_ft: number | null;
   paved_only: boolean;
   types: string[];
+  /** Highest field elevation included, from the aircraft's ceiling / oxygen settings. */
+  max_elevation_ft: number | null;
+  elevation_reason: string | null;
   origin: Airport;
   total: number;
   truncated: boolean;

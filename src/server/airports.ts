@@ -142,14 +142,22 @@ export function importRunwaysCsv(): number {
   const c = {
     id: col("id"), ident: col("airport_ident"), len: col("length_ft"), wid: col("width_ft"),
     surface: col("surface"), lighted: col("lighted"), closed: col("closed"),
-    le: col("le_ident"), he: col("he_ident"),
+    le: col("le_ident"), he: col("he_ident"), leHdg: col("le_heading_degT"), heHdg: col("he_heading_degT"),
   };
   const insert = db.prepare(`
-    INSERT OR REPLACE INTO runways (id, airport_ident, length_ft, width_ft, surface, surface_class, lighted, closed, le_ident, he_ident)
-    VALUES (?,?,?,?,?,?,?,?,?,?)`);
+    INSERT OR REPLACE INTO runways
+      (id, airport_ident, length_ft, width_ft, surface, surface_class, lighted, closed, le_ident, he_ident, le_heading, he_heading)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`);
   const num = (s: string) => {
     const n = Number(s);
     return s === "" || !Number.isFinite(n) || n <= 0 ? null : Math.round(n);
+  };
+  /** True heading from the CSV, else derived from the runway number ("16L" -> 160). */
+  const heading = (deg: string, ident: string): number | null => {
+    const n = Number(deg);
+    if (deg !== "" && Number.isFinite(n)) return ((n % 360) + 360) % 360;
+    const m = /^(\d{2})[LRC]?$/.exec(ident.trim());
+    return m ? (Number(m[1]) * 10) % 360 : null;
   };
 
   let n = 0;
@@ -159,17 +167,23 @@ export function importRunwaysCsv(): number {
     for (const r of rows) {
       const ident = r[c.ident];
       if (!ident) continue;
+      const le = r[c.le] ?? "";
+      const he = r[c.he] ?? "";
+      const leH = heading(r[c.leHdg] ?? "", le);
+      const heH = heading(r[c.heHdg] ?? "", he) ?? (leH != null ? (leH + 180) % 360 : null);
       insert.run(
         Number(r[c.id]), ident, num(r[c.len]), num(r[c.wid]), r[c.surface] || null, surfaceClass(r[c.surface] ?? ""),
-        r[c.lighted] === "1" ? 1 : 0, r[c.closed] === "1" ? 1 : 0, r[c.le] || null, r[c.he] || null,
+        r[c.lighted] === "1" ? 1 : 0, r[c.closed] === "1" ? 1 : 0, le || null, he || null, leH, heH,
       );
       n++;
     }
     db.exec(`
       DELETE FROM airport_rwy;
-      INSERT INTO airport_rwy (ident, max_length_ft, max_width_ft, runway_count, surfaces, paved, lighted)
+      INSERT INTO airport_rwy (ident, max_length_ft, max_width_ft, runway_count, surfaces, paved, lighted, headings)
       SELECT airport_ident, MAX(length_ft), MAX(width_ft), COUNT(*), GROUP_CONCAT(DISTINCT surface_class),
-             MAX(surface_class = 'paved'), MAX(lighted)
+             MAX(surface_class = 'paved'), MAX(lighted),
+             (SELECT GROUP_CONCAT(DISTINCT CAST(ROUND(le_heading) AS INTEGER))
+                FROM runways r2 WHERE r2.airport_ident = runways.airport_ident AND r2.closed = 0 AND r2.le_heading IS NOT NULL)
       FROM runways WHERE closed = 0 GROUP BY airport_ident;`);
     db.exec("COMMIT");
   } catch (e) {
@@ -186,7 +200,8 @@ export async function ensureReferenceData(): Promise<void> {
     console.log("[data] importing airports ...");
     console.log(`[data] imported ${importAirportsCsv()} airports`);
   }
-  if (runwayCount() === 0) {
+  const withHeadings = (db.prepare(`SELECT COUNT(*) AS n FROM runways WHERE le_heading IS NOT NULL`).get() as { n: number }).n;
+  if (runwayCount() === 0 || withHeadings === 0) {
     if (!fs.existsSync(RUNWAYS_CSV)) await downloadRunwaysCsv();
     console.log("[data] importing runways ...");
     console.log(`[data] imported ${importRunwaysCsv()} runways`);
@@ -198,6 +213,8 @@ export async function ensureReferenceData(): Promise<void> {
 export interface RunwayRow {
   le_ident: string | null;
   he_ident: string | null;
+  le_heading: number | null;
+  he_heading: number | null;
   length_ft: number | null;
   width_ft: number | null;
   surface: string | null;
@@ -229,6 +246,8 @@ export interface AirportRow {
   rwy_surfaces: string | null;
   rwy_paved: number;
   rwy_lighted: number;
+  /** Comma-separated true headings (one end of each open runway), e.g. "162,52". */
+  rwy_headings: string | null;
 }
 
 export interface AirportFull extends AirportRow {
@@ -237,7 +256,8 @@ export interface AirportFull extends AirportRow {
 
 const SELECT = `
   SELECT a.*, s.max_length_ft AS rwy_max_ft, COALESCE(s.runway_count, 0) AS rwy_count,
-         s.surfaces AS rwy_surfaces, COALESCE(s.paved, 0) AS rwy_paved, COALESCE(s.lighted, 0) AS rwy_lighted
+         s.surfaces AS rwy_surfaces, COALESCE(s.paved, 0) AS rwy_paved, COALESCE(s.lighted, 0) AS rwy_lighted,
+         s.headings AS rwy_headings
   FROM airports a LEFT JOIN airport_rwy s ON s.ident = a.ident`;
 
 const byCodeStmt = db.prepare(`${SELECT}
@@ -273,7 +293,7 @@ export function searchAirports(q: string, limit = 12): AirportRow[] {
 }
 
 const runwaysStmt = db.prepare(`
-  SELECT le_ident, he_ident, length_ft, width_ft, surface, surface_class, lighted, closed
+  SELECT le_ident, he_ident, le_heading, he_heading, length_ft, width_ft, surface, surface_class, lighted, closed
   FROM runways WHERE airport_ident = ? ORDER BY closed, length_ft DESC`);
 
 /** Add each airport's runway list. Cheap enough for a few hundred airports at a time. */
@@ -473,6 +493,8 @@ export interface PlanOptions {
   types: string[];
   pavedOnly: boolean;
   minRunwayFt: number | null;
+  /** Highest field elevation the aircraft can operate from (service ceiling / oxygen rules). */
+  maxElevationFt: number | null;
   limit: number;
 }
 
@@ -512,6 +534,10 @@ export function planCandidates(origin: AirportRow, o: PlanOptions): { candidates
     params.push(o.minRunwayFt);
   }
   if (o.pavedOnly) where.push("s.paved = 1");
+  if (o.maxElevationFt != null) {
+    where.push("COALESCE(a.elevation_ft, 0) <= ?");
+    params.push(o.maxElevationFt);
+  }
 
   const rows = db.prepare(`${SELECT} WHERE ${where.join(" AND ")}`).all(...params) as unknown as AirportRow[];
 

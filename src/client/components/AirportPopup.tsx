@@ -4,7 +4,9 @@ import { api } from "../api";
 import { airportWhere } from "../format";
 import { metarStation } from "../metar";
 import { simbriefUrl, type SimbriefLeg } from "../simbrief";
-import type { Airport, Metar, WikiSummary } from "../types";
+import type { Flag } from "../constraints";
+import { fmtFt } from "../format";
+import type { Aircraft, Airport, Metar, TerrainResult, WikiSummary } from "../types";
 import { RunwayInfo } from "./RunwayInfo";
 
 interface Props {
@@ -15,18 +17,37 @@ interface Props {
   onUse?: () => void;
   /** When given, adds a SimBrief link that starts a flight plan for this leg. */
   simbrief?: SimbriefLeg;
+  /** When given, checks terrain along the leg against the aircraft's limits. */
+  leg?: { from: Airport; aircraft?: Aircraft };
+  /** Live-weather / darkness flags from the planner. */
+  flags?: Flag[];
 }
 
 /**
  * Click popup for an airport: Wikipedia image + blurb, live METAR, runways, outbound links.
  * Mounted only while the popup is open, so the fetches happen on demand.
  */
-export function AirportPopup({ airport, extra, onUse, simbrief }: Props) {
+export function AirportPopup({ airport, extra, onUse, simbrief, leg, flags }: Props) {
   const map = useMap();
   const [wiki, setWiki] = useState<WikiSummary | null | "loading">("loading");
   const [metar, setMetar] = useState<Metar | null | "loading">("loading");
   const [detail, setDetail] = useState<Airport | null>(null);
+  const [terrain, setTerrain] = useState<TerrainResult | null | "loading">(leg ? "loading" : null);
   const station = metarStation(airport);
+
+  // En-route terrain for planner legs (Open-Meteo via the server, cached there).
+  useEffect(() => {
+    if (!leg) return;
+    let cancelled = false;
+    setTerrain("loading");
+    api
+      .terrain([leg.from.lat, leg.from.lon], [airport.lat, airport.lon])
+      .then((t) => !cancelled && setTerrain(t))
+      .catch(() => !cancelled && setTerrain(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [leg?.from.ident, airport.ident, airport.lat, airport.lon, leg?.from.lat, leg?.from.lon]);
 
   // Planner candidates arrive without their runway list; fetch it when the popup opens.
   useEffect(() => {
@@ -84,6 +105,24 @@ export function AirportPopup({ airport, extra, onUse, simbrief }: Props) {
 
       <RunwayInfo airport={detail ?? airport} max={5} />
       {extra}
+
+      {flags && flags.length > 0 && (
+        <ul className="apop-flags">
+          {flags.map((f) => (
+            <li key={f.kind} className={f.blocking ? "blocking" : ""}>
+              {f.text}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {leg && (
+        <div className="apop-terrain">
+          {terrain === "loading" && <div className="muted small">Checking terrain along the leg…</div>}
+          {terrain === null && <div className="muted small">Terrain check unavailable.</div>}
+          {terrain !== "loading" && terrain && <TerrainBlock t={terrain} aircraft={leg.aircraft} />}
+        </div>
+      )}
 
       {station && (
         <div className="apop-metar">
@@ -144,6 +183,29 @@ export function AirportPopup({ airport, extra, onUse, simbrief }: Props) {
         </button>
       )}
     </div>
+  );
+}
+
+function TerrainBlock({ t, aircraft }: { t: TerrainResult; aircraft?: Aircraft }) {
+  const warnings: string[] = [];
+  if (aircraft && !aircraft.oxygen && t.min_altitude_ft > t.oxygen_altitude_ft) {
+    warnings.push(`Needs ${fmtFt(t.min_altitude_ft)} en route: above ${fmtFt(t.oxygen_altitude_ft)} without oxygen or pressurisation.`);
+  }
+  if (aircraft?.ceiling_ft && t.min_altitude_ft > aircraft.ceiling_ft) {
+    warnings.push(`Needs ${fmtFt(t.min_altitude_ft)} en route, above the ${fmtFt(aircraft.ceiling_ft)} service ceiling.`);
+  }
+  return (
+    <>
+      <div className="tip-sub">
+        Highest terrain en route <b>{fmtFt(t.max_ft)}</b> · plan at least <b>{fmtFt(t.min_altitude_ft)}</b>
+        <span className="muted"> ({fmtFt(t.clearance_ft)} clearance)</span>
+      </div>
+      {warnings.map((w) => (
+        <div key={w} className="apop-warn">
+          {w}
+        </div>
+      ))}
+    </>
   );
 }
 

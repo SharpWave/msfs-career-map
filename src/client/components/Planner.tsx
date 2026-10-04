@@ -1,15 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { aircraftLabel, airportTypeLabel, airportWhere, fmtDuration, fmtFt, fmtNm, runwaySummary } from "../format";
+import { isBlocked, type Flag } from "../constraints";
 import { categoryFor, type MetarMap } from "../metar";
 import { legFor, simbriefUrl } from "../simbrief";
 import type { AppState, PlanCandidate, PlanResult } from "../types";
 import { AirportInput } from "./AirportInput";
 
+const FLAG_ICON: Record<Flag["kind"], string> = { ifr: "IFR", xwind: "X-wind", dark: "Dark", night: "Night" };
+
 interface Props {
   state: AppState;
   plan: PlanResult | null;
   metars: MetarMap;
+  /** Live-weather / clock checks per candidate ident. */
+  flags: Map<string, Flag[]>;
+  hideFlagged: boolean;
+  onHideFlagged: (v: boolean) => void;
   selectedId: number | null;
   onPlan: (p: PlanResult | null) => void;
   /** Use this candidate as the next hop's destination. */
@@ -30,7 +37,7 @@ const TYPE_OPTIONS: [string, string][] = [
 const QUICK_MINUTES = [30, 60, 90, 120, 180, 240];
 const LIST_MAX = 80;
 
-export function Planner({ state, plan, metars, selectedId, onPlan, onPick, onFocus, onEditAircraft }: Props) {
+export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged, selectedId, onPlan, onPick, onFocus, onEditAircraft }: Props) {
   const eligible = state.aircraft.filter((a) => a.cruise_kts);
   const [aircraftId, setAircraftId] = useState<number>(() =>
     selectedId && state.aircraft.some((a) => a.id === selectedId) ? selectedId : eligible[0]?.id ?? state.aircraft[0]?.id ?? 0,
@@ -107,18 +114,22 @@ export function Planner({ state, plan, metars, selectedId, onPlan, onPick, onFoc
     }
   };
 
+  const blockedCount = useMemo(() => (plan ? plan.candidates.filter((c) => isBlocked(flags.get(c.ident))).length : 0), [plan, flags]);
+
   const filtered = useMemo(() => {
     if (!plan) return [];
     const f = filter.trim().toLowerCase();
-    if (!f) return plan.candidates;
-    return plan.candidates.filter(
-      (c) =>
+    return plan.candidates.filter((c) => {
+      if (hideFlagged && isBlocked(flags.get(c.ident))) return false;
+      if (!f) return true;
+      return (
         c.ident.toLowerCase().includes(f) ||
         c.name.toLowerCase().includes(f) ||
         (c.municipality ?? "").toLowerCase().includes(f) ||
-        (c.iata_code ?? "").toLowerCase() === f,
-    );
-  }, [plan, filter]);
+        (c.iata_code ?? "").toLowerCase() === f
+      );
+    });
+  }, [plan, filter, flags, hideFlagged]);
 
   if (state.aircraft.length === 0) {
     return <p className="muted">Add an aircraft with a cruise speed to plan its next hop.</p>;
@@ -185,6 +196,15 @@ export function Planner({ state, plan, metars, selectedId, onPlan, onPick, onFoc
           {aircraft?.min_runway_ft
             ? `Only airports with a runway of at least ${fmtFt(aircraft.min_runway_ft)} (aircraft setting; airports without runway data are left out).`
             : "No minimum runway length set for this aircraft, so every airport in range is included."}
+          {aircraft && (
+            <>
+              {" "}
+              {aircraft.ceiling_ft
+                ? `Fields above ${fmtFt(aircraft.ceiling_ft - 2000)} are out (ceiling ${fmtFt(aircraft.ceiling_ft)} minus a 2,000 ft pattern).`
+                : ""}
+              {!aircraft.oxygen ? " No oxygen/pressurisation, so fields above 10,000 ft are out." : ""}
+            </>
+          )}
         </div>
 
         {error && <div className="error">{error}</div>}
@@ -234,6 +254,14 @@ export function Planner({ state, plan, metars, selectedId, onPlan, onPick, onFoc
             <span className="muted">(large &amp; medium, METAR under 90 min old)</span>
           </div>
 
+          <label className="check">
+            <input type="checkbox" checked={hideFlagged} onChange={(e) => onHideFlagged(e.target.checked)} />
+            <span>
+              Hide airports ruled out by live weather or darkness
+              {blockedCount > 0 && <span className="muted"> ({blockedCount})</span>}
+            </span>
+          </label>
+
           {plan.candidates.length > 8 && (
             <input type="search" placeholder="Filter by code, name or city" value={filter} onChange={(e) => setFilter(e.target.value)} />
           )}
@@ -241,12 +269,18 @@ export function Planner({ state, plan, metars, selectedId, onPlan, onPick, onFoc
           <ol className="cand-list">
             {filtered.slice(0, LIST_MAX).map((c) => {
               const cat = categoryFor(c, metars);
+              const cf = flags.get(c.ident) ?? [];
               return (
-              <li key={c.ident}>
-                <button type="button" className="cand-main" onClick={() => onFocus(c)} title="Show on map">
+              <li key={c.ident} className={isBlocked(cf) ? "blocked" : ""}>
+                <button type="button" className="cand-main" onClick={() => onFocus(c)} title={cf.map((f) => f.text).join("\n") || "Show on map"}>
                   <span className="line1">
                     <b className="code">{c.ident}</b> <span className="name">{c.name}</span>
                     {cat && <span className={`fltcat fltcat-${cat}`}>{cat}</span>}
+                    {cf.map((f) => (
+                      <span key={f.kind} className={`flag flag-${f.kind}`} title={f.text}>
+                        {FLAG_ICON[f.kind]}
+                      </span>
+                    ))}
                   </span>
                   <span className="line2 muted">
                     {fmtNm(c.distance_nm)} · ~{fmtDuration(c.est_minutes)} · {Math.round(c.bearing_deg).toString().padStart(3, "0")}° ·{" "}

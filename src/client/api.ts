@@ -1,4 +1,17 @@
-import type { Aircraft, AircraftInput, Airport, AppState, Hop, HopInput, Metar, PlanQuery, PlanResult, WikiSummary } from "./types";
+import type {
+  Aircraft,
+  AircraftInput,
+  Airport,
+  AppState,
+  HazardSet,
+  Hop,
+  HopInput,
+  Metar,
+  PlanQuery,
+  PlanResult,
+  TerrainResult,
+  WikiSummary,
+} from "./types";
 
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -33,6 +46,10 @@ export const api = {
   deleteHop: (id: number) => req<void>("DELETE", `/api/hops/${id}`),
   reorderHops: (aircraftId: number, ids: number[]) =>
     req<Hop[]>("PUT", `/api/aircraft/${aircraftId}/hops/order`, { ids }),
+
+  hazards: () => req<HazardSet>("GET", "/api/hazards"),
+  terrain: (from: [number, number], to: [number, number]) =>
+    req<TerrainResult>("GET", `/api/terrain?from=${from[0]},${from[1]}&to=${to[0]},${to[1]}`),
 
   simbriefTypes: () =>
     req<{ types: { id: string; name: string }[]; source: string; fetched_at: string | null }>("GET", "/api/simbrief/aircraft"),

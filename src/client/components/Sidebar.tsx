@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "../api";
 import { fmtDuration, fmtTimeShort, hopDurationMin } from "../format";
 import { iconInnerHtml } from "../icons";
+import type { Flag } from "../constraints";
 import type { MetarMap } from "../metar";
 import type { Aircraft, AppState, Hop, PlanCandidate, PlanResult } from "../types";
 import { AircraftForm } from "./AircraftForm";
@@ -16,6 +17,9 @@ interface Props {
   reload: () => Promise<void>;
   plan: PlanResult | null;
   metars: MetarMap;
+  flags: Map<string, Flag[]>;
+  hideFlagged: boolean;
+  onHideFlagged: (v: boolean) => void;
   onPlan: (p: PlanResult | null) => void;
   onPickCandidate: (c: PlanCandidate) => void;
   onFocusCandidate: (c: PlanCandidate) => void;
@@ -78,6 +82,9 @@ export function Sidebar(p: Props) {
             state={state}
             plan={p.plan}
             metars={p.metars}
+            flags={p.flags}
+            hideFlagged={p.hideFlagged}
+            onHideFlagged={p.onHideFlagged}
             selectedId={selectedId}
             onPlan={p.onPlan}
             onPick={p.onPickCandidate}
@@ -216,6 +223,8 @@ function AircraftCard(p: CardProps) {
               <span className="muted">no hops yet</span>
             )}
             {a.cruise_kts && <span>{a.cruise_kts} kts</span>}
+            {a.ceiling_ft && <span>ceil {Math.round(a.ceiling_ft / 1000)}k</span>}
+            {!a.ifr_capable && <span>VFR only</span>}
           </div>
         </button>
         <div className="card-actions">

@@ -38,6 +38,10 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
   const [cruise, setCruise] = useState(initial?.cruise_kts?.toString() ?? "");
   const [minRunway, setMinRunway] = useState(initial?.min_runway_ft?.toString() ?? "");
   const [simbriefType, setSimbriefType] = useState(initial?.simbrief_type ?? "");
+  const [ceiling, setCeiling] = useState(initial?.ceiling_ft?.toString() ?? "");
+  const [maxXwind, setMaxXwind] = useState(initial?.max_xwind_kts?.toString() ?? "");
+  const [oxygen, setOxygen] = useState(!!initial?.oxygen);
+  const [ifrCapable, setIfrCapable] = useState(initial ? !!initial.ifr_capable : true);
   const [typeList, setTypeList] = useState<[string, string][]>(COMMON_TYPES);
   const [busy, setBusy] = useState(false);
 
@@ -81,6 +85,10 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
     if (minRunwayFt !== null && (!Number.isFinite(minRunwayFt) || minRunwayFt < 0)) return setError("Minimum runway must be a number of feet.");
     const sbType = simbriefType.trim().toUpperCase();
     if (sbType && !/^[A-Z0-9]{2,6}$/.test(sbType)) return setError("SimBrief type should be an ICAO designator like C172 or TBM8.");
+    const ceilingFt = ceiling.trim() === "" ? null : Number(ceiling);
+    if (ceilingFt !== null && (!Number.isFinite(ceilingFt) || ceilingFt < 0)) return setError("Service ceiling must be a number of feet.");
+    const maxXwindKts = maxXwind.trim() === "" ? null : Number(maxXwind);
+    if (maxXwindKts !== null && (!Number.isFinite(maxXwindKts) || maxXwindKts < 0)) return setError("Max crosswind must be a number of knots.");
     setBusy(true);
     try {
       const body = {
@@ -92,6 +100,10 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
         cruise_kts: cruiseKts,
         min_runway_ft: minRunwayFt,
         simbrief_type: sbType || null,
+        ceiling_ft: ceilingFt,
+        oxygen,
+        max_xwind_kts: maxXwindKts,
+        ifr_capable: ifrCapable,
       };
       const saved = initial ? await api.updateAircraft(initial.id, body) : await api.createAircraft(body);
       if (pendingImage) await api.uploadIcon(saved.id, pendingImage);
@@ -202,6 +214,32 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
             Min runway, ft <em>(optional filter)</em>
           </span>
           <input type="number" min={0} step={1} value={minRunway} onChange={(e) => setMinRunway(e.target.value)} placeholder="e.g. 3000" />
+        </label>
+      </div>
+
+      <div className="two">
+        <label>
+          <span>
+            Service ceiling, ft <em>(optional)</em>
+          </span>
+          <input type="number" min={0} step={1} value={ceiling} onChange={(e) => setCeiling(e.target.value)} placeholder="e.g. 25000" />
+        </label>
+        <label>
+          <span>
+            Max crosswind, kt <em>(optional)</em>
+          </span>
+          <input type="number" min={0} step={1} value={maxXwind} onChange={(e) => setMaxXwind(e.target.value)} placeholder="e.g. 20" />
+        </label>
+      </div>
+
+      <div className="type-row">
+        <label className="check">
+          <input type="checkbox" checked={oxygen} onChange={(e) => setOxygen(e.target.checked)} />
+          <span>Pressurised / has oxygen (may cruise above 12,000 ft)</span>
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={ifrCapable} onChange={(e) => setIfrCapable(e.target.checked)} />
+          <span>IFR capable</span>
         </label>
       </div>
 

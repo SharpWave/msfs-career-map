@@ -18,6 +18,8 @@ import {
   type AirportFull,
 } from "./airports.ts";
 import { simbriefAircraftTypes } from "./simbrief.ts";
+import { currentHazards } from "./hazards.ts";
+import { terrainAlong } from "./terrain.ts";
 
 export const api = Router();
 
@@ -122,8 +124,21 @@ export interface AircraftRow {
   min_runway_ft: number | null;
   /** ICAO type designator SimBrief knows, e.g. "AEST", "TBM8", "C172". */
   simbrief_type: string | null;
+  /** Service ceiling, feet. */
+  ceiling_ft: number | null;
+  /** 1 when pressurised or carrying oxygen (may cruise above 12,000 ft). */
+  oxygen: number;
+  /** Maximum demonstrated crosswind, knots. */
+  max_xwind_kts: number | null;
+  /** 0 for VFR-only aircraft (IFR/LIFR destinations are flagged). */
+  ifr_capable: number;
   created_at: string;
 }
+
+/** Pattern altitude margin: an airport must sit at least this far below the ceiling. */
+const CEILING_MARGIN_FT = 2000;
+/** Above this cruising altitude the aircraft needs oxygen or pressurisation. */
+const OXYGEN_ALTITUDE_FT = 12000;
 
 const aircraftList = db.prepare(`SELECT * FROM aircraft ORDER BY name, livery, id`);
 const aircraftGet = db.prepare(`SELECT * FROM aircraft WHERE id = ?`);
@@ -154,6 +169,38 @@ function simbriefType(v: unknown): string | null {
   return s;
 }
 
+function ceilingFt(v: unknown): number | null {
+  const n = optInt(v, "service ceiling");
+  if (n !== null && (n < 0 || n > 100000)) throw new HttpError(400, "service ceiling must be between 0 and 100000 ft");
+  return n === 0 ? null : n;
+}
+
+function maxXwind(v: unknown): number | null {
+  const n = optInt(v, "max crosswind");
+  if (n !== null && (n < 0 || n > 100)) throw new HttpError(400, "max crosswind must be between 0 and 100 kt");
+  return n === 0 ? null : n;
+}
+
+const bool = (v: unknown, fallback: number): number => (v === undefined ? fallback : v ? 1 : 0);
+
+/** Highest field elevation this aircraft can operate from, with the limiting reason. */
+function maxFieldElevation(a: AircraftRow): { max_elevation_ft: number | null; elevation_reason: string | null } {
+  let max: number | null = null;
+  let reason: string | null = null;
+  if (a.ceiling_ft != null) {
+    max = a.ceiling_ft - CEILING_MARGIN_FT;
+    reason = `service ceiling ${a.ceiling_ft.toLocaleString()} ft minus ${CEILING_MARGIN_FT.toLocaleString()} ft pattern margin`;
+  }
+  if (!a.oxygen) {
+    const lim = OXYGEN_ALTITUDE_FT - CEILING_MARGIN_FT;
+    if (max === null || lim < max) {
+      max = lim;
+      reason = `no oxygen/pressurisation: fields above ${lim.toLocaleString()} ft put the pattern over ${OXYGEN_ALTITUDE_FT.toLocaleString()} ft`;
+    }
+  }
+  return { max_elevation_ft: max, elevation_reason: reason };
+}
+
 api.get("/aircraft", wrap((_req, res) => res.json(aircraftList.all())));
 
 api.post("/aircraft", wrap((req, res) => {
@@ -163,10 +210,13 @@ api.post("/aircraft", wrap((req, res) => {
   const color = optStr(b.color) ?? "#ff6b35";
   if (!COLOR_RE.test(color)) throw new HttpError(400, "color must be #rrggbb");
   const r = db
-    .prepare(`INSERT INTO aircraft (name, livery, color, icon, notes, cruise_kts, min_runway_ft, simbrief_type) VALUES (?,?,?,?,?,?,?,?)`)
+    .prepare(`INSERT INTO aircraft
+      (name, livery, color, icon, notes, cruise_kts, min_runway_ft, simbrief_type, ceiling_ft, oxygen, max_xwind_kts, ifr_capable)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(
       name, optStr(b.livery) ?? "", color, optStr(b.icon) ?? "builtin:twin-piston", optStr(b.notes) ?? "",
       cruiseKts(b.cruise_kts), minRunwayFt(b.min_runway_ft), simbriefType(b.simbrief_type),
+      ceilingFt(b.ceiling_ft), bool(b.oxygen, 0), maxXwind(b.max_xwind_kts), bool(b.ifr_capable, 1),
     );
   res.status(201).json(requireAircraft(Number(r.lastInsertRowid)));
 }));
@@ -179,7 +229,8 @@ api.put("/aircraft/:id", wrap((req, res) => {
   if (!name) throw new HttpError(400, "name is required");
   const color = b.color === undefined ? cur.color : optStr(b.color) ?? cur.color;
   if (!COLOR_RE.test(color)) throw new HttpError(400, "color must be #rrggbb");
-  db.prepare(`UPDATE aircraft SET name=?, livery=?, color=?, icon=?, notes=?, visible=?, cruise_kts=?, min_runway_ft=?, simbrief_type=? WHERE id=?`).run(
+  db.prepare(`UPDATE aircraft SET name=?, livery=?, color=?, icon=?, notes=?, visible=?, cruise_kts=?, min_runway_ft=?, simbrief_type=?,
+                ceiling_ft=?, oxygen=?, max_xwind_kts=?, ifr_capable=? WHERE id=?`).run(
     name,
     b.livery === undefined ? cur.livery : optStr(b.livery) ?? "",
     color,
@@ -189,6 +240,10 @@ api.put("/aircraft/:id", wrap((req, res) => {
     b.cruise_kts === undefined ? cur.cruise_kts : cruiseKts(b.cruise_kts),
     b.min_runway_ft === undefined ? cur.min_runway_ft : minRunwayFt(b.min_runway_ft),
     b.simbrief_type === undefined ? cur.simbrief_type : simbriefType(b.simbrief_type),
+    b.ceiling_ft === undefined ? cur.ceiling_ft : ceilingFt(b.ceiling_ft),
+    bool(b.oxygen, cur.oxygen),
+    b.max_xwind_kts === undefined ? cur.max_xwind_kts : maxXwind(b.max_xwind_kts),
+    bool(b.ifr_capable, cur.ifr_capable),
     id,
   );
   res.json(requireAircraft(id));
@@ -387,12 +442,14 @@ api.get("/plan", wrap((req, res) => {
   const minRunway = req.query.min_runway_ft === undefined ? aircraft.min_runway_ft : minRunwayFt(req.query.min_runway_ft);
   const rangeNm = (aircraft.cruise_kts * maxMinutes) / 60;
   const limit = Math.min(20000, Math.max(1, Number(req.query.limit ?? 5000) || 5000));
+  const elevation = maxFieldElevation(aircraft);
 
   const { candidates, total } = planCandidates(origin, {
     rangeNm,
     types,
     pavedOnly: req.query.paved === "1",
     minRunwayFt: minRunway,
+    maxElevationFt: elevation.max_elevation_ft,
     limit,
   });
 
@@ -404,6 +461,7 @@ api.get("/plan", wrap((req, res) => {
     min_runway_ft: minRunway,
     paved_only: req.query.paved === "1",
     types,
+    ...elevation,
     origin: attachRunways([origin])[0],
     total,
     truncated: total > candidates.length,
@@ -411,6 +469,33 @@ api.get("/plan", wrap((req, res) => {
     shown_nm: candidates.length ? candidates[candidates.length - 1].distance_nm : 0,
     candidates: candidates.map((c) => ({ ...c, est_minutes: Math.round((c.distance_nm / aircraft.cruise_kts!) * 60) })),
   });
+}));
+
+// ---------- weather hazards & terrain ----------
+
+/** Current G-AIRMET / SIGMET hazard areas (icing, turbulence, IFR, convective...), cached 10 min. */
+api.get("/hazards", wrap(async (_req, res) => res.json(await currentHazards())));
+
+/**
+ * Terrain along a leg: GET /api/terrain?from=lat,lon&to=lat,lon[&n=24]
+ * Returns samples, the highest point, and a suggested minimum en-route altitude.
+ */
+api.get("/terrain", wrap(async (req, res) => {
+  const parse = (v: unknown, label: string): [number, number] => {
+    const m = /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/.exec(String(v ?? ""));
+    if (!m) throw new HttpError(400, `${label} must be lat,lon`);
+    const lat = Number(m[1]), lon = Number(m[2]);
+    if (Math.abs(lat) > 90 || Math.abs(lon) > 180) throw new HttpError(400, `${label} out of range`);
+    return [lat, lon];
+  };
+  const from = parse(req.query.from, "from");
+  const to = parse(req.query.to, "to");
+  const n = Math.min(99, Math.max(4, Number(req.query.n ?? 24) || 24));
+  const profile = await terrainAlong(from, to, n);
+  // 1,000 ft clearance over flat country, 2,000 ft where the terrain is high (FAR 91.177 style).
+  const clearance = profile.max_ft > 5000 ? 2000 : 1000;
+  const minAlt = Math.ceil((profile.max_ft + clearance) / 500) * 500;
+  res.json({ ...profile, clearance_ft: clearance, min_altitude_ft: minAlt, oxygen_altitude_ft: OXYGEN_ALTITUDE_FT });
 }));
 
 // ---------- whole-map state ----------
