@@ -148,7 +148,7 @@ export function Planner({ state, plan, selectedId, onPlan, onPick, onFocus, onEd
         <div className="two">
           <label>
             <span>Max flight time, min</span>
-            <input type="number" min={1} step={5} value={minutes} onChange={(e) => setMinutes(e.target.value)} />
+            <input type="number" min={1} step={1} value={minutes} onChange={(e) => setMinutes(e.target.value)} />
             <div className="quick">
               {QUICK_MINUTES.map((m) => (
                 <button type="button" key={m} className={`chip${Number(minutes) === m ? " on" : ""}`} onClick={() => setMinutes(String(m))}>

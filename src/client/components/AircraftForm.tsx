@@ -170,7 +170,7 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
           <span>
             Min runway, ft <em>(optional filter)</em>
           </span>
-          <input type="number" min={0} step={100} value={minRunway} onChange={(e) => setMinRunway(e.target.value)} placeholder="e.g. 3000" />
+          <input type="number" min={0} step={1} value={minRunway} onChange={(e) => setMinRunway(e.target.value)} placeholder="e.g. 3000" />
         </label>
       </div>
 
