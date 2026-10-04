@@ -599,11 +599,21 @@ button.icon:hover:not(:disabled) {
   filter: drop-shadow(0 1px 1px #000a);
 }
 
-.plane-head img {
+/* Leaflet's own stylesheet forces `width: auto` on any <img> inside the marker pane,
+   so this selector is deliberately more specific than `.leaflet-container .leaflet-marker-pane img`. */
+.plane-head img,
+.leaflet-container .leaflet-marker-pane .plane-head img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
+  max-width: none;
   object-fit: cover;
   display: block;
+}
+
+.plane-head {
+  position: relative;
 }
 
 .plane-head.small {

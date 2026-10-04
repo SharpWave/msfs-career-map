@@ -75,7 +75,7 @@ export function iconInnerHtml(a: Pick<Aircraft, "icon" | "name">): string {
   if (a.icon.startsWith("builtin:")) return builtinSvg(a.icon.slice("builtin:".length));
   const src = a.icon.replace(/"/g, "&quot;");
   const alt = a.name.replace(/"/g, "&quot;");
-  return `<img src="${src}" alt="${alt}" loading="lazy" />`;
+  return `<img src="${src}" alt="${alt}" />`;
 }
 
 /** Full HTML for the map "head" marker showing where an aircraft currently sits. */
