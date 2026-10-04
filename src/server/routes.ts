@@ -17,6 +17,7 @@ import {
   wikiSummary,
   type AirportFull,
 } from "./airports.ts";
+import { simbriefAircraftTypes } from "./simbrief.ts";
 
 export const api = Router();
 
@@ -348,6 +349,11 @@ api.put("/aircraft/:id/hops/order", wrap((req, res) => {
   }
   res.json(hopsForAircraft.all(aircraftId));
 }));
+
+// ---------- SimBrief ----------
+
+/** SimBrief's aircraft type list (ICAO designator + name), cached daily. */
+api.get("/simbrief/aircraft", wrap(async (_req, res) => res.json(await simbriefAircraftTypes())));
 
 // ---------- planner ----------
 

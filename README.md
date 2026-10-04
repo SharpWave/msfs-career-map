@@ -60,8 +60,9 @@ npm start       # serves API + client on http://localhost:3080
   current METARs for the large and medium airports in range are fetched in batches and their
   dot rings turn green/blue/red/magenta for VFR/MVFR/IFR/LIFR as they arrive (only reports under
   90 minutes old count; METARs are reused for five minutes between searches).
-- **SimBrief**: give an aircraft its ICAO type designator (the aircraft form suggests common ones,
-  e.g. `AEST`, `PA24`, `TBM8`) and every planner candidate gets a SimBrief link, in the popup and
+- **SimBrief**: give an aircraft its ICAO type designator (the aircraft form offers SimBrief's own
+  list of about 200 profiles, searchable by code or name, refreshed daily) and every planner
+  candidate gets a SimBrief link, in the popup and
   as the **SB** button in the list, that opens SimBrief's dispatch page with origin, destination,
   aircraft type and registration already filled in.
 - **Airport details**: click any airport dot (visited or planner candidate) for a popup with its
@@ -98,6 +99,7 @@ All JSON, under `/api`:
 | GET | `/airports/:code/wiki` | Cached Wikipedia summary (title, extract, lead image) |
 | GET | `/metar/:icao` | Latest METAR from aviationweather.gov, decoded |
 | GET | `/metars?ids=A,B,C` | Same for up to 500 stations at once (unreported ones are null) |
+| GET | `/simbrief/aircraft` | SimBrief's aircraft type list, cached daily |
 | GET | `/plan?aircraft_id=&max_minutes=` | Airports in range of where the aircraft is parked; optional `types=`, `paved=1`, `min_runway_ft=`, `from=`, `limit=` |
 | GET/POST | `/aircraft` | List / create |
 | PUT/DELETE | `/aircraft/:id` | Update / delete (deletes its hops) |

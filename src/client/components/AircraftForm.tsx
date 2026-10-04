@@ -1,8 +1,23 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api";
 import { BUILTIN_ICONS, BUILTIN_KEYS, PALETTE, builtinSvg, iconInnerHtml, nextColor } from "../icons";
 import { COMMON_TYPES } from "../simbrief";
 import type { Aircraft } from "../types";
+
+/** SimBrief's full aircraft list, fetched once per page load and shared by every form instance. */
+let typeListPromise: Promise<[string, string][]> | null = null;
+function loadSimbriefTypes(): Promise<[string, string][]> {
+  if (!typeListPromise) {
+    typeListPromise = api
+      .simbriefTypes()
+      .then((r) => r.types.map((t) => [t.id, t.name] as [string, string]))
+      .catch(() => {
+        typeListPromise = null;
+        return COMMON_TYPES;
+      });
+  }
+  return typeListPromise;
+}
 
 interface Props {
   initial?: Aircraft;
@@ -23,7 +38,18 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
   const [cruise, setCruise] = useState(initial?.cruise_kts?.toString() ?? "");
   const [minRunway, setMinRunway] = useState(initial?.min_runway_ft?.toString() ?? "");
   const [simbriefType, setSimbriefType] = useState(initial?.simbrief_type ?? "");
+  const [typeList, setTypeList] = useState<[string, string][]>(COMMON_TYPES);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadSimbriefTypes().then((l) => !cancelled && setTypeList(l));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const typeName = typeList.find(([code]) => code === simbriefType.trim().toUpperCase())?.[1];
   const [error, setError] = useState<string | null>(null);
 
   const chooseFile = (file: File | undefined) => {
@@ -193,12 +219,15 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
           spellCheck={false}
         />
         <datalist id="simbrief-types">
-          {COMMON_TYPES.map(([code, label]) => (
+          {typeList.map(([code, label]) => (
             <option key={code} value={code}>
               {label}
             </option>
           ))}
         </datalist>
+        <div className={`hint${simbriefType && !typeName ? " bad" : ""}`}>
+          {typeName ?? (simbriefType ? "Not in SimBrief's list (it may still accept it)" : `${typeList.length} types; type a code or name to search`)}
+        </div>
       </label>
 
       <label>

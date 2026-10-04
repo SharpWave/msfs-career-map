@@ -34,6 +34,9 @@ export const api = {
   reorderHops: (aircraftId: number, ids: number[]) =>
     req<Hop[]>("PUT", `/api/aircraft/${aircraftId}/hops/order`, { ids }),
 
+  simbriefTypes: () =>
+    req<{ types: { id: string; name: string }[]; source: string; fetched_at: string | null }>("GET", "/api/simbrief/aircraft"),
+
   plan: (q: PlanQuery) => {
     const p = new URLSearchParams({
       aircraft_id: String(q.aircraft_id),

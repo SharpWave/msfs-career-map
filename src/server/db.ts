@@ -66,6 +66,13 @@ CREATE TABLE IF NOT EXISTS airport_rwy (
   lighted       INTEGER NOT NULL DEFAULT 0
 );
 
+-- Small key/value cache for fetched reference data (e.g. SimBrief's aircraft list).
+CREATE TABLE IF NOT EXISTS kv_cache (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL,
+  fetched_at TEXT NOT NULL
+);
+
 -- Cached Wikipedia page summaries, keyed by airport ident.
 CREATE TABLE IF NOT EXISTS wiki_cache (
   ident      TEXT PRIMARY KEY,
