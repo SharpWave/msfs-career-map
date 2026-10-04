@@ -132,6 +132,29 @@ export function buildRenderData(state: AppState | null): RenderData {
   return { hops, nodes, heads };
 }
 
+/**
+ * Longitude shift (a multiple of 360) that puts planner results on the same world copy as the
+ * planning aircraft's path. Zero unless the plan starts where that aircraft is parked and its
+ * chain was unwrapped across the antimeridian.
+ */
+export function planLonShift(data: RenderData, plan: { aircraft_id: number; origin: { ident: string; lon: number } }): number {
+  const head = data.heads.find((h) => h.aircraft.id === plan.aircraft_id);
+  if (!head || head.airport.ident !== plan.origin.ident) return 0;
+  return Math.round((head.pos[1] - plan.origin.lon) / 360) * 360;
+}
+
+/** Bounding box (SW, NE) of a plan's range ring, on the right world copy. Used for zoom-to-fit. */
+export function planBounds(data: RenderData, plan: { aircraft_id: number; range_nm: number; origin: { ident: string; lat: number; lon: number } }): LatLng[] {
+  const shift = planLonShift(data, plan);
+  const dLat = plan.range_nm / 60;
+  const dLon = plan.range_nm / (60 * Math.max(0.05, Math.cos((plan.origin.lat * Math.PI) / 180)));
+  const lon = plan.origin.lon + shift;
+  return [
+    [Math.max(-85, plan.origin.lat - dLat), lon - dLon],
+    [Math.min(85, plan.origin.lat + dLat), lon + dLon],
+  ];
+}
+
 /** Every rendered coordinate, optionally limited to one aircraft or one hop. Used for zoom-to-fit. */
 export function focusPoints(data: RenderData, filter?: { aircraftId?: number; hopId?: number }): LatLng[] {
   const pts: LatLng[] = [];

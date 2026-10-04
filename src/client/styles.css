@@ -835,3 +835,198 @@ button.icon:hover:not(:disabled) {
 .leaflet-control-attribution a {
   color: var(--muted) !important;
 }
+
+/* ---------- runway info (tooltips) ---------- */
+
+.rwy-info {
+  margin-top: 3px;
+}
+
+.rwy-list {
+  list-style: none;
+  margin: 3px 0 0;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.surf {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  background: #94a3b8;
+  box-shadow: 0 0 0 1px #0008;
+}
+
+.surf-paved { background: #7dd3fc; }
+.surf-grass { background: #86efac; }
+.surf-gravel { background: #fbbf24; }
+.surf-dirt { background: #f59e0b; }
+.surf-water { background: #60a5fa; }
+.surf-snow { background: #e0f2fe; }
+
+.tip-hint {
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--accent);
+}
+
+/* ---------- planner ---------- */
+
+.planner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notice {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+}
+
+button.link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  text-decoration: underline;
+  font-size: inherit;
+}
+
+button.link:hover:not(:disabled) {
+  background: none;
+}
+
+.quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.chip {
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 999px;
+}
+
+.chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #15100c;
+  font-weight: 650;
+}
+
+.type-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+label.check input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+label.check span {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.plan-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.plan-summary {
+  font-size: 13px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.legend i {
+  margin-right: 4px;
+}
+
+.cand-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.cand-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 7px;
+}
+
+.cand-list li:hover {
+  background: var(--panel-3);
+}
+
+.cand-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: none;
+  border: none;
+  padding: 5px 7px;
+  text-align: left;
+  color: inherit;
+  min-width: 0;
+}
+
+.cand-main:hover {
+  background: none !important;
+}
+
+.cand-main .line1 {
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cand-main .line2,
+.cand-main .line3 {
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cand-list .use {
+  margin-right: 4px;
+  flex: none;
+}

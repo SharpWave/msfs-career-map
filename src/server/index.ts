@@ -2,13 +2,13 @@ import express from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { ROOT, IMAGES_DIR, DB_PATH } from "./db.ts";
-import { ensureAirports } from "./airports.ts";
+import { ensureReferenceData } from "./airports.ts";
 import { api } from "./routes.ts";
 
 const PORT = Number(process.env.PORT ?? 3080);
 
 async function main() {
-  await ensureAirports();
+  await ensureReferenceData();
 
   const app = express();
   app.use(express.json({ limit: "8mb" }));

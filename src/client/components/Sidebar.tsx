@@ -2,9 +2,10 @@ import { useState } from "react";
 import { api } from "../api";
 import { fmtDuration, fmtTimeShort, hopDurationMin } from "../format";
 import { iconInnerHtml } from "../icons";
-import type { Aircraft, AppState, Hop } from "../types";
+import type { Aircraft, AppState, Hop, PlanCandidate, PlanResult } from "../types";
 import { AircraftForm } from "./AircraftForm";
-import { HopForm } from "./HopForm";
+import { HopForm, type HopPreset } from "./HopForm";
+import { Planner } from "./Planner";
 
 interface Props {
   state: AppState;
@@ -12,11 +13,19 @@ interface Props {
   onSelect: (id: number | null) => void;
   onFocusHop: (hop: Hop) => void;
   reload: () => Promise<void>;
+  plan: PlanResult | null;
+  onPlan: (p: PlanResult | null) => void;
+  onPickCandidate: (c: PlanCandidate) => void;
+  onFocusCandidate: (c: PlanCandidate) => void;
+  hopPreset: HopPreset | null;
+  onHopLogged: () => void;
 }
 
-export function Sidebar({ state, selectedId, onSelect, onFocusHop, reload }: Props) {
+export function Sidebar(p: Props) {
+  const { state, selectedId, onSelect, onFocusHop, reload } = p;
   const [aircraftForm, setAircraftForm] = useState<"new" | number | null>(null);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [plannerOpen, setPlannerOpen] = useState(true);
 
   const toggleExpanded = (id: number) =>
     setExpanded((s) => {
@@ -36,13 +45,46 @@ export function Sidebar({ state, selectedId, onSelect, onFocusHop, reload }: Pro
           Career Map
         </h1>
         <div className="muted small">
-          {state.aircraft.length} aircraft · {state.hops.length} hops · {state.airportCount.toLocaleString()} airports loaded
+          {state.aircraft.length} aircraft · {state.hops.length} hops · {state.airportCount.toLocaleString()} airports ·{" "}
+          {state.runwayCount.toLocaleString()} runways
         </div>
       </header>
 
       <section className="card">
         <h2>Log a hop</h2>
-        <HopForm aircraft={state.aircraft} hops={state.hops} defaultAircraftId={selectedId} onSaved={reload} />
+        <HopForm
+          aircraft={state.aircraft}
+          hops={state.hops}
+          defaultAircraftId={selectedId}
+          preset={p.hopPreset}
+          onSaved={async () => {
+            await reload();
+            p.onHopLogged();
+          }}
+        />
+      </section>
+
+      <section className="card">
+        <div className="row">
+          <h2>Plan next hop</h2>
+          <button type="button" className="icon" onClick={() => setPlannerOpen((o) => !o)} title={plannerOpen ? "Collapse" : "Expand"}>
+            {plannerOpen ? "▾" : "▸"}
+          </button>
+        </div>
+        {plannerOpen && (
+          <Planner
+            state={state}
+            plan={p.plan}
+            selectedId={selectedId}
+            onPlan={p.onPlan}
+            onPick={p.onPickCandidate}
+            onFocus={p.onFocusCandidate}
+            onEditAircraft={(id) => {
+              setAircraftForm(id);
+              document.getElementById(`aircraft-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          />
+        )}
       </section>
 
       <section className="fleet">
@@ -150,7 +192,11 @@ function AircraftCard(p: CardProps) {
   };
 
   return (
-    <div className={`aircraft-card${p.selected ? " selected" : ""}${a.visible ? "" : " hidden"}`} style={{ "--c": a.color } as React.CSSProperties}>
+    <div
+      id={`aircraft-${a.id}`}
+      className={`aircraft-card${p.selected ? " selected" : ""}${a.visible ? "" : " hidden"}`}
+      style={{ "--c": a.color } as React.CSSProperties}
+    >
       <div className="card-head">
         <button type="button" className="badge-btn" onClick={p.onSelect} title="Highlight on map">
           <span className="plane-head small" dangerouslySetInnerHTML={{ __html: iconInnerHtml(a) }} />
@@ -166,6 +212,7 @@ function AircraftCard(p: CardProps) {
             ) : (
               <span className="muted">no hops yet</span>
             )}
+            {a.cruise_kts && <span>{a.cruise_kts} kts</span>}
           </div>
         </button>
         <div className="card-actions">

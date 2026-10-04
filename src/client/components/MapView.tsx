@@ -1,11 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import L from "leaflet";
-import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from "react-leaflet";
+import { Circle, CircleMarker, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { bearing, type LatLng } from "../geo";
-import { aircraftLabel, fmtDateTime, fmtDuration, hopDurationMin } from "../format";
+import { aircraftLabel, airportWhere, fmtDateTime, fmtDuration, fmtNm, hopDurationMin } from "../format";
 import { headMarkerHtml } from "../icons";
-import type { AirportNode, RenderData, RenderHop } from "../paths";
-import type { Aircraft } from "../types";
+import { planLonShift, type AirportNode, type RenderData, type RenderHop } from "../paths";
+import type { Aircraft, PlanCandidate, PlanResult } from "../types";
+import { RunwayInfo } from "./RunwayInfo";
 
 export type Basemap = "dark" | "light" | "satellite";
 
@@ -38,6 +39,35 @@ const TILES: Record<Basemap, TileSpec> = {
   },
 };
 
+export const SURFACE_COLORS: Record<string, string> = {
+  paved: "#7dd3fc",
+  grass: "#86efac",
+  gravel: "#fbbf24",
+  dirt: "#f59e0b",
+  water: "#60a5fa",
+  snow: "#e0f2fe",
+  unknown: "#94a3b8",
+};
+
+function candidateColor(c: PlanCandidate): string {
+  const classes = (c.rwy_surfaces ?? "").split(",").filter(Boolean);
+  if (classes.includes("paved")) return SURFACE_COLORS.paved;
+  return SURFACE_COLORS[classes[0] ?? "unknown"] ?? SURFACE_COLORS.unknown;
+}
+
+function candidateRadius(type: string): number {
+  switch (type) {
+    case "large_airport":
+      return 8;
+    case "medium_airport":
+      return 6;
+    case "small_airport":
+      return 4.5;
+    default:
+      return 3.5;
+  }
+}
+
 export interface Focus {
   key: number;
   points: LatLng[];
@@ -50,12 +80,17 @@ interface Props {
   onSelect: (id: number | null) => void;
   focus: Focus | null;
   basemap: Basemap;
+  plan: PlanResult | null;
+  onPickCandidate: (c: PlanCandidate) => void;
 }
 
-export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap }: Props) {
+export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap, plan, onPickCandidate }: Props) {
   const { hops, nodes, heads } = data;
   const tiles = TILES[basemap];
   const byId = new Map(aircraft.map((a) => [a.id, a]));
+  const canvas = useMemo(() => L.canvas({ padding: 0.5 }), []);
+  const planShift = plan ? planLonShift(data, plan) : 0;
+  const planAircraft = plan ? byId.get(plan.aircraft_id) : undefined;
 
   return (
     <MapContainer center={[39, -96]} zoom={4} minZoom={2} worldCopyJump className="map" zoomControl={false}>
@@ -63,6 +98,37 @@ export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap }
       {tiles.labels && <TileLayer key={`${basemap}-labels`} url={tiles.labels} maxNativeZoom={tiles.maxZoom} maxZoom={19} zIndex={2} />}
       <FitController focus={focus} />
       <Resizer />
+
+      {/* 0. planner: range ring and reachable airports, under everything else */}
+      {plan && (
+        <Circle
+          center={[plan.origin.lat, plan.origin.lon + planShift]}
+          radius={plan.range_nm * 1852}
+          interactive={false}
+          pathOptions={{ color: planAircraft?.color ?? "#ffffff", weight: 1.5, dashArray: "8 8", opacity: 0.8, fillColor: planAircraft?.color ?? "#ffffff", fillOpacity: 0.05 }}
+        />
+      )}
+      {plan?.candidates.map((c) => (
+        <CircleMarker
+          key={`cand-${c.ident}`}
+          center={[c.lat, c.lon + planShift]}
+          radius={candidateRadius(c.type)}
+          pathOptions={{ renderer: canvas, color: "#05080c", weight: 1, fillColor: candidateColor(c), fillOpacity: 0.9, opacity: 0.9 }}
+          eventHandlers={{ click: () => onPickCandidate(c) }}
+        >
+          <Tooltip direction="top" offset={[0, -6]} className="tip" opacity={1}>
+            <div className="tip-title">
+              {c.ident} · {c.name}
+            </div>
+            {airportWhere(c) && <div className="tip-sub">{airportWhere(c)}</div>}
+            <div className="tip-route">
+              {fmtNm(c.distance_nm)} · ~{fmtDuration(c.est_minutes)} · {Math.round(c.bearing_deg).toString().padStart(3, "0")}°
+            </div>
+            <RunwayInfo airport={c} />
+            <div className="tip-hint">Click to use as the next destination</div>
+          </Tooltip>
+        </CircleMarker>
+      ))}
 
       {/* 1. dark casing under every path so colors pop on any basemap */}
       {hops.map((r) => (
@@ -186,13 +252,14 @@ function HopTip({ r }: { r: RenderHop }) {
 
 function AirportTip({ node }: { node: AirportNode }) {
   const ap = node.airport;
-  const where = [ap.municipality, ap.iso_region?.replace(/^.*-/, ""), ap.iso_country].filter(Boolean).join(", ");
+  const where = airportWhere(ap);
   return (
     <>
       <div className="tip-title">
         {ap.ident} · {ap.name}
       </div>
       {where && <div className="tip-sub">{where}</div>}
+      <RunwayInfo airport={ap} max={3} />
       <ul className="tip-events">
         {node.events.map((ev, i) => (
           <li key={i}>

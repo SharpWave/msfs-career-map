@@ -19,6 +19,8 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
   const [urlText, setUrlText] = useState(initial?.icon.startsWith("http") ? initial.icon : "");
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [cruise, setCruise] = useState(initial?.cruise_kts?.toString() ?? "");
+  const [minRunway, setMinRunway] = useState(initial?.min_runway_ft?.toString() ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,9 +47,21 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
     e.preventDefault();
     setError(null);
     if (!name.trim()) return setError("Name is required.");
+    const cruiseKts = cruise.trim() === "" ? null : Number(cruise);
+    if (cruiseKts !== null && (!Number.isFinite(cruiseKts) || cruiseKts <= 0)) return setError("Cruise speed must be a positive number of knots.");
+    const minRunwayFt = minRunway.trim() === "" ? null : Number(minRunway);
+    if (minRunwayFt !== null && (!Number.isFinite(minRunwayFt) || minRunwayFt < 0)) return setError("Minimum runway must be a number of feet.");
     setBusy(true);
     try {
-      const body = { name: name.trim(), livery: livery.trim(), color, icon, notes: notes.trim() };
+      const body = {
+        name: name.trim(),
+        livery: livery.trim(),
+        color,
+        icon,
+        notes: notes.trim(),
+        cruise_kts: cruiseKts,
+        min_runway_ft: minRunwayFt,
+      };
       const saved = initial ? await api.updateAircraft(initial.id, body) : await api.createAircraft(body);
       if (pendingImage) await api.uploadIcon(saved.id, pendingImage);
       await onSaved();
@@ -142,6 +156,21 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
             onBlur={applyUrl}
             placeholder="https://…/aerostar.png"
           />
+        </label>
+      </div>
+
+      <div className="two">
+        <label>
+          <span>
+            Cruise speed, kts <em>(unlocks the planner)</em>
+          </span>
+          <input type="number" min={1} step={1} value={cruise} onChange={(e) => setCruise(e.target.value)} placeholder="e.g. 190" />
+        </label>
+        <label>
+          <span>
+            Min runway, ft <em>(optional filter)</em>
+          </span>
+          <input type="number" min={0} step={100} value={minRunway} onChange={(e) => setMinRunway(e.target.value)} placeholder="e.g. 3000" />
         </label>
       </div>
 

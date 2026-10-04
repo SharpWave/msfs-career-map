@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
+import { runwaySummary } from "../format";
 import type { Airport } from "../types";
 
 interface Props {
@@ -107,7 +108,8 @@ export function AirportInput({ id, value, onChange, placeholder, autoFocus }: Pr
 
   let hint = " ";
   if (resolved) {
-    hint = resolved.name + (resolved.municipality ? ` · ${resolved.municipality}` : "");
+    const rwy = runwaySummary(resolved);
+    hint = resolved.name + (resolved.municipality ? ` · ${resolved.municipality}` : "") + (rwy ? ` · ${rwy}` : "");
   } else if (lookupFailed && value) {
     hint = "Unknown airport code";
   }

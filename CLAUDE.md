@@ -9,7 +9,12 @@ description, API table and roadmap.
   via `tsx`; schema lives in `src/server/db.ts`.
 - Client is Vite + React 18 + react-leaflet 4. Vite root is `src/client`, build output is `dist/`,
   which the server serves when present.
-- Airport data is the OurAirports CSV, imported into the `airports` table on first run.
+- Airport and runway data are the OurAirports CSVs, imported into `airports` / `runways` on first
+  run. `airport_rwy` is a per-airport summary (longest runway, surfaces, paved/lit flags) rebuilt by
+  every runway import; airport queries LEFT JOIN it. Surface free-text is normalised by
+  `surfaceClass()` in `src/server/airports.ts`.
+- Schema changes to existing tables go through `addColumnIfMissing()` in `src/server/db.ts` so
+  older databases upgrade in place.
 
 ## Commands
 

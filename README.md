@@ -5,8 +5,10 @@ always starts where it last parked, so each one builds its own tour across the m
 draws those tours as big colorful hop-to-hop paths, shows where each plane currently sits, and
 remembers when you landed at or left each airport.
 
-Version 0.5: manual hop logging, editable paths, per-aircraft icons and colors, airport lookup
-by ICAO/IATA/local code. Live flight tracking from the sim is planned (see Roadmap).
+Version 0.6: manual hop logging, editable paths, per-aircraft icons and colors, airport lookup
+by ICAO/IATA/local code, runway data on every airport, and a "next hop" planner that shows which
+airports are within a given flight time of where a plane is parked. Live flight tracking from the
+sim is planned (see Roadmap).
 
 ## Quick start
 
@@ -18,8 +20,8 @@ npm run dev
 ```
 
 Then open http://localhost:5173. On first start the server downloads the
-[OurAirports](https://ourairports.com/data/) airport list (about 12 MB) into `data/airports.csv`
-and imports it into the database. That takes a few seconds once.
+[OurAirports](https://ourairports.com/data/) airport and runway lists (about 20 MB) into `data/`
+and imports them into the database. That takes a few seconds once.
 
 For everyday use without the dev tooling:
 
@@ -43,6 +45,18 @@ npm start       # serves API + client on http://localhost:3080
   aircraft (in the sidebar or on the map) to highlight it and zoom to its path.
 - **Edit**: expand an aircraft card (the `▸ n` button) to see its hops. Each hop can be edited,
   reordered, or deleted. Edit the aircraft itself with the pencil, hide it from the map with the eye.
+- **Runways**: every airport tooltip lists its class (large/medium/small, seaplane base, heliport),
+  elevation, and open runways with length, width, surface and lighting, so you can tell at a glance
+  whether a field suits the plane you're in. Surfaces are grouped into paved, grass, gravel, dirt,
+  water and snow.
+- **Plan next hop**: give an aircraft a **cruise speed** (edit the aircraft), then in the planner
+  choose a maximum flight time. The map draws the range ring around wherever the plane is parked
+  and marks every airport inside it: dot size is the airport class, dot color is the runway
+  surface. Filter by airport type or paved-only. If the aircraft also has a **minimum runway
+  length**, only airports with a runway at least that long are shown. Hover a dot for distance,
+  time and runways; click it (or **Use** in the list) to drop it into the hop form as the next
+  destination. The planner can start from any airport via the **From** box, and
+  `?plan=<aircraft id>&minutes=90` in the URL runs it on page load.
 - **Basemaps**: Dark (Esri), Light (OpenStreetMap), Satellite (Esri imagery). All keyless.
 
 Airport codes accept ICAO idents (`KBOS`), GPS codes, IATA (`BOS`) and US local codes; type a name
@@ -54,8 +68,8 @@ Everything is in `data/` (git-ignored):
 
 | File | Contents |
 | --- | --- |
-| `data/career.db` | SQLite database: aircraft, hops, imported airports |
-| `data/airports.csv` | OurAirports source list, re-importable with `npm run import-airports` |
+| `data/career.db` | SQLite database: aircraft, hops, imported airports and runways |
+| `data/airports.csv`, `data/runways.csv` | OurAirports source lists, re-importable with `npm run import-airports` |
 | `data/images/` | Uploaded aircraft icons |
 
 Back up `career.db` and `images/` and you have everything. Set `CAREER_DB` to use a different
@@ -68,22 +82,24 @@ All JSON, under `/api`:
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/state` | Aircraft, hops, and every airport they reference, in one call |
-| GET | `/airports/search?q=` | Search by code, name or city |
-| GET | `/airports/:code` | Look up one airport by any code |
+| GET | `/airports/search?q=` | Search by code, name or city (includes a runway summary) |
+| GET | `/airports/:code` | Look up one airport by any code, with its runway list |
+| GET | `/plan?aircraft_id=&max_minutes=` | Airports in range of where the aircraft is parked; optional `types=`, `paved=1`, `min_runway_ft=`, `from=`, `limit=` |
 | GET/POST | `/aircraft` | List / create |
 | PUT/DELETE | `/aircraft/:id` | Update / delete (deletes its hops) |
 | POST | `/aircraft/:id/icon` | Upload a custom icon as a base64 data URL |
 | PUT | `/aircraft/:id/hops/order` | Reorder hops: `{ ids: [...] }` |
 | GET/POST | `/hops` | List (`?aircraft_id=`) / create |
 | PUT/DELETE | `/hops/:id` | Update / delete |
-| POST | `/airports/reimport?download=1` | Refresh the airport list |
+| POST | `/airports/reimport?download=1` | Refresh the airport and runway lists |
 
-Timestamps are ISO 8601 UTC; the UI enters and displays them in local time.
+Timestamps are ISO 8601 UTC; the UI enters and displays them in local time. Aircraft carry
+optional `cruise_kts` and `min_runway_ft`; the planner needs the first and honours the second.
 
 ## Project layout
 
 ```
-src/server/   Express API, SQLite schema, airport import (TypeScript via tsx)
+src/server/   Express API, SQLite schema, airport + runway import, planner query (TypeScript via tsx)
 src/client/   Vite + React + Leaflet UI
   paths.ts    turns hops into map geometry (great circles, antimeridian unwrapping)
   icons.ts    built-in aircraft silhouettes and the path color palette

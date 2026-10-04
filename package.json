@@ -1,6 +1,6 @@
 {
   "name": "msfs-career-map",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "description": "Map-centric tracker for a home-spun MSFS 2024 career mode: per-aircraft hop paths, airports and times.",
   "type": "module",

@@ -1,8 +1,19 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import fs from "node:fs";
 import path from "node:path";
-import { db, IMAGES_DIR, airportCount } from "./db.ts";
-import { findAirport, searchAirports, importAirportsCsv, downloadAirportsCsv, type AirportRow } from "./airports.ts";
+import { db, IMAGES_DIR, airportCount, runwayCount } from "./db.ts";
+import {
+  AIRPORT_TYPES,
+  attachRunways,
+  downloadAirportsCsv,
+  downloadRunwaysCsv,
+  findAirport,
+  importAirportsCsv,
+  importRunwaysCsv,
+  planCandidates,
+  searchAirports,
+  type AirportFull,
+} from "./airports.ts";
 
 export const api = Router();
 
@@ -28,11 +39,16 @@ const optStr = (v: unknown): string | null => {
   return s === "" ? null : s;
 };
 
-const optInt = (v: unknown): number | null => {
+const optNum = (v: unknown, label: string): number | null => {
   if (v === undefined || v === null || v === "") return null;
   const n = Number(v);
-  if (!Number.isFinite(n)) throw new HttpError(400, "expected a number");
-  return Math.round(n);
+  if (!Number.isFinite(n)) throw new HttpError(400, `${label}: expected a number`);
+  return n;
+};
+
+const optInt = (v: unknown, label = "value"): number | null => {
+  const n = optNum(v, label);
+  return n === null ? null : Math.round(n);
 };
 
 // ---------- airports ----------
@@ -46,13 +62,17 @@ api.get("/airports/search", wrap((req, res) => {
 api.get("/airports/:code", wrap((req, res) => {
   const a = findAirport(String(req.params.code));
   if (!a) throw new HttpError(404, `airport not found: ${req.params.code}`);
-  res.json(a);
+  res.json(attachRunways([a])[0]);
 }));
 
 api.post("/airports/reimport", wrap(async (req, res) => {
-  if (req.query.download === "1") await downloadAirportsCsv();
-  const n = importAirportsCsv();
-  res.json({ imported: n });
+  if (req.query.download === "1") {
+    await downloadAirportsCsv();
+    await downloadRunwaysCsv();
+  }
+  const airports = importAirportsCsv();
+  const runways = importRunwaysCsv();
+  res.json({ airports, runways });
 }));
 
 // ---------- aircraft ----------
@@ -65,6 +85,8 @@ export interface AircraftRow {
   icon: string;
   notes: string;
   visible: number;
+  cruise_kts: number | null;
+  min_runway_ft: number | null;
   created_at: string;
 }
 
@@ -72,12 +94,24 @@ const aircraftList = db.prepare(`SELECT * FROM aircraft ORDER BY name, livery, i
 const aircraftGet = db.prepare(`SELECT * FROM aircraft WHERE id = ?`);
 
 function requireAircraft(id: number): AircraftRow {
-  const a = aircraftGet.get(id) as AircraftRow | undefined;
+  const a = aircraftGet.get(id) as unknown as AircraftRow | undefined;
   if (!a) throw new HttpError(404, `aircraft ${id} not found`);
   return a;
 }
 
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+
+function cruiseKts(v: unknown): number | null {
+  const n = optNum(v, "cruise speed");
+  if (n !== null && (n <= 0 || n > 2000)) throw new HttpError(400, "cruise speed must be between 1 and 2000 knots");
+  return n;
+}
+
+function minRunwayFt(v: unknown): number | null {
+  const n = optInt(v, "minimum runway");
+  if (n !== null && (n < 0 || n > 30000)) throw new HttpError(400, "minimum runway must be between 0 and 30000 ft");
+  return n === 0 ? null : n;
+}
 
 api.get("/aircraft", wrap((_req, res) => res.json(aircraftList.all())));
 
@@ -87,8 +121,12 @@ api.post("/aircraft", wrap((req, res) => {
   if (!name) throw new HttpError(400, "name is required");
   const color = optStr(b.color) ?? "#ff6b35";
   if (!COLOR_RE.test(color)) throw new HttpError(400, "color must be #rrggbb");
-  const r = db.prepare(`INSERT INTO aircraft (name, livery, color, icon, notes) VALUES (?,?,?,?,?)`)
-    .run(name, optStr(b.livery) ?? "", color, optStr(b.icon) ?? "builtin:twin-piston", optStr(b.notes) ?? "");
+  const r = db
+    .prepare(`INSERT INTO aircraft (name, livery, color, icon, notes, cruise_kts, min_runway_ft) VALUES (?,?,?,?,?,?,?)`)
+    .run(
+      name, optStr(b.livery) ?? "", color, optStr(b.icon) ?? "builtin:twin-piston", optStr(b.notes) ?? "",
+      cruiseKts(b.cruise_kts), minRunwayFt(b.min_runway_ft),
+    );
   res.status(201).json(requireAircraft(Number(r.lastInsertRowid)));
 }));
 
@@ -100,13 +138,15 @@ api.put("/aircraft/:id", wrap((req, res) => {
   if (!name) throw new HttpError(400, "name is required");
   const color = b.color === undefined ? cur.color : optStr(b.color) ?? cur.color;
   if (!COLOR_RE.test(color)) throw new HttpError(400, "color must be #rrggbb");
-  db.prepare(`UPDATE aircraft SET name=?, livery=?, color=?, icon=?, notes=?, visible=? WHERE id=?`).run(
+  db.prepare(`UPDATE aircraft SET name=?, livery=?, color=?, icon=?, notes=?, visible=?, cruise_kts=?, min_runway_ft=? WHERE id=?`).run(
     name,
     b.livery === undefined ? cur.livery : optStr(b.livery) ?? "",
     color,
     b.icon === undefined ? cur.icon : optStr(b.icon) ?? "builtin:twin-piston",
     b.notes === undefined ? cur.notes : optStr(b.notes) ?? "",
     b.visible === undefined ? cur.visible : b.visible ? 1 : 0,
+    b.cruise_kts === undefined ? cur.cruise_kts : cruiseKts(b.cruise_kts),
+    b.min_runway_ft === undefined ? cur.min_runway_ft : minRunwayFt(b.min_runway_ft),
     id,
   );
   res.json(requireAircraft(id));
@@ -158,9 +198,10 @@ export interface HopRow {
 const hopGet = db.prepare(`SELECT * FROM hops WHERE id = ?`);
 const hopsForAircraft = db.prepare(`SELECT * FROM hops WHERE aircraft_id = ? ORDER BY seq, id`);
 const hopsAll = db.prepare(`SELECT * FROM hops ORDER BY aircraft_id, seq, id`);
+const lastHop = db.prepare(`SELECT * FROM hops WHERE aircraft_id = ? ORDER BY seq DESC, id DESC LIMIT 1`);
 
 function requireHop(id: number): HopRow {
-  const h = hopGet.get(id) as HopRow | undefined;
+  const h = hopGet.get(id) as unknown as HopRow | undefined;
   if (!h) throw new HttpError(404, `hop ${id} not found`);
   return h;
 }
@@ -203,7 +244,7 @@ api.post("/hops", wrap((req, res) => {
   const dest = resolveIdent(b.dest, "destination");
   const departed = parseTime(b.departed_at, "departed_at");
   const arrived = parseTime(b.arrived_at, "arrived_at");
-  const duration = optInt(b.duration_min);
+  const duration = optInt(b.duration_min, "duration");
   const seqRow = db.prepare(`SELECT COALESCE(MAX(seq),0)+1 AS s FROM hops WHERE aircraft_id = ?`).get(aircraftId) as { s: number };
   const r = db.prepare(`
     INSERT INTO hops (aircraft_id, seq, origin, dest, departed_at, arrived_at, duration_min, notes)
@@ -219,7 +260,7 @@ api.put("/hops/:id", wrap((req, res) => {
   const dest = b.dest === undefined ? cur.dest : resolveIdent(b.dest, "destination");
   const departed = b.departed_at === undefined ? cur.departed_at : parseTime(b.departed_at, "departed_at");
   const arrived = b.arrived_at === undefined ? cur.arrived_at : parseTime(b.arrived_at, "arrived_at");
-  const duration = b.duration_min === undefined ? cur.duration_min : optInt(b.duration_min);
+  const duration = b.duration_min === undefined ? cur.duration_min : optInt(b.duration_min, "duration");
   const notes = b.notes === undefined ? cur.notes : optStr(b.notes) ?? "";
   let aircraftId = cur.aircraft_id;
   let seq = cur.seq;
@@ -267,26 +308,82 @@ api.put("/aircraft/:id/hops/order", wrap((req, res) => {
   res.json(hopsForAircraft.all(aircraftId));
 }));
 
+// ---------- planner ----------
+
+/**
+ * Airports reachable from where an aircraft is parked.
+ *   GET /api/plan?aircraft_id=1&max_minutes=120[&types=small_airport,medium_airport][&paved=1]
+ *                [&min_runway_ft=2500][&from=KBOS][&limit=1500]
+ */
+api.get("/plan", wrap((req, res) => {
+  const aircraft = requireAircraft(Number(req.query.aircraft_id));
+  if (!aircraft.cruise_kts) throw new HttpError(400, "set a cruise speed on this aircraft to use the planner");
+  const maxMinutes = Number(req.query.max_minutes);
+  if (!Number.isFinite(maxMinutes) || maxMinutes <= 0 || maxMinutes > 24 * 60) {
+    throw new HttpError(400, "max_minutes must be between 1 and 1440");
+  }
+
+  let originIdent = optStr(req.query.from);
+  if (!originIdent) {
+    const last = lastHop.get(aircraft.id) as unknown as HopRow | undefined;
+    if (!last) throw new HttpError(400, "this aircraft has no hops yet; pass ?from=ICAO to plan from a starting airport");
+    originIdent = last.dest;
+  }
+  const origin = findAirport(originIdent);
+  if (!origin) throw new HttpError(400, `unknown airport "${originIdent}"`);
+
+  const typesParam = optStr(req.query.types);
+  const types = typesParam ? typesParam.split(",").map((t) => t.trim()) : ["large_airport", "medium_airport", "small_airport"];
+  const bad = types.filter((t) => !(AIRPORT_TYPES as readonly string[]).includes(t));
+  if (bad.length) throw new HttpError(400, `unknown airport type(s): ${bad.join(", ")}`);
+
+  const minRunway = req.query.min_runway_ft === undefined ? aircraft.min_runway_ft : minRunwayFt(req.query.min_runway_ft);
+  const rangeNm = (aircraft.cruise_kts * maxMinutes) / 60;
+  const limit = Math.min(5000, Math.max(1, Number(req.query.limit ?? 1500) || 1500));
+
+  const { candidates, total } = planCandidates(origin, {
+    rangeNm,
+    types,
+    pavedOnly: req.query.paved === "1",
+    minRunwayFt: minRunway,
+    limit,
+  });
+
+  res.json({
+    aircraft_id: aircraft.id,
+    cruise_kts: aircraft.cruise_kts,
+    max_minutes: maxMinutes,
+    range_nm: rangeNm,
+    min_runway_ft: minRunway,
+    paved_only: req.query.paved === "1",
+    types,
+    origin: attachRunways([origin])[0],
+    total,
+    truncated: total > candidates.length,
+    candidates: candidates.map((c) => ({ ...c, est_minutes: Math.round((c.distance_nm / aircraft.cruise_kts!) * 60) })),
+  });
+}));
+
 // ---------- whole-map state ----------
 
-/** Everything the map needs in one call: aircraft, hops, and every referenced airport. */
+/** Everything the map needs in one call: aircraft, hops, and every referenced airport (with runways). */
 api.get("/state", wrap((_req, res) => {
   const aircraft = aircraftList.all() as unknown as AircraftRow[];
   const hops = hopsAll.all() as unknown as HopRow[];
-  const airports: Record<string, AirportRow> = {};
+  const airports: Record<string, AirportFull> = {};
   for (const h of hops) {
     for (const code of [h.origin, h.dest]) {
       if (!airports[code]) {
         const a = findAirport(code);
-        if (a) airports[code] = a;
+        if (a) airports[code] = attachRunways([a])[0];
       }
     }
   }
-  res.json({ aircraft, hops, airports, airportCount: airportCount() });
+  res.json({ aircraft, hops, airports, airportCount: airportCount(), runwayCount: runwayCount() });
 }));
 
 api.get("/status", wrap((_req, res) => {
-  res.json({ ok: true, airports: airportCount(), version: "0.5.0" });
+  res.json({ ok: true, airports: airportCount(), runways: runwayCount(), version: "0.6.0" });
 }));
 
 // ---------- errors ----------

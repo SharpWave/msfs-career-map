@@ -1,4 +1,4 @@
-import type { Aircraft, AircraftInput, Airport, AppState, Hop, HopInput } from "./types";
+import type { Aircraft, AircraftInput, Airport, AppState, Hop, HopInput, PlanQuery, PlanResult } from "./types";
 
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -29,4 +29,15 @@ export const api = {
   deleteHop: (id: number) => req<void>("DELETE", `/api/hops/${id}`),
   reorderHops: (aircraftId: number, ids: number[]) =>
     req<Hop[]>("PUT", `/api/aircraft/${aircraftId}/hops/order`, { ids }),
+
+  plan: (q: PlanQuery) => {
+    const p = new URLSearchParams({
+      aircraft_id: String(q.aircraft_id),
+      max_minutes: String(q.max_minutes),
+      types: q.types.join(","),
+      paved: q.paved ? "1" : "0",
+    });
+    if (q.from) p.set("from", q.from);
+    return req<PlanResult>("GET", `/api/plan?${p.toString()}`);
+  },
 };

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import type { LatLng } from "./geo";
-import { buildRenderData, focusPoints } from "./paths";
-import type { AppState, Hop } from "./types";
+import { buildRenderData, focusPoints, planBounds, planLonShift } from "./paths";
+import type { AppState, Hop, PlanCandidate, PlanResult } from "./types";
 import { MapView, type Basemap, type Focus } from "./components/MapView";
 import { Sidebar } from "./components/Sidebar";
+import type { HopPreset } from "./components/HopForm";
 
 const BASEMAPS: { key: Basemap; label: string }[] = [
   { key: "dark", label: "Dark" },
@@ -29,7 +30,9 @@ export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [basemap, setBasemapState] = useState<Basemap>(readBasemap);
   const [focus, setFocus] = useState<Focus | null>(null);
-  const focusKey = useRef(0);
+  const [plan, setPlan] = useState<PlanResult | null>(null);
+  const [hopPreset, setHopPreset] = useState<HopPreset | null>(null);
+  const seq = useRef(0);
   const didInitialFit = useRef(false);
 
   const data = useMemo(() => buildRenderData(state), [state]);
@@ -49,7 +52,7 @@ export function App() {
   }, [reload]);
 
   const requestFocus = (points: LatLng[]) => {
-    if (points.length) setFocus({ key: ++focusKey.current, points });
+    if (points.length) setFocus({ key: ++seq.current, points });
   };
 
   useEffect(() => {
@@ -81,14 +84,73 @@ export function App() {
 
   const focusHop = (hop: Hop) => requestFocus(focusPoints(data, { hopId: hop.id }));
 
+  const onPlan = (p: PlanResult | null) => {
+    setPlan(p);
+    if (p) {
+      setSelectedId(p.aircraft_id);
+      requestFocus(planBounds(data, p));
+    }
+  };
+
+  const focusCandidate = (c: PlanCandidate) => {
+    if (!plan) return;
+    requestFocus([[c.lat, c.lon + planLonShift(data, plan)]]);
+  };
+
+  // Auto-run the planner from the URL, e.g. ?plan=1&minutes=90 (handy for bookmarks and testing).
+  const autoPlanned = useRef(false);
+  useEffect(() => {
+    if (!state || autoPlanned.current) return;
+    autoPlanned.current = true;
+    const q = new URLSearchParams(window.location.search);
+    const aircraftId = Number(q.get("plan"));
+    const minutes = Number(q.get("minutes") ?? 90);
+    if (!aircraftId || !minutes) return;
+    api
+      .plan({ aircraft_id: aircraftId, max_minutes: minutes, types: ["large_airport", "medium_airport", "small_airport"], paved: q.get("paved") === "1" })
+      .then(onPlan)
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  const pickCandidate = (c: PlanCandidate) => {
+    if (!plan) return;
+    setHopPreset({ key: ++seq.current, aircraftId: plan.aircraft_id, dest: c.ident });
+    focusCandidate(c);
+  };
+
   return (
     <div className={`app${sidebarOpen ? "" : " collapsed"}`}>
       {state && sidebarOpen && (
-        <Sidebar state={state} selectedId={selectedId} onSelect={select} onFocusHop={focusHop} reload={reload} />
+        <Sidebar
+          state={state}
+          selectedId={selectedId}
+          onSelect={select}
+          onFocusHop={focusHop}
+          reload={reload}
+          plan={plan}
+          onPlan={onPlan}
+          onPickCandidate={pickCandidate}
+          onFocusCandidate={focusCandidate}
+          hopPreset={hopPreset}
+          onHopLogged={() => {
+            setPlan(null);
+            setHopPreset(null);
+          }}
+        />
       )}
       <div className="map-wrap">
         {state ? (
-          <MapView data={data} aircraft={state.aircraft} selectedId={selectedId} onSelect={select} focus={focus} basemap={basemap} />
+          <MapView
+            data={data}
+            aircraft={state.aircraft}
+            selectedId={selectedId}
+            onSelect={select}
+            focus={focus}
+            basemap={basemap}
+            plan={plan}
+            onPickCandidate={pickCandidate}
+          />
         ) : (
           <div className="loading">{error ? "" : "Loading…"}</div>
         )}
@@ -110,6 +172,11 @@ export function App() {
           {selectedId != null && (
             <button type="button" onClick={() => select(null)} title="Show all aircraft at full strength">
               Clear highlight
+            </button>
+          )}
+          {plan && (
+            <button type="button" onClick={() => setPlan(null)} title="Remove the planner results from the map">
+              Clear plan
             </button>
           )}
         </div>

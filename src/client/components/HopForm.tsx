@@ -4,17 +4,25 @@ import { aircraftLabel, isoToLocalInput, localInputToIso } from "../format";
 import type { Aircraft, Hop } from "../types";
 import { AirportInput } from "./AirportInput";
 
+/** A destination handed over from the planner; `key` changes on every pick so repeats still apply. */
+export interface HopPreset {
+  key: number;
+  aircraftId: number;
+  dest: string;
+}
+
 interface Props {
   aircraft: Aircraft[];
   hops: Hop[];
   /** When set, the form edits this hop instead of creating a new one. */
   initial?: Hop;
   defaultAircraftId?: number | null;
+  preset?: HopPreset | null;
   onSaved: () => void | Promise<void>;
   onCancel?: () => void;
 }
 
-export function HopForm({ aircraft, hops, initial, defaultAircraftId, onSaved, onCancel }: Props) {
+export function HopForm({ aircraft, hops, initial, defaultAircraftId, preset, onSaved, onCancel }: Props) {
   const isEdit = !!initial;
 
   /** Where an aircraft is currently parked: the destination of its last hop. */
@@ -45,6 +53,18 @@ export function HopForm({ aircraft, hops, initial, defaultAircraftId, onSaved, o
     if (!isEdit && defaultAircraftId && defaultAircraftId !== aircraftId) changeAircraft(defaultAircraftId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultAircraftId]);
+
+  // The planner picked a destination: switch to that aircraft and fill it in.
+  useEffect(() => {
+    if (isEdit || !preset) return;
+    setAircraftId(preset.aircraftId);
+    setOrigin(lastDest(preset.aircraftId));
+    setDest(preset.dest);
+    setFlash(null);
+    setError(null);
+    document.querySelector(".hop-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset?.key]);
 
   // If the chosen aircraft disappears (deleted), fall back to the first one.
   useEffect(() => {

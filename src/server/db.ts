@@ -9,6 +9,7 @@ export const DATA_DIR = path.join(ROOT, "data");
 export const IMAGES_DIR = path.join(DATA_DIR, "images");
 export const DB_PATH = process.env.CAREER_DB ?? path.join(DATA_DIR, "career.db");
 export const AIRPORTS_CSV = path.join(DATA_DIR, "airports.csv");
+export const RUNWAYS_CSV = path.join(DATA_DIR, "runways.csv");
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(IMAGES_DIR, { recursive: true });
@@ -38,6 +39,32 @@ CREATE INDEX IF NOT EXISTS airports_icao  ON airports(icao_code);
 CREATE INDEX IF NOT EXISTS airports_gps   ON airports(gps_code);
 CREATE INDEX IF NOT EXISTS airports_iata  ON airports(iata_code);
 CREATE INDEX IF NOT EXISTS airports_local ON airports(local_code);
+CREATE INDEX IF NOT EXISTS airports_lat   ON airports(lat);
+
+CREATE TABLE IF NOT EXISTS runways (
+  id            INTEGER PRIMARY KEY,
+  airport_ident TEXT NOT NULL,
+  length_ft     INTEGER,
+  width_ft      INTEGER,
+  surface       TEXT,
+  surface_class TEXT NOT NULL,
+  lighted       INTEGER NOT NULL DEFAULT 0,
+  closed        INTEGER NOT NULL DEFAULT 0,
+  le_ident      TEXT,
+  he_ident      TEXT
+);
+CREATE INDEX IF NOT EXISTS runways_airport ON runways(airport_ident);
+
+-- One row per airport summarising its open runways; rebuilt after every runway import.
+CREATE TABLE IF NOT EXISTS airport_rwy (
+  ident         TEXT PRIMARY KEY,
+  max_length_ft INTEGER,
+  max_width_ft  INTEGER,
+  runway_count  INTEGER NOT NULL,
+  surfaces      TEXT,
+  paved         INTEGER NOT NULL DEFAULT 0,
+  lighted       INTEGER NOT NULL DEFAULT 0
+);
 
 CREATE TABLE IF NOT EXISTS aircraft (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,7 +93,20 @@ CREATE TABLE IF NOT EXISTS hops (
 CREATE INDEX IF NOT EXISTS hops_aircraft ON hops(aircraft_id, seq);
 `);
 
+/** Additive migrations for databases created by earlier versions. */
+function addColumnIfMissing(table: string, column: string, ddl: string) {
+  const cols = (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name);
+  if (!cols.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+}
+addColumnIfMissing("aircraft", "cruise_kts", "REAL");
+addColumnIfMissing("aircraft", "min_runway_ft", "INTEGER");
+
 export function airportCount(): number {
   const row = db.prepare("SELECT COUNT(*) AS n FROM airports").get() as { n: number };
+  return row.n;
+}
+
+export function runwayCount(): number {
+  const row = db.prepare("SELECT COUNT(*) AS n FROM runways").get() as { n: number };
   return row.n;
 }
