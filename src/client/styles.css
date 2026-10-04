@@ -861,12 +861,12 @@ button.icon:hover:not(:disabled) {
   box-shadow: 0 0 0 1px #0008;
 }
 
-.surf-paved { background: #7dd3fc; }
-.surf-grass { background: #86efac; }
+.surf-paved { background: #111827; box-shadow: 0 0 0 1px #cbd5e1; }
+.surf-grass { background: #bef264; }
 .surf-gravel { background: #fbbf24; }
 .surf-dirt { background: #f59e0b; }
-.surf-water { background: #60a5fa; }
-.surf-snow { background: #e0f2fe; }
+.surf-water { background: #67e8f9; }
+.surf-snow { background: #f8fafc; }
 
 .tip-hint {
   margin-top: 5px;
@@ -1104,7 +1104,7 @@ label.check span {
   height: 10px;
   border-radius: 50%;
   border: 2.5px solid #94a3b8;
-  background: #7dd3fc;
+  background: #111827;
   vertical-align: -1px;
 }
 

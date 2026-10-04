@@ -44,13 +44,17 @@ const TILES: Record<Basemap, TileSpec> = {
   },
 };
 
+/**
+ * Dot fill by runway surface. Chosen to stay clear of the flight-category ring colors
+ * (green/blue/red/magenta): paved is asphalt black, grass a yellowish lime, water cyan.
+ */
 export const SURFACE_COLORS: Record<string, string> = {
-  paved: "#7dd3fc",
-  grass: "#86efac",
+  paved: "#111827",
+  grass: "#bef264",
   gravel: "#fbbf24",
   dirt: "#f59e0b",
-  water: "#60a5fa",
-  snow: "#e0f2fe",
+  water: "#67e8f9",
+  snow: "#f8fafc",
   unknown: "#94a3b8",
 };
 
@@ -68,9 +72,9 @@ function candidateStyle(type: string): { radius: number; color: string; weight: 
     case "medium_airport":
       return { radius: 7.5, color: "#ffffff", weight: 1.5 };
     case "small_airport":
-      return { radius: 4, color: "#05080c", weight: 1 };
+      return { radius: 4, color: "#cbd5e1", weight: 1 };
     default:
-      return { radius: 3, color: "#05080c", weight: 1 };
+      return { radius: 3, color: "#cbd5e1", weight: 1 };
   }
 }
 
