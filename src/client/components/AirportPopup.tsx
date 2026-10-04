@@ -28,7 +28,23 @@ export function AirportPopup({ airport, extra, onUse }: Props) {
   const map = useMap();
   const [wiki, setWiki] = useState<WikiSummary | null | "loading">("loading");
   const [metar, setMetar] = useState<Metar | null | "loading">("loading");
+  const [detail, setDetail] = useState<Airport | null>(null);
   const station = metarStation(airport);
+
+  // Planner candidates arrive without their runway list; fetch it when the popup opens.
+  useEffect(() => {
+    let cancelled = false;
+    setDetail(null);
+    if (!airport.runways && airport.rwy_count > 0) {
+      api
+        .getAirport(airport.ident)
+        .then((a) => !cancelled && setDetail(a))
+        .catch(() => {});
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [airport.ident, airport.runways, airport.rwy_count]);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +85,7 @@ export function AirportPopup({ airport, extra, onUse }: Props) {
         </a>
       )}
 
-      <RunwayInfo airport={airport} max={5} />
+      <RunwayInfo airport={detail ?? airport} max={5} />
       {extra}
 
       {station && (

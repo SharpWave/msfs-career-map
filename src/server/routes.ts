@@ -359,7 +359,7 @@ api.get("/plan", wrap((req, res) => {
 
   const minRunway = req.query.min_runway_ft === undefined ? aircraft.min_runway_ft : minRunwayFt(req.query.min_runway_ft);
   const rangeNm = (aircraft.cruise_kts * maxMinutes) / 60;
-  const limit = Math.min(5000, Math.max(1, Number(req.query.limit ?? 1500) || 1500));
+  const limit = Math.min(20000, Math.max(1, Number(req.query.limit ?? 5000) || 5000));
 
   const { candidates, total } = planCandidates(origin, {
     rangeNm,
@@ -380,6 +380,8 @@ api.get("/plan", wrap((req, res) => {
     origin: attachRunways([origin])[0],
     total,
     truncated: total > candidates.length,
+    /** When truncated: how far out the returned (nearest-first) set actually reaches. */
+    shown_nm: candidates.length ? candidates[candidates.length - 1].distance_nm : 0,
     candidates: candidates.map((c) => ({ ...c, est_minutes: Math.round((c.distance_nm / aircraft.cruise_kts!) * 60) })),
   });
 }));

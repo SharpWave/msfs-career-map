@@ -441,7 +441,8 @@ export interface PlanOptions {
   limit: number;
 }
 
-export interface Candidate extends AirportFull {
+/** A reachable airport. Runway detail is left out to keep big result sets small; the popup fetches it. */
+export interface Candidate extends AirportRow {
   distance_nm: number;
   bearing_deg: number;
 }
@@ -479,13 +480,11 @@ export function planCandidates(origin: AirportRow, o: PlanOptions): { candidates
 
   const rows = db.prepare(`${SELECT} WHERE ${where.join(" AND ")}`).all(...params) as unknown as AirportRow[];
 
-  const inRange: (AirportRow & { distance_nm: number; bearing_deg: number })[] = [];
+  const inRange: Candidate[] = [];
   for (const a of rows) {
     const d = distanceNm(origin.lat, origin.lon, a.lat, a.lon);
     if (d <= o.rangeNm) inRange.push({ ...a, distance_nm: d, bearing_deg: bearingDeg(origin.lat, origin.lon, a.lat, a.lon) });
   }
   inRange.sort((x, y) => x.distance_nm - y.distance_nm);
-  const total = inRange.length;
-  const capped = inRange.slice(0, o.limit);
-  return { candidates: attachRunways(capped), total };
+  return { candidates: inRange.slice(0, o.limit), total: inRange.length };
 }

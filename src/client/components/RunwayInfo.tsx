@@ -1,10 +1,14 @@
-import { airportTypeLabel, fmtFt, surfaceLabel } from "../format";
+import { airportTypeLabel, fmtFt, runwaySummary, surfaceLabel } from "../format";
 import type { Airport, Runway } from "../types";
 
-/** Airport class and runway list for tooltips: "Medium airport · elev 55 ft" then one line per runway. */
+/**
+ * Airport class and runway list for tooltips: "Medium airport · elev 55 ft" then one line per
+ * runway. When only the summary is known (planner candidates), shows that one line instead.
+ */
 export function RunwayInfo({ airport, max = 4 }: { airport: Airport; max?: number }) {
   const rws = (airport.runways ?? []).filter((r) => !r.closed);
   const extra = rws.length - max;
+  const summaryOnly = !airport.runways && airport.rwy_count > 0;
   return (
     <div className="rwy-info">
       <div className="tip-sub">
@@ -12,6 +16,7 @@ export function RunwayInfo({ airport, max = 4 }: { airport: Airport; max?: numbe
         {airport.elevation_ft != null && <> · elev {fmtFt(airport.elevation_ft)}</>}
         {rws.length === 0 && airport.rwy_count === 0 && <> · no runway data</>}
       </div>
+      {summaryOnly && <div className="tip-sub">{runwaySummary(airport)}</div>}
       {rws.length > 0 && (
         <ul className="rwy-list">
           {rws.slice(0, max).map((r, i) => (

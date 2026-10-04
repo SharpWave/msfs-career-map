@@ -1,8 +1,8 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import L from "leaflet";
 import { Circle, CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { bearing, type LatLng } from "../geo";
-import { aircraftLabel, airportWhere, fmtDateTime, fmtDuration, fmtNm, hopDurationMin } from "../format";
+import { aircraftLabel, airportTypeLabel, airportWhere, fmtDateTime, fmtDuration, fmtFt, fmtNm, hopDurationMin, runwaySummary } from "../format";
 import { headMarkerHtml } from "../icons";
 import { planLonShift, type AirportNode, type RenderData, type RenderHop } from "../paths";
 import type { Aircraft, PlanCandidate, PlanResult } from "../types";
@@ -93,9 +93,12 @@ export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap, 
   const { hops, nodes, heads } = data;
   const tiles = TILES[basemap];
   const byId = new Map(aircraft.map((a) => [a.id, a]));
-  const canvas = useMemo(() => L.canvas({ padding: 0.5 }), []);
   const planShift = plan ? planLonShift(data, plan) : 0;
   const planAircraft = plan ? byId.get(plan.aircraft_id) : undefined;
+  const [openCandidate, setOpenCandidate] = useState<PlanCandidate | null>(null);
+
+  // A new plan (or none) closes any candidate popup.
+  useEffect(() => setOpenCandidate(null), [plan]);
 
   return (
     <MapContainer center={[39, -96]} zoom={4} minZoom={2} worldCopyJump className="map" zoomControl={false}>
@@ -113,35 +116,31 @@ export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap, 
           pathOptions={{ color: planAircraft?.color ?? "#ffffff", weight: 1.5, dashArray: "8 8", opacity: 0.8, fillColor: planAircraft?.color ?? "#ffffff", fillOpacity: 0.05 }}
         />
       )}
-      {plan?.candidates.map((c) => {
-        const style = candidateStyle(c.type);
-        const legLine = (
-          <div className="tip-route">
-            {fmtNm(c.distance_nm)} · ~{fmtDuration(c.est_minutes)} · {Math.round(c.bearing_deg).toString().padStart(3, "0")}°
-          </div>
-        );
-        return (
-          <CircleMarker
-            key={`cand-${c.ident}`}
-            center={[c.lat, c.lon + planShift]}
-            radius={style.radius}
-            pathOptions={{ renderer: canvas, color: style.color, weight: style.weight, fillColor: candidateColor(c), fillOpacity: 0.9, opacity: 0.95 }}
-          >
-            <Tooltip direction="top" offset={[0, -style.radius]} className="tip" opacity={1}>
-              <div className="tip-title">
-                {c.ident} · {c.name}
-              </div>
-              {airportWhere(c) && <div className="tip-sub">{airportWhere(c)}</div>}
-              {legLine}
-              <RunwayInfo airport={c} />
-              <div className="tip-hint">Click for photo, weather, links, and to use as the next destination</div>
-            </Tooltip>
-            <Popup className="apop-wrap" maxWidth={360} minWidth={280} offset={[0, -style.radius]}>
-              <AirportPopup airport={c} extra={legLine} onUse={() => onPickCandidate(c)} />
-            </Popup>
-          </CircleMarker>
-        );
-      })}
+      {plan && plan.truncated && (
+        <Circle
+          center={[plan.origin.lat, plan.origin.lon + planShift]}
+          radius={plan.shown_nm * 1852}
+          interactive={false}
+          pathOptions={{ color: "#ffffff", weight: 1, opacity: 0.6, fill: false }}
+        />
+      )}
+      {plan && <CandidateLayer plan={plan} shift={planShift} onClick={setOpenCandidate} />}
+      {plan && openCandidate && (
+        <Popup
+          position={[openCandidate.lat, openCandidate.lon + planShift]}
+          className="apop-wrap"
+          maxWidth={360}
+          minWidth={280}
+          offset={[0, -candidateStyle(openCandidate.type).radius]}
+          eventHandlers={{ remove: () => setOpenCandidate(null) }}
+        >
+          <AirportPopup
+            airport={openCandidate}
+            extra={<div className="tip-route">{legLine(openCandidate)}</div>}
+            onUse={() => onPickCandidate(openCandidate)}
+          />
+        </Popup>
+      )}
 
       {/* 1. dark casing under every path so colors pop on any basemap */}
       {hops.map((r) => (
@@ -239,6 +238,59 @@ export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap, 
 
 function isDim(a: Aircraft, selectedId: number | null) {
   return selectedId != null && a.id !== selectedId;
+}
+
+function legLine(c: PlanCandidate): string {
+  return `${fmtNm(c.distance_nm)} · ~${fmtDuration(c.est_minutes)} · ${Math.round(c.bearing_deg).toString().padStart(3, "0")}°`;
+}
+
+const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
+
+/** Hover tooltip for a candidate, as plain HTML so thousands of markers stay cheap. */
+function candidateTooltipHtml(c: PlanCandidate): string {
+  const where = airportWhere(c);
+  const rwy = runwaySummary(c);
+  return (
+    `<div class="tip-title">${esc(c.ident)} · ${esc(c.name)}</div>` +
+    (where ? `<div class="tip-sub">${esc(where)}</div>` : "") +
+    `<div class="tip-route">${esc(legLine(c))}</div>` +
+    `<div class="tip-sub">${esc(airportTypeLabel(c.type))}${c.elevation_ft != null ? ` · elev ${esc(fmtFt(c.elevation_ft))}` : ""}` +
+    `${rwy ? ` · ${esc(rwy)}` : " · no runway data"}</div>` +
+    `<div class="tip-hint">Click for photo, weather, links, and to use as the next destination</div>`
+  );
+}
+
+/**
+ * Planner candidates drawn straight with Leaflet on a canvas: one circle marker per airport with
+ * a lazily-built tooltip. This stays snappy with several thousand airports, where one React
+ * component per marker would not.
+ */
+function CandidateLayer({ plan, shift, onClick }: { plan: PlanResult; shift: number; onClick: (c: PlanCandidate) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    const renderer = L.canvas({ padding: 0.5 });
+    const group = L.layerGroup();
+    for (const c of plan.candidates) {
+      const s = candidateStyle(c.type);
+      const m = L.circleMarker([c.lat, c.lon + shift], {
+        renderer,
+        radius: s.radius,
+        color: s.color,
+        weight: s.weight,
+        fillColor: candidateColor(c),
+        fillOpacity: 0.9,
+        opacity: 0.95,
+      });
+      m.bindTooltip(candidateTooltipHtml(c), { direction: "top", offset: [0, -s.radius], className: "tip", opacity: 1 });
+      m.on("click", () => onClick(c));
+      group.addLayer(m);
+    }
+    group.addTo(map);
+    return () => {
+      group.remove();
+    };
+  }, [plan, shift, map, onClick]);
+  return null;
 }
 
 function HopTip({ r }: { r: RenderHop }) {

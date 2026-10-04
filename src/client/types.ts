@@ -129,8 +129,8 @@ export interface PlanQuery {
   from?: string;
 }
 
+/** A reachable airport. `runways` is absent here; the popup loads it on demand. */
 export interface PlanCandidate extends Airport {
-  runways: Runway[];
   distance_nm: number;
   bearing_deg: number;
   est_minutes: number;
@@ -147,5 +147,7 @@ export interface PlanResult {
   origin: Airport;
   total: number;
   truncated: boolean;
+  /** Distance of the farthest returned candidate; less than range_nm when truncated. */
+  shown_nm: number;
   candidates: PlanCandidate[];
 }

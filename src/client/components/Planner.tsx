@@ -207,7 +207,12 @@ export function Planner({ state, plan, selectedId, onPlan, onPick, onFocus, onEd
               {" "}
               ({fmtDuration(plan.max_minutes)} at {plan.cruise_kts} kts)
             </span>
-            {plan.truncated && <div className="muted small">Showing the nearest {plan.candidates.length.toLocaleString()}. Tighten the filters to see the rest.</div>}
+            {plan.truncated && (
+              <div className="notice small">
+                Too many to show them all: the nearest {plan.candidates.length.toLocaleString()} are drawn, reaching only{" "}
+                <b>{fmtNm(plan.shown_nm)}</b> out (inner ring). Untick small airports, set paved only, or shorten the time to see the full range.
+              </div>
+            )}
           </div>
 
           <div className="legend">
