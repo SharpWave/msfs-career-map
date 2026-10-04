@@ -1,12 +1,16 @@
 import { useEffect, useMemo } from "react";
 import L from "leaflet";
-import { Circle, CircleMarker, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from "react-leaflet";
+import { Circle, CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { bearing, type LatLng } from "../geo";
 import { aircraftLabel, airportWhere, fmtDateTime, fmtDuration, fmtNm, hopDurationMin } from "../format";
 import { headMarkerHtml } from "../icons";
 import { planLonShift, type AirportNode, type RenderData, type RenderHop } from "../paths";
 import type { Aircraft, PlanCandidate, PlanResult } from "../types";
 import { RunwayInfo } from "./RunwayInfo";
+import { AirportPopup } from "./AirportPopup";
+
+/** How strongly everything that is not the highlighted aircraft fades back. */
+const DIM = { path: 0.45, casing: 0.25, head: 0.6, airport: 0.5 };
 
 export type Basemap = "dark" | "light" | "satellite";
 
@@ -55,16 +59,17 @@ function candidateColor(c: PlanCandidate): string {
   return SURFACE_COLORS[classes[0] ?? "unknown"] ?? SURFACE_COLORS.unknown;
 }
 
-function candidateRadius(type: string): number {
+/** Dot size and outline by airport class: big, bright-ringed dots for big airports, small dark-ringed ones for strips. */
+function candidateStyle(type: string): { radius: number; color: string; weight: number } {
   switch (type) {
     case "large_airport":
-      return 8;
+      return { radius: 12, color: "#ffffff", weight: 2.5 };
     case "medium_airport":
-      return 6;
+      return { radius: 7.5, color: "#ffffff", weight: 1.5 };
     case "small_airport":
-      return 4.5;
+      return { radius: 4, color: "#05080c", weight: 1 };
     default:
-      return 3.5;
+      return { radius: 3, color: "#05080c", weight: 1 };
   }
 }
 
@@ -108,27 +113,35 @@ export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap, 
           pathOptions={{ color: planAircraft?.color ?? "#ffffff", weight: 1.5, dashArray: "8 8", opacity: 0.8, fillColor: planAircraft?.color ?? "#ffffff", fillOpacity: 0.05 }}
         />
       )}
-      {plan?.candidates.map((c) => (
-        <CircleMarker
-          key={`cand-${c.ident}`}
-          center={[c.lat, c.lon + planShift]}
-          radius={candidateRadius(c.type)}
-          pathOptions={{ renderer: canvas, color: "#05080c", weight: 1, fillColor: candidateColor(c), fillOpacity: 0.9, opacity: 0.9 }}
-          eventHandlers={{ click: () => onPickCandidate(c) }}
-        >
-          <Tooltip direction="top" offset={[0, -6]} className="tip" opacity={1}>
-            <div className="tip-title">
-              {c.ident} · {c.name}
-            </div>
-            {airportWhere(c) && <div className="tip-sub">{airportWhere(c)}</div>}
-            <div className="tip-route">
-              {fmtNm(c.distance_nm)} · ~{fmtDuration(c.est_minutes)} · {Math.round(c.bearing_deg).toString().padStart(3, "0")}°
-            </div>
-            <RunwayInfo airport={c} />
-            <div className="tip-hint">Click to use as the next destination</div>
-          </Tooltip>
-        </CircleMarker>
-      ))}
+      {plan?.candidates.map((c) => {
+        const style = candidateStyle(c.type);
+        const legLine = (
+          <div className="tip-route">
+            {fmtNm(c.distance_nm)} · ~{fmtDuration(c.est_minutes)} · {Math.round(c.bearing_deg).toString().padStart(3, "0")}°
+          </div>
+        );
+        return (
+          <CircleMarker
+            key={`cand-${c.ident}`}
+            center={[c.lat, c.lon + planShift]}
+            radius={style.radius}
+            pathOptions={{ renderer: canvas, color: style.color, weight: style.weight, fillColor: candidateColor(c), fillOpacity: 0.9, opacity: 0.95 }}
+          >
+            <Tooltip direction="top" offset={[0, -style.radius]} className="tip" opacity={1}>
+              <div className="tip-title">
+                {c.ident} · {c.name}
+              </div>
+              {airportWhere(c) && <div className="tip-sub">{airportWhere(c)}</div>}
+              {legLine}
+              <RunwayInfo airport={c} />
+              <div className="tip-hint">Click for photo, weather, links, and to use as the next destination</div>
+            </Tooltip>
+            <Popup className="apop-wrap" maxWidth={360} minWidth={280} offset={[0, -style.radius]}>
+              <AirportPopup airport={c} extra={legLine} onUse={() => onPickCandidate(c)} />
+            </Popup>
+          </CircleMarker>
+        );
+      })}
 
       {/* 1. dark casing under every path so colors pop on any basemap */}
       {hops.map((r) => (
@@ -136,7 +149,7 @@ export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap, 
           key={`case-${r.hop.id}`}
           positions={r.pts}
           interactive={false}
-          pathOptions={{ color: "#05080c", weight: 9, opacity: isDim(r.aircraft, selectedId) ? 0.1 : 0.45, lineCap: "round", lineJoin: "round" }}
+          pathOptions={{ color: "#05080c", weight: 9, opacity: isDim(r.aircraft, selectedId) ? DIM.casing : 0.45, lineCap: "round", lineJoin: "round" }}
         />
       ))}
 
@@ -145,7 +158,7 @@ export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap, 
         <Polyline
           key={`hop-${r.hop.id}`}
           positions={r.pts}
-          pathOptions={{ color: r.aircraft.color, weight: 5, opacity: isDim(r.aircraft, selectedId) ? 0.18 : 0.95, lineCap: "round", lineJoin: "round" }}
+          pathOptions={{ color: r.aircraft.color, weight: 5, opacity: isDim(r.aircraft, selectedId) ? DIM.path : 0.95, lineCap: "round", lineJoin: "round" }}
           eventHandlers={{ click: () => onSelect(r.aircraft.id) }}
         >
           <Tooltip sticky className="tip" opacity={1}>
@@ -183,11 +196,14 @@ export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap, 
             key={`ap-${n.key}`}
             center={n.pos}
             radius={6}
-            pathOptions={{ color: "#05080c", weight: 2, fillColor: single?.color ?? "#ffffff", fillOpacity: dim ? 0.25 : 1, opacity: dim ? 0.25 : 1 }}
+            pathOptions={{ color: "#05080c", weight: 2, fillColor: single?.color ?? "#ffffff", fillOpacity: dim ? DIM.airport : 1, opacity: dim ? DIM.airport : 1 }}
           >
             <Tooltip direction="top" offset={[0, -8]} className="tip" opacity={1}>
               <AirportTip node={n} />
             </Tooltip>
+            <Popup className="apop-wrap" maxWidth={360} minWidth={280} offset={[0, -6]}>
+              <AirportPopup airport={n.airport} />
+            </Popup>
           </CircleMarker>
         );
       })}
@@ -198,7 +214,7 @@ export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap, 
           key={`head-${a.id}`}
           position={pos}
           zIndexOffset={selectedId === a.id ? 1000 : 0}
-          opacity={isDim(a, selectedId) ? 0.35 : 1}
+          opacity={isDim(a, selectedId) ? DIM.head : 1}
           icon={L.divIcon({
             className: "head-wrap",
             html: headMarkerHtml(a, selectedId === a.id),
@@ -272,6 +288,7 @@ function AirportTip({ node }: { node: AirportNode }) {
         ))}
       </ul>
       {node.parked.length > 0 && <div className="tip-parked">Currently here: {node.parked.map((a) => aircraftLabel(a)).join(", ")}</div>}
+      <div className="tip-hint">Click for photo, weather and links</div>
     </>
   );
 }

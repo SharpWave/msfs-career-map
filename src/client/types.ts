@@ -25,6 +25,8 @@ export interface Airport {
   iata_code: string | null;
   gps_code: string | null;
   local_code: string | null;
+  wikipedia_link: string | null;
+  home_link: string | null;
   /** Longest open runway in feet, null when OurAirports has no runway data. */
   rwy_max_ft: number | null;
   rwy_count: number;
@@ -91,6 +93,31 @@ export interface HopInput {
   arrived_at: string | null;
   duration_min: number | null;
   notes: string;
+}
+
+export interface WikiSummary {
+  title: string | null;
+  extract: string | null;
+  thumbnail: string | null;
+  image: string | null;
+  url: string | null;
+  fetched_at: string;
+}
+
+export interface Metar {
+  icao: string;
+  raw: string;
+  flight_category: string | null;
+  observed_at: string | null;
+  temp_c: number | null;
+  dewpoint_c: number | null;
+  wind_dir: number | string | null;
+  wind_kts: number | null;
+  gust_kts: number | null;
+  visibility: string | null;
+  altimeter_hpa: number | null;
+  clouds: { cover: string; base_ft: number | null }[];
+  station: string | null;
 }
 
 export interface PlanQuery {

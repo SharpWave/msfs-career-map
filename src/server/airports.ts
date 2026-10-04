@@ -82,11 +82,12 @@ export function importAirportsCsv(): number {
     lat: col("latitude_deg"), lon: col("longitude_deg"), elev: col("elevation_ft"),
     country: col("iso_country"), region: col("iso_region"), muni: col("municipality"),
     icao: col("icao_code"), iata: col("iata_code"), gps: col("gps_code"), local: col("local_code"),
+    wiki: col("wikipedia_link"), home: col("home_link"),
   };
   const insert = db.prepare(`
     INSERT OR REPLACE INTO airports
-      (ident,type,name,lat,lon,elevation_ft,iso_country,iso_region,municipality,icao_code,iata_code,gps_code,local_code)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+      (ident,type,name,lat,lon,elevation_ft,iso_country,iso_region,municipality,icao_code,iata_code,gps_code,local_code,wikipedia_link,home_link)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
 
   let n = 0;
   db.exec("BEGIN");
@@ -102,6 +103,7 @@ export function importAirportsCsv(): number {
         r[c.ident], r[c.type], r[c.name], lat, lon, elev,
         r[c.country] || null, r[c.region] || null, r[c.muni] || null,
         r[c.icao] || null, r[c.iata] || null, r[c.gps] || null, r[c.local] || null,
+        r[c.wiki] || null, r[c.home] || null,
       );
       n++;
     }
@@ -218,6 +220,8 @@ export interface AirportRow {
   iata_code: string | null;
   gps_code: string | null;
   local_code: string | null;
+  wikipedia_link: string | null;
+  home_link: string | null;
   /** Longest open runway, feet (null when no runway data). */
   rwy_max_ft: number | null;
   rwy_count: number;
@@ -275,6 +279,140 @@ const runwaysStmt = db.prepare(`
 /** Add each airport's runway list. Cheap enough for a few hundred airports at a time. */
 export function attachRunways<T extends AirportRow>(rows: T[]): (T & { runways: RunwayRow[] })[] {
   return rows.map((r) => ({ ...r, runways: runwaysStmt.all(r.ident) as unknown as RunwayRow[] }));
+}
+
+// ---------------------------------------------------------------- live extras (Wikipedia, METAR)
+
+const USER_AGENT = "MSFSCareerMap/0.6 (personal flight-sim logbook; local use)";
+const WIKI_TTL_MS = 30 * 24 * 3600 * 1000;
+const METAR_TTL_MS = 5 * 60 * 1000;
+
+export interface WikiSummary {
+  title: string | null;
+  extract: string | null;
+  thumbnail: string | null;
+  image: string | null;
+  url: string | null;
+  fetched_at: string;
+}
+
+const wikiGet = db.prepare(`SELECT * FROM wiki_cache WHERE ident = ?`);
+const wikiPut = db.prepare(`
+  INSERT OR REPLACE INTO wiki_cache (ident, title, extract, thumbnail, image, url, fetched_at) VALUES (?,?,?,?,?,?,?)`);
+
+const stripUtm = (u: string | null | undefined): string | null => {
+  if (!u) return null;
+  try {
+    const url = new URL(u);
+    for (const k of [...url.searchParams.keys()]) if (k.startsWith("utm_")) url.searchParams.delete(k);
+    return url.toString();
+  } catch {
+    return u;
+  }
+};
+
+/**
+ * Wikipedia page summary for an airport (title, short extract, lead image), cached in the
+ * database for a month. Returns null when the airport has no Wikipedia link.
+ */
+export async function wikiSummary(airport: AirportRow): Promise<WikiSummary | null> {
+  if (!airport.wikipedia_link) return null;
+  const cached = wikiGet.get(airport.ident) as unknown as WikiSummary | undefined;
+  if (cached && Date.now() - new Date(cached.fetched_at).getTime() < WIKI_TTL_MS) return cached;
+
+  let host: string;
+  let title: string;
+  try {
+    const u = new URL(airport.wikipedia_link);
+    host = u.hostname;
+    title = decodeURIComponent(u.pathname.replace(/^\/wiki\//, ""));
+    if (!/wikipedia\.org$/.test(host) || !title) return null;
+  } catch {
+    return null;
+  }
+
+  const res = await fetch(`https://${host}/api/rest_v1/page/summary/${encodeURIComponent(title)}`, {
+    headers: { "user-agent": USER_AGENT, accept: "application/json" },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) {
+    if (cached) return cached;
+    throw new Error(`wikipedia: ${res.status}`);
+  }
+  const j = (await res.json()) as {
+    title?: string;
+    extract?: string;
+    thumbnail?: { source?: string };
+    originalimage?: { source?: string };
+    content_urls?: { desktop?: { page?: string } };
+  };
+  const row: WikiSummary = {
+    title: j.title ?? null,
+    extract: j.extract ?? null,
+    thumbnail: stripUtm(j.thumbnail?.source),
+    image: stripUtm(j.originalimage?.source),
+    url: j.content_urls?.desktop?.page ?? airport.wikipedia_link,
+    fetched_at: new Date().toISOString(),
+  };
+  wikiPut.run(airport.ident, row.title, row.extract, row.thumbnail, row.image, row.url, row.fetched_at);
+  return row;
+}
+
+export interface Metar {
+  icao: string;
+  raw: string;
+  flight_category: string | null;
+  observed_at: string | null;
+  temp_c: number | null;
+  dewpoint_c: number | null;
+  wind_dir: number | string | null;
+  wind_kts: number | null;
+  gust_kts: number | null;
+  visibility: string | null;
+  altimeter_hpa: number | null;
+  clouds: { cover: string; base_ft: number | null }[];
+  station: string | null;
+}
+
+const metarCache = new Map<string, { at: number; value: Metar | null }>();
+
+/** Latest METAR from aviationweather.gov, cached for five minutes. Null when the station reports nothing. */
+export async function latestMetar(icao: string): Promise<Metar | null> {
+  const id = icao.trim().toUpperCase();
+  const hit = metarCache.get(id);
+  if (hit && Date.now() - hit.at < METAR_TTL_MS) return hit.value;
+
+  const res = await fetch(`https://aviationweather.gov/api/data/metar?ids=${encodeURIComponent(id)}&format=json`, {
+    headers: { "user-agent": USER_AGENT, accept: "application/json" },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`aviationweather.gov: ${res.status}`);
+  // Stations with no report come back as an empty body rather than "[]".
+  const text = (await res.text()).trim();
+  const arr = text ? (JSON.parse(text) as Record<string, unknown>[]) : [];
+  const m = Array.isArray(arr) ? arr[0] : undefined;
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const value: Metar | null = m
+    ? {
+        icao: String(m.icaoId ?? id),
+        raw: String(m.rawOb ?? ""),
+        flight_category: typeof m.fltCat === "string" ? m.fltCat : null,
+        observed_at: typeof m.obsTime === "number" ? new Date(m.obsTime * 1000).toISOString() : null,
+        temp_c: num(m.temp),
+        dewpoint_c: num(m.dewp),
+        wind_dir: typeof m.wdir === "number" || typeof m.wdir === "string" ? m.wdir : null,
+        wind_kts: num(m.wspd),
+        gust_kts: num(m.wgst),
+        visibility: m.visib == null ? null : String(m.visib),
+        altimeter_hpa: num(m.altim),
+        clouds: Array.isArray(m.clouds)
+          ? (m.clouds as { cover?: string; base?: number }[]).map((c) => ({ cover: String(c.cover ?? ""), base_ft: num(c.base) }))
+          : [],
+        station: typeof m.name === "string" ? m.name : null,
+      }
+    : null;
+  metarCache.set(id, { at: Date.now(), value });
+  return value;
 }
 
 // ---------------------------------------------------------------- planner

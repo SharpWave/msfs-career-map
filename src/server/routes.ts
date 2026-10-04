@@ -10,8 +10,10 @@ import {
   findAirport,
   importAirportsCsv,
   importRunwaysCsv,
+  latestMetar,
   planCandidates,
   searchAirports,
+  wikiSummary,
   type AirportFull,
 } from "./airports.ts";
 
@@ -63,6 +65,24 @@ api.get("/airports/:code", wrap((req, res) => {
   const a = findAirport(String(req.params.code));
   if (!a) throw new HttpError(404, `airport not found: ${req.params.code}`);
   res.json(attachRunways([a])[0]);
+}));
+
+/** Wikipedia summary (title, extract, lead image) for an airport; 404 when it has no article. */
+api.get("/airports/:code/wiki", wrap(async (req, res) => {
+  const a = findAirport(String(req.params.code));
+  if (!a) throw new HttpError(404, `airport not found: ${req.params.code}`);
+  const w = await wikiSummary(a);
+  if (!w) throw new HttpError(404, "no Wikipedia article for this airport");
+  res.json(w);
+}));
+
+/** Latest METAR for an ICAO station via aviationweather.gov; 404 when none is reported. */
+api.get("/metar/:icao", wrap(async (req, res) => {
+  const icao = String(req.params.icao).trim().toUpperCase();
+  if (!/^[A-Z0-9]{4}$/.test(icao)) throw new HttpError(400, "METAR lookups need a 4-character ICAO code");
+  const m = await latestMetar(icao);
+  if (!m) throw new HttpError(404, `no current METAR for ${icao}`);
+  res.json(m);
 }));
 
 api.post("/airports/reimport", wrap(async (req, res) => {

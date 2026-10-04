@@ -57,6 +57,10 @@ npm start       # serves API + client on http://localhost:3080
   time and runways; click it (or **Use** in the list) to drop it into the hop form as the next
   destination. The planner can start from any airport via the **From** box, and
   `?plan=<aircraft id>&minutes=90` in the URL runs it on page load.
+- **Airport details**: click any airport dot (visited or planner candidate) for a popup with its
+  Wikipedia lead image and blurb, the live METAR with flight category (via aviationweather.gov),
+  runways, and links to Wikipedia, the official site, SkyVector and the decoded METAR/TAF page.
+  Wikipedia summaries are cached in the database for a month; METARs for five minutes.
 - **Basemaps**: Dark (Esri), Light (OpenStreetMap), Satellite (Esri imagery). All keyless.
 
 Airport codes accept ICAO idents (`KBOS`), GPS codes, IATA (`BOS`) and US local codes; type a name
@@ -84,6 +88,8 @@ All JSON, under `/api`:
 | GET | `/state` | Aircraft, hops, and every airport they reference, in one call |
 | GET | `/airports/search?q=` | Search by code, name or city (includes a runway summary) |
 | GET | `/airports/:code` | Look up one airport by any code, with its runway list |
+| GET | `/airports/:code/wiki` | Cached Wikipedia summary (title, extract, lead image) |
+| GET | `/metar/:icao` | Latest METAR from aviationweather.gov, decoded |
 | GET | `/plan?aircraft_id=&max_minutes=` | Airports in range of where the aircraft is parked; optional `types=`, `paved=1`, `min_runway_ft=`, `from=`, `limit=` |
 | GET/POST | `/aircraft` | List / create |
 | PUT/DELETE | `/aircraft/:id` | Update / delete (deletes its hops) |

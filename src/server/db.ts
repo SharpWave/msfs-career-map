@@ -66,6 +66,17 @@ CREATE TABLE IF NOT EXISTS airport_rwy (
   lighted       INTEGER NOT NULL DEFAULT 0
 );
 
+-- Cached Wikipedia page summaries, keyed by airport ident.
+CREATE TABLE IF NOT EXISTS wiki_cache (
+  ident      TEXT PRIMARY KEY,
+  title      TEXT,
+  extract    TEXT,
+  thumbnail  TEXT,
+  image      TEXT,
+  url        TEXT,
+  fetched_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS aircraft (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   name       TEXT NOT NULL,
@@ -100,6 +111,8 @@ function addColumnIfMissing(table: string, column: string, ddl: string) {
 }
 addColumnIfMissing("aircraft", "cruise_kts", "REAL");
 addColumnIfMissing("aircraft", "min_runway_ft", "INTEGER");
+addColumnIfMissing("airports", "wikipedia_link", "TEXT");
+addColumnIfMissing("airports", "home_link", "TEXT");
 
 export function airportCount(): number {
   const row = db.prepare("SELECT COUNT(*) AS n FROM airports").get() as { n: number };

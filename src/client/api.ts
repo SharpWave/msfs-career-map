@@ -1,4 +1,4 @@
-import type { Aircraft, AircraftInput, Airport, AppState, Hop, HopInput, PlanQuery, PlanResult } from "./types";
+import type { Aircraft, AircraftInput, Airport, AppState, Hop, HopInput, Metar, PlanQuery, PlanResult, WikiSummary } from "./types";
 
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -18,6 +18,8 @@ export const api = {
   searchAirports: (q: string, limit = 10) =>
     req<Airport[]>("GET", `/api/airports/search?q=${encodeURIComponent(q)}&limit=${limit}`),
   getAirport: (code: string) => req<Airport>("GET", `/api/airports/${encodeURIComponent(code)}`),
+  wiki: (code: string) => req<WikiSummary>("GET", `/api/airports/${encodeURIComponent(code)}/wiki`),
+  metar: (icao: string) => req<Metar>("GET", `/api/metar/${encodeURIComponent(icao)}`),
 
   createAircraft: (a: AircraftInput) => req<Aircraft>("POST", "/api/aircraft", a),
   updateAircraft: (id: number, a: Partial<AircraftInput>) => req<Aircraft>("PUT", `/api/aircraft/${id}`, a),
