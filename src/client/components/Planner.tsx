@@ -46,6 +46,7 @@ export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged
   const [types, setTypes] = useState<Set<string>>(() => new Set(["large_airport", "medium_airport", "small_airport"]));
   const [paved, setPaved] = useState(false);
   const [from, setFrom] = useState("");
+  const [cruiseAlt, setCruiseAlt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
@@ -55,12 +56,20 @@ export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged
     if (selectedId && state.aircraft.some((a) => a.id === selectedId)) setAircraftId(selectedId);
   }, [selectedId, state.aircraft]);
 
+  // Switching aircraft resets the cruise-altitude override to that aircraft's typical altitude.
+  useEffect(() => {
+    const a = state.aircraft.find((x) => x.id === aircraftId);
+    setCruiseAlt(a?.cruise_alt_ft ? String(a.cruise_alt_ft) : "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aircraftId]);
+
   // Keep the form in step with a plan that was started elsewhere (URL auto-run).
   useEffect(() => {
     if (!plan) return;
     setMinutes(String(plan.max_minutes));
     setPaved(plan.paved_only);
     setTypes(new Set(plan.types));
+    setCruiseAlt(String(plan.profile.cruise_alt_ft));
     if (state.aircraft.some((a) => a.id === plan.aircraft_id)) setAircraftId(plan.aircraft_id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plan]);
@@ -96,6 +105,8 @@ export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged
     if (!Number.isFinite(m) || m <= 0) return setError("Enter a maximum flight time in minutes.");
     if (types.size === 0) return setError("Pick at least one airport type.");
     if (!parked && !from.trim()) return setError("This aircraft has no hops yet; enter a starting airport.");
+    const alt = cruiseAlt.trim() === "" ? undefined : Number(cruiseAlt);
+    if (alt !== undefined && (!Number.isFinite(alt) || alt < 500)) return setError("Cruise altitude must be at least 500 ft.");
     setBusy(true);
     try {
       const r = await api.plan({
@@ -104,6 +115,7 @@ export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged
         types: [...types],
         paved,
         from: from.trim() || undefined,
+        cruise_alt_ft: alt,
       });
       onPlan(r);
       setFilter("");
@@ -179,6 +191,16 @@ export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged
           </label>
         </div>
 
+        <label>
+          <span>
+            Cruise altitude, ft <em>(for climb/descent time; also sent to SimBrief)</em>
+          </span>
+          <input type="number" min={500} step={500} value={cruiseAlt} onChange={(e) => setCruiseAlt(e.target.value)} placeholder="aircraft default (6,500)" />
+          {aircraft && !aircraft.oxygen && Number(cruiseAlt) > 12000 && (
+            <div className="hint bad">Above 12,000 ft without oxygen or pressurisation.</div>
+          )}
+        </label>
+
         <div className="type-row">
           {TYPE_OPTIONS.map(([t, label]) => (
             <label key={t} className="check">
@@ -230,6 +252,11 @@ export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged
               {" "}
               ({fmtDuration(plan.max_minutes)} at {plan.cruise_kts} kts)
             </span>
+            <div className="muted small" title="Block time = taxi/approach overhead + climb at climb speed + cruise + descent">
+              Block-time model: {plan.profile.overhead_min} min on the ground and in the pattern, climb {plan.profile.climb_fpm} fpm at{" "}
+              {plan.profile.climb_kts} kts to {plan.profile.cruise_alt_ft.toLocaleString()} ft, descend {plan.profile.descent_fpm} fpm. Naive{" "}
+              speed × time would be {fmtNm(plan.naive_range_nm)}.
+            </div>
             {plan.truncated && (
               <div className="notice small">
                 Too many to show them all: the nearest {plan.candidates.length.toLocaleString()} are drawn, reaching only{" "}
@@ -293,7 +320,7 @@ export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged
                 </button>
                 <a
                   className="small sb-btn"
-                  href={simbriefUrl(legFor(plan.origin, c, state.aircraft.find((a) => a.id === plan.aircraft_id)))}
+                  href={simbriefUrl(legFor(plan.origin, c, state.aircraft.find((a) => a.id === plan.aircraft_id), plan.profile.cruise_alt_ft))}
                   target="_blank"
                   rel="noreferrer"
                   title="Start a SimBrief plan for this leg"

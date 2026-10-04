@@ -102,6 +102,11 @@ CREATE TABLE IF NOT EXISTS aircraft (
   oxygen        INTEGER NOT NULL DEFAULT 0,
   max_xwind_kts INTEGER,
   ifr_capable   INTEGER NOT NULL DEFAULT 1,
+  cruise_alt_ft INTEGER,
+  climb_fpm     INTEGER,
+  climb_kts     INTEGER,
+  descent_fpm   INTEGER,
+  overhead_min  INTEGER,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
@@ -133,6 +138,11 @@ addColumnIfMissing("aircraft", "ceiling_ft", "INTEGER");
 addColumnIfMissing("aircraft", "oxygen", "INTEGER NOT NULL DEFAULT 0");
 addColumnIfMissing("aircraft", "max_xwind_kts", "INTEGER");
 addColumnIfMissing("aircraft", "ifr_capable", "INTEGER NOT NULL DEFAULT 1");
+addColumnIfMissing("aircraft", "cruise_alt_ft", "INTEGER");
+addColumnIfMissing("aircraft", "climb_fpm", "INTEGER");
+addColumnIfMissing("aircraft", "climb_kts", "INTEGER");
+addColumnIfMissing("aircraft", "descent_fpm", "INTEGER");
+addColumnIfMissing("aircraft", "overhead_min", "INTEGER");
 addColumnIfMissing("airports", "wikipedia_link", "TEXT");
 addColumnIfMissing("airports", "home_link", "TEXT");
 addColumnIfMissing("runways", "le_heading", "REAL");

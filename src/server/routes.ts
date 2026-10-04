@@ -20,6 +20,7 @@ import {
 import { simbriefAircraftTypes } from "./simbrief.ts";
 import { currentHazards } from "./hazards.ts";
 import { terrainAlong } from "./terrain.ts";
+import { blockMinutes, maxRangeNm, profileFor } from "./performance.ts";
 
 export const api = Router();
 
@@ -132,6 +133,12 @@ export interface AircraftRow {
   max_xwind_kts: number | null;
   /** 0 for VFR-only aircraft (IFR/LIFR destinations are flagged). */
   ifr_capable: number;
+  /** Block-time model inputs; null means use the light-piston defaults. */
+  cruise_alt_ft: number | null;
+  climb_fpm: number | null;
+  climb_kts: number | null;
+  descent_fpm: number | null;
+  overhead_min: number | null;
   created_at: string;
 }
 
@@ -183,6 +190,21 @@ function maxXwind(v: unknown): number | null {
 
 const bool = (v: unknown, fallback: number): number => (v === undefined ? fallback : v ? 1 : 0);
 
+/** Positive integer within [lo, hi], or null when blank/zero. */
+function perfInt(v: unknown, label: string, lo: number, hi: number): number | null {
+  const n = optInt(v, label);
+  if (n === null || n === 0) return null;
+  if (n < lo || n > hi) throw new HttpError(400, `${label} must be between ${lo} and ${hi}`);
+  return n;
+}
+const PERF_FIELDS = [
+  ["cruise_alt_ft", "cruise altitude", 500, 60000],
+  ["climb_fpm", "climb rate", 50, 10000],
+  ["climb_kts", "climb speed", 20, 600],
+  ["descent_fpm", "descent rate", 50, 10000],
+  ["overhead_min", "taxi/approach overhead", 1, 120],
+] as const;
+
 /** Highest field elevation this aircraft can operate from, with the limiting reason. */
 function maxFieldElevation(a: AircraftRow): { max_elevation_ft: number | null; elevation_reason: string | null } {
   let max: number | null = null;
@@ -211,12 +233,14 @@ api.post("/aircraft", wrap((req, res) => {
   if (!COLOR_RE.test(color)) throw new HttpError(400, "color must be #rrggbb");
   const r = db
     .prepare(`INSERT INTO aircraft
-      (name, livery, color, icon, notes, cruise_kts, min_runway_ft, simbrief_type, ceiling_ft, oxygen, max_xwind_kts, ifr_capable)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+      (name, livery, color, icon, notes, cruise_kts, min_runway_ft, simbrief_type, ceiling_ft, oxygen, max_xwind_kts, ifr_capable,
+       cruise_alt_ft, climb_fpm, climb_kts, descent_fpm, overhead_min)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(
       name, optStr(b.livery) ?? "", color, optStr(b.icon) ?? "builtin:twin-piston", optStr(b.notes) ?? "",
       cruiseKts(b.cruise_kts), minRunwayFt(b.min_runway_ft), simbriefType(b.simbrief_type),
       ceilingFt(b.ceiling_ft), bool(b.oxygen, 0), maxXwind(b.max_xwind_kts), bool(b.ifr_capable, 1),
+      ...PERF_FIELDS.map(([k, label, lo, hi]) => perfInt(b[k], label, lo, hi)),
     );
   res.status(201).json(requireAircraft(Number(r.lastInsertRowid)));
 }));
@@ -230,7 +254,8 @@ api.put("/aircraft/:id", wrap((req, res) => {
   const color = b.color === undefined ? cur.color : optStr(b.color) ?? cur.color;
   if (!COLOR_RE.test(color)) throw new HttpError(400, "color must be #rrggbb");
   db.prepare(`UPDATE aircraft SET name=?, livery=?, color=?, icon=?, notes=?, visible=?, cruise_kts=?, min_runway_ft=?, simbrief_type=?,
-                ceiling_ft=?, oxygen=?, max_xwind_kts=?, ifr_capable=? WHERE id=?`).run(
+                ceiling_ft=?, oxygen=?, max_xwind_kts=?, ifr_capable=?,
+                cruise_alt_ft=?, climb_fpm=?, climb_kts=?, descent_fpm=?, overhead_min=? WHERE id=?`).run(
     name,
     b.livery === undefined ? cur.livery : optStr(b.livery) ?? "",
     color,
@@ -244,6 +269,7 @@ api.put("/aircraft/:id", wrap((req, res) => {
     bool(b.oxygen, cur.oxygen),
     b.max_xwind_kts === undefined ? cur.max_xwind_kts : maxXwind(b.max_xwind_kts),
     bool(b.ifr_capable, cur.ifr_capable),
+    ...PERF_FIELDS.map(([k, label, lo, hi]) => (b[k] === undefined ? cur[k] : perfInt(b[k], label, lo, hi))),
     id,
   );
   res.json(requireAircraft(id));
@@ -440,24 +466,37 @@ api.get("/plan", wrap((req, res) => {
   if (bad.length) throw new HttpError(400, `unknown airport type(s): ${bad.join(", ")}`);
 
   const minRunway = req.query.min_runway_ft === undefined ? aircraft.min_runway_ft : minRunwayFt(req.query.min_runway_ft);
-  const rangeNm = (aircraft.cruise_kts * maxMinutes) / 60;
+  const cruiseAlt = perfInt(req.query.cruise_alt_ft, "cruise altitude", 500, 60000);
+  const profile = profileFor({ ...aircraft, cruise_kts: aircraft.cruise_kts }, cruiseAlt);
+  const originElev = origin.elevation_ft ?? 0;
+  // Ring radius for a destination at the origin's elevation; each candidate is then timed with its own.
+  const rangeNm = maxRangeNm(profile, maxMinutes, originElev);
   const limit = Math.min(20000, Math.max(1, Number(req.query.limit ?? 5000) || 5000));
   const elevation = maxFieldElevation(aircraft);
 
-  const { candidates, total } = planCandidates(origin, {
-    rangeNm,
+  // Search slightly beyond the ring: a high destination needs less descent and can sit a bit outside it.
+  const { candidates: found, total: _unused } = planCandidates(origin, {
+    rangeNm: rangeNm * 1.1,
     types,
     pavedOnly: req.query.paved === "1",
     minRunwayFt: minRunway,
     maxElevationFt: elevation.max_elevation_ft,
-    limit,
+    limit: limit * 2,
   });
+  void _unused;
+  const timed = found
+    .map((c) => ({ ...c, est_minutes: Math.round(blockMinutes(profile, c.distance_nm, originElev, c.elevation_ft ?? 0)) }))
+    .filter((c) => c.est_minutes <= maxMinutes);
+  const total = timed.length;
+  const candidates = timed.slice(0, limit);
 
   res.json({
     aircraft_id: aircraft.id,
     cruise_kts: aircraft.cruise_kts,
     max_minutes: maxMinutes,
     range_nm: rangeNm,
+    naive_range_nm: (aircraft.cruise_kts * maxMinutes) / 60,
+    profile,
     min_runway_ft: minRunway,
     paved_only: req.query.paved === "1",
     types,
@@ -467,7 +506,7 @@ api.get("/plan", wrap((req, res) => {
     truncated: total > candidates.length,
     /** When truncated: how far out the returned (nearest-first) set actually reaches. */
     shown_nm: candidates.length ? candidates[candidates.length - 1].distance_nm : 0,
-    candidates: candidates.map((c) => ({ ...c, est_minutes: Math.round((c.distance_nm / aircraft.cruise_kts!) * 60) })),
+    candidates,
   });
 }));
 

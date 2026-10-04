@@ -63,7 +63,23 @@ export interface Aircraft {
   max_xwind_kts: number | null;
   /** 0 for VFR-only aircraft. */
   ifr_capable: number;
+  /** Block-time model inputs; null means use the light-piston defaults. */
+  cruise_alt_ft: number | null;
+  climb_fpm: number | null;
+  climb_kts: number | null;
+  descent_fpm: number | null;
+  overhead_min: number | null;
   created_at: string;
+}
+
+/** The performance numbers the planner actually used (defaults filled in). */
+export interface PerfProfile {
+  cruise_kts: number;
+  cruise_alt_ft: number;
+  climb_fpm: number;
+  climb_kts: number;
+  descent_fpm: number;
+  overhead_min: number;
 }
 
 export interface Hop {
@@ -101,6 +117,11 @@ export interface AircraftInput {
   oxygen: boolean;
   max_xwind_kts: number | null;
   ifr_capable: boolean;
+  cruise_alt_ft: number | null;
+  climb_fpm: number | null;
+  climb_kts: number | null;
+  descent_fpm: number | null;
+  overhead_min: number | null;
   visible?: boolean;
 }
 
@@ -179,6 +200,8 @@ export interface PlanQuery {
   paved: boolean;
   /** Override the starting airport (defaults to where the aircraft is parked). */
   from?: string;
+  /** Override the aircraft's typical cruise altitude for this search. */
+  cruise_alt_ft?: number;
 }
 
 /** A reachable airport. `runways` is absent here; the popup loads it on demand. */
@@ -192,7 +215,11 @@ export interface PlanResult {
   aircraft_id: number;
   cruise_kts: number;
   max_minutes: number;
+  /** Ring radius from the block-time model (destination at the origin's elevation). */
   range_nm: number;
+  /** What cruise speed × time alone would give. */
+  naive_range_nm: number;
+  profile: PerfProfile;
   min_runway_ft: number | null;
   paved_only: boolean;
   types: string[];

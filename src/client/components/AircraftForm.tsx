@@ -4,6 +4,26 @@ import { BUILTIN_ICONS, BUILTIN_KEYS, PALETTE, builtinSvg, iconInnerHtml, nextCo
 import { COMMON_TYPES } from "../simbrief";
 import type { Aircraft } from "../types";
 
+type PerfKey = "cruise_alt_ft" | "climb_fpm" | "climb_kts" | "descent_fpm" | "overhead_min";
+
+/** Typical block-time numbers by class; climb speed is a fraction of cruise. */
+const PERF_PRESETS = [
+  { label: "Piston single", alt: 6500, climb: 700, climbFrac: 0.65, descent: 500, overhead: 12 },
+  { label: "Piston twin", alt: 8000, climb: 1000, climbFrac: 0.7, descent: 700, overhead: 12 },
+  { label: "Turboprop", alt: 24000, climb: 1500, climbFrac: 0.6, descent: 1500, overhead: 15 },
+  { label: "Light jet", alt: 37000, climb: 2500, climbFrac: 0.6, descent: 2000, overhead: 15 },
+  { label: "Airliner", alt: 35000, climb: 2000, climbFrac: 0.6, descent: 2000, overhead: 20 },
+  { label: "Helicopter", alt: 2000, climb: 800, climbFrac: 0.8, descent: 500, overhead: 8 },
+] as const;
+
+const PERF_FIELDS: { key: PerfKey; label: string; placeholder: string }[] = [
+  { key: "cruise_alt_ft", label: "Typical cruise altitude, ft", placeholder: "6500" },
+  { key: "climb_fpm", label: "Climb rate, fpm", placeholder: "700" },
+  { key: "climb_kts", label: "Climb speed, kts", placeholder: "65% of cruise" },
+  { key: "descent_fpm", label: "Descent rate, fpm", placeholder: "500" },
+  { key: "overhead_min", label: "Taxi + approach, min", placeholder: "12" },
+];
+
 /** SimBrief's full aircraft list, fetched once per page load and shared by every form instance. */
 let typeListPromise: Promise<[string, string][]> | null = null;
 function loadSimbriefTypes(): Promise<[string, string][]> {
@@ -42,7 +62,25 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
   const [maxXwind, setMaxXwind] = useState(initial?.max_xwind_kts?.toString() ?? "");
   const [oxygen, setOxygen] = useState(!!initial?.oxygen);
   const [ifrCapable, setIfrCapable] = useState(initial ? !!initial.ifr_capable : true);
+  const [perf, setPerf] = useState<Record<PerfKey, string>>({
+    cruise_alt_ft: initial?.cruise_alt_ft?.toString() ?? "",
+    climb_fpm: initial?.climb_fpm?.toString() ?? "",
+    climb_kts: initial?.climb_kts?.toString() ?? "",
+    descent_fpm: initial?.descent_fpm?.toString() ?? "",
+    overhead_min: initial?.overhead_min?.toString() ?? "",
+  });
   const [typeList, setTypeList] = useState<[string, string][]>(COMMON_TYPES);
+
+  const applyPreset = (p: (typeof PERF_PRESETS)[number]) => {
+    const kts = Number(cruise) || 0;
+    setPerf({
+      cruise_alt_ft: String(p.alt),
+      climb_fpm: String(p.climb),
+      climb_kts: kts ? String(Math.round(kts * p.climbFrac)) : "",
+      descent_fpm: String(p.descent),
+      overhead_min: String(p.overhead),
+    });
+  };
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -89,6 +127,13 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
     if (ceilingFt !== null && (!Number.isFinite(ceilingFt) || ceilingFt < 0)) return setError("Service ceiling must be a number of feet.");
     const maxXwindKts = maxXwind.trim() === "" ? null : Number(maxXwind);
     if (maxXwindKts !== null && (!Number.isFinite(maxXwindKts) || maxXwindKts < 0)) return setError("Max crosswind must be a number of knots.");
+    const perfNums = {} as Record<PerfKey, number | null>;
+    for (const f of PERF_FIELDS) {
+      const v = perf[f.key].trim();
+      const n = v === "" ? null : Number(v);
+      if (n !== null && (!Number.isFinite(n) || n < 0)) return setError(`${f.label} must be a number.`);
+      perfNums[f.key] = n;
+    }
     setBusy(true);
     try {
       const body = {
@@ -104,6 +149,7 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
         oxygen,
         max_xwind_kts: maxXwindKts,
         ifr_capable: ifrCapable,
+        ...perfNums,
       };
       const saved = initial ? await api.updateAircraft(initial.id, body) : await api.createAircraft(body);
       if (pendingImage) await api.uploadIcon(saved.id, pendingImage);
@@ -231,6 +277,34 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
           <input type="number" min={0} step={1} value={maxXwind} onChange={(e) => setMaxXwind(e.target.value)} placeholder="e.g. 20" />
         </label>
       </div>
+
+      <fieldset className="perf">
+        <legend>
+          Block-time model <em className="muted">(climb/descent/taxi; blank = light-piston defaults)</em>
+        </legend>
+        <div className="quick">
+          {PERF_PRESETS.map((p) => (
+            <button type="button" key={p.label} className="chip" onClick={() => applyPreset(p)} title="Fill the fields below with typical numbers for this class">
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <div className="perf-grid">
+          {PERF_FIELDS.map((f) => (
+            <label key={f.key}>
+              <span>{f.label}</span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={perf[f.key]}
+                placeholder={f.placeholder}
+                onChange={(e) => setPerf((s) => ({ ...s, [f.key]: e.target.value }))}
+              />
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       <div className="type-row">
         <label className="check">

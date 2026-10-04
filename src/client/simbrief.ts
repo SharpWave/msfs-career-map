@@ -22,21 +22,25 @@ export interface SimbriefLeg {
   dest: string;
   type: string | null;
   reg: string | null;
+  /** Planned cruise altitude in feet (SimBrief's `fl` accepts feet). */
+  altitude_ft: number | null;
 }
 
 export function simbriefUrl(leg: SimbriefLeg): string {
   const p = new URLSearchParams({ orig: leg.orig, dest: leg.dest });
   if (leg.type) p.set("type", leg.type);
   if (leg.reg) p.set("reg", leg.reg);
+  if (leg.altitude_ft) p.set("fl", String(Math.round(leg.altitude_ft / 100) * 100));
   return `${SIMBRIEF_DISPATCH}?${p.toString()}`;
 }
 
-export function legFor(origin: Airport, dest: Airport, aircraft: Aircraft | undefined): SimbriefLeg {
+export function legFor(origin: Airport, dest: Airport, aircraft: Aircraft | undefined, altitudeFt?: number | null): SimbriefLeg {
   return {
     orig: simbriefAirportCode(origin),
     dest: simbriefAirportCode(dest),
     type: aircraft?.simbrief_type ?? null,
     reg: aircraft ? registrationFrom(aircraft.livery) : null,
+    altitude_ft: altitudeFt ?? aircraft?.cruise_alt_ft ?? null,
   };
 }
 

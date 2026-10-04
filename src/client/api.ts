@@ -62,6 +62,7 @@ export const api = {
       paved: q.paved ? "1" : "0",
     });
     if (q.from) p.set("from", q.from);
+    if (q.cruise_alt_ft) p.set("cruise_alt_ft", String(q.cruise_alt_ft));
     return req<PlanResult>("GET", `/api/plan?${p.toString()}`);
   },
 };

@@ -57,7 +57,12 @@ shortcut with the app icon on your desktop that does the same thing.
 - **Plan next hop**: give an aircraft a **cruise speed** (edit the aircraft), then in the planner
   choose a maximum flight time. The map draws the range ring around wherever the plane is parked
   and marks every airport inside it: dot size is the airport class, dot color is the runway
-  surface. Filter by airport type or paved-only. If the aircraft also has a **minimum runway
+  surface. The ring and each airport's estimated time come from a **block-time model**, not plain
+  speed × time: a fixed taxi/approach overhead, a climb at reduced speed to the cruise altitude,
+  cruise, and a descent to the destination's elevation. Each aircraft can carry its own typical
+  cruise altitude, climb rate and speed, descent rate and overhead (the form has presets for
+  piston single/twin, turboprop, jet, airliner and helicopter; blank fields use light-piston
+  defaults), and the planner can override the cruise altitude per search. Filter by airport type or paved-only. If the aircraft also has a **minimum runway
   length**, only airports with a runway at least that long are shown. Hover a dot for distance,
   time and runways; click it (or **Use** in the list) to drop it into the hop form as the next
   destination. The planner can start from any airport via the **From** box, and
@@ -122,7 +127,7 @@ All JSON, under `/api`:
 | GET | `/simbrief/aircraft` | SimBrief's aircraft type list, cached daily |
 | GET | `/hazards` | Current G-AIRMET / SIGMET areas, normalised, cached 10 min |
 | GET | `/terrain?from=lat,lon&to=lat,lon` | Terrain profile along a leg with a suggested minimum altitude |
-| GET | `/plan?aircraft_id=&max_minutes=` | Airports in range of where the aircraft is parked; optional `types=`, `paved=1`, `min_runway_ft=`, `from=`, `limit=` |
+| GET | `/plan?aircraft_id=&max_minutes=` | Airports in range of where the aircraft is parked; optional `types=`, `paved=1`, `min_runway_ft=`, `from=`, `cruise_alt_ft=`, `limit=` |
 | GET/POST | `/aircraft` | List / create |
 | PUT/DELETE | `/aircraft/:id` | Update / delete (deletes its hops) |
 | POST | `/aircraft/:id/icon` | Upload a custom icon as a base64 data URL |

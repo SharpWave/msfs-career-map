@@ -177,7 +177,7 @@ export function MapView({
             airport={openCandidate}
             extra={<div className="tip-route">{legLine(openCandidate)}</div>}
             onUse={() => onPickCandidate(openCandidate)}
-            simbrief={legFor(plan.origin, openCandidate, planAircraft)}
+            simbrief={legFor(plan.origin, openCandidate, planAircraft, plan.profile.cruise_alt_ft)}
             leg={{ from: plan.origin, aircraft: planAircraft }}
             flags={flags.get(openCandidate.ident)}
           />
