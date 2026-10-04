@@ -11,6 +11,7 @@ import {
   importAirportsCsv,
   importRunwaysCsv,
   latestMetar,
+  latestMetars,
   planCandidates,
   searchAirports,
   wikiSummary,
@@ -74,6 +75,17 @@ api.get("/airports/:code/wiki", wrap(async (req, res) => {
   const w = await wikiSummary(a);
   if (!w) throw new HttpError(404, "no Wikipedia article for this airport");
   res.json(w);
+}));
+
+/** Latest METARs for many stations: GET /api/metars?ids=KBOS,KPIT,... (up to 500). Unreported stations map to null. */
+api.get("/metars", wrap(async (req, res) => {
+  const ids = String(req.query.ids ?? "")
+    .split(",")
+    .map((s) => s.trim().toUpperCase())
+    .filter((s) => /^[A-Z0-9]{4}$/.test(s));
+  if (ids.length === 0) throw new HttpError(400, "ids must list 4-character ICAO codes");
+  if (ids.length > 500) throw new HttpError(400, "at most 500 ids per request");
+  res.json({ metars: await latestMetars(ids), fetched_at: new Date().toISOString() });
 }));
 
 /** Latest METAR for an ICAO station via aviationweather.gov; 404 when none is reported. */

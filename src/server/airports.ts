@@ -375,44 +375,79 @@ export interface Metar {
 }
 
 const metarCache = new Map<string, { at: number; value: Metar | null }>();
+const METAR_BATCH = 150;
 
-/** Latest METAR from aviationweather.gov, cached for five minutes. Null when the station reports nothing. */
-export async function latestMetar(icao: string): Promise<Metar | null> {
-  const id = icao.trim().toUpperCase();
-  const hit = metarCache.get(id);
-  if (hit && Date.now() - hit.at < METAR_TTL_MS) return hit.value;
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
-  const res = await fetch(`https://aviationweather.gov/api/data/metar?ids=${encodeURIComponent(id)}&format=json`, {
+function parseMetar(m: Record<string, unknown>): Metar {
+  return {
+    icao: String(m.icaoId ?? ""),
+    raw: String(m.rawOb ?? ""),
+    flight_category: typeof m.fltCat === "string" ? m.fltCat : null,
+    observed_at: typeof m.obsTime === "number" ? new Date(m.obsTime * 1000).toISOString() : null,
+    temp_c: num(m.temp),
+    dewpoint_c: num(m.dewp),
+    wind_dir: typeof m.wdir === "number" || typeof m.wdir === "string" ? m.wdir : null,
+    wind_kts: num(m.wspd),
+    gust_kts: num(m.wgst),
+    visibility: m.visib == null ? null : String(m.visib),
+    altimeter_hpa: num(m.altim),
+    clouds: Array.isArray(m.clouds)
+      ? (m.clouds as { cover?: string; base?: number }[]).map((c) => ({ cover: String(c.cover ?? ""), base_ft: num(c.base) }))
+      : [],
+    station: typeof m.name === "string" ? m.name : null,
+  };
+}
+
+async function fetchMetarBatch(ids: string[]): Promise<Record<string, unknown>[]> {
+  const res = await fetch(`https://aviationweather.gov/api/data/metar?ids=${encodeURIComponent(ids.join(","))}&format=json`, {
     headers: { "user-agent": USER_AGENT, accept: "application/json" },
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(12000),
   });
   if (!res.ok) throw new Error(`aviationweather.gov: ${res.status}`);
   // Stations with no report come back as an empty body rather than "[]".
   const text = (await res.text()).trim();
-  const arr = text ? (JSON.parse(text) as Record<string, unknown>[]) : [];
-  const m = Array.isArray(arr) ? arr[0] : undefined;
-  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
-  const value: Metar | null = m
-    ? {
-        icao: String(m.icaoId ?? id),
-        raw: String(m.rawOb ?? ""),
-        flight_category: typeof m.fltCat === "string" ? m.fltCat : null,
-        observed_at: typeof m.obsTime === "number" ? new Date(m.obsTime * 1000).toISOString() : null,
-        temp_c: num(m.temp),
-        dewpoint_c: num(m.dewp),
-        wind_dir: typeof m.wdir === "number" || typeof m.wdir === "string" ? m.wdir : null,
-        wind_kts: num(m.wspd),
-        gust_kts: num(m.wgst),
-        visibility: m.visib == null ? null : String(m.visib),
-        altimeter_hpa: num(m.altim),
-        clouds: Array.isArray(m.clouds)
-          ? (m.clouds as { cover?: string; base?: number }[]).map((c) => ({ cover: String(c.cover ?? ""), base_ft: num(c.base) }))
-          : [],
-        station: typeof m.name === "string" ? m.name : null,
-      }
-    : null;
-  metarCache.set(id, { at: Date.now(), value });
-  return value;
+  const arr = text ? JSON.parse(text) : [];
+  return Array.isArray(arr) ? (arr as Record<string, unknown>[]) : [];
+}
+
+/**
+ * Latest METARs for many stations at once, each cached for five minutes. Stations that report
+ * nothing map to null (and are cached as such, so they are not asked for again right away).
+ */
+export async function latestMetars(icaos: string[]): Promise<Record<string, Metar | null>> {
+  const out: Record<string, Metar | null> = {};
+  const misses = new Set<string>();
+  const now = Date.now();
+  for (const raw of icaos) {
+    const id = raw.trim().toUpperCase();
+    if (!id) continue;
+    const hit = metarCache.get(id);
+    if (hit && now - hit.at < METAR_TTL_MS) out[id] = hit.value;
+    else misses.add(id);
+  }
+  const pending = [...misses];
+  for (let i = 0; i < pending.length; i += METAR_BATCH) {
+    const chunk = pending.slice(i, i + METAR_BATCH);
+    const got = new Map<string, Metar>();
+    for (const m of await fetchMetarBatch(chunk)) {
+      const p = parseMetar(m);
+      const prev = got.get(p.icao);
+      if (!prev || (p.observed_at ?? "") > (prev.observed_at ?? "")) got.set(p.icao, p);
+    }
+    for (const id of chunk) {
+      const value = got.get(id) ?? null;
+      metarCache.set(id, { at: Date.now(), value });
+      out[id] = value;
+    }
+  }
+  return out;
+}
+
+/** Latest METAR for one station; null when it reports nothing. */
+export async function latestMetar(icao: string): Promise<Metar | null> {
+  const id = icao.trim().toUpperCase();
+  return (await latestMetars([id]))[id] ?? null;
 }
 
 // ---------------------------------------------------------------- planner

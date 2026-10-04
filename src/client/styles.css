@@ -1098,6 +1098,28 @@ label.check span {
   margin-right: 4px;
 }
 
+.ring {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2.5px solid #94a3b8;
+  background: #7dd3fc;
+  vertical-align: -1px;
+}
+
+.ring-VFR { border-color: #22c55e; }
+.ring-MVFR { border-color: #3b82f6; }
+.ring-IFR { border-color: #ef4444; }
+.ring-LIFR { border-color: #d946ef; }
+
+.cand-main .line1 .fltcat {
+  margin-left: 6px;
+  font-size: 10px;
+  padding: 0 6px;
+  vertical-align: 1px;
+}
+
 .cand-list {
   list-style: none;
   margin: 0;

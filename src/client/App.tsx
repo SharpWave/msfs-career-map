@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import type { LatLng } from "./geo";
 import { buildRenderData, focusPoints, planBounds, planLonShift } from "./paths";
+import { METAR_REUSE_MS, metarStation, type MetarMap } from "./metar";
 import type { AppState, Hop, PlanCandidate, PlanResult } from "./types";
 import { MapView, type Basemap, type Focus } from "./components/MapView";
 import { Sidebar } from "./components/Sidebar";
@@ -32,8 +33,48 @@ export function App() {
   const [focus, setFocus] = useState<Focus | null>(null);
   const [plan, setPlan] = useState<PlanResult | null>(null);
   const [hopPreset, setHopPreset] = useState<HopPreset | null>(null);
+  const [metars, setMetars] = useState<MetarMap>(() => new Map());
   const seq = useRef(0);
   const didInitialFit = useRef(false);
+
+  // After each search, fetch METARs for the large and medium candidates in batches, merging each
+  // batch into the cache as it lands so the map colors in progressively. Entries younger than
+  // METAR_REUSE_MS are reused rather than re-requested.
+  useEffect(() => {
+    if (!plan) return;
+    let cancelled = false;
+    const now = Date.now();
+    const wanted = new Set<string>();
+    for (const c of plan.candidates) {
+      if (c.type !== "large_airport" && c.type !== "medium_airport") continue;
+      const st = metarStation(c);
+      if (!st) continue;
+      const hit = metars.get(st);
+      if (!hit || now - hit.at > METAR_REUSE_MS) wanted.add(st);
+    }
+    const ids = [...wanted];
+    (async () => {
+      for (let i = 0; i < ids.length && !cancelled; i += 150) {
+        const chunk = ids.slice(i, i + 150);
+        try {
+          const r = await api.metars(chunk);
+          if (cancelled) return;
+          setMetars((prev) => {
+            const next = new Map(prev);
+            const at = Date.now();
+            for (const id of chunk) next.set(id, { metar: r.metars[id] ?? null, at });
+            return next;
+          });
+        } catch {
+          /* leave those stations unknown; the next search retries them */
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan]);
 
   const data = useMemo(() => buildRenderData(state), [state]);
 
@@ -129,6 +170,7 @@ export function App() {
           onFocusHop={focusHop}
           reload={reload}
           plan={plan}
+          metars={metars}
           onPlan={onPlan}
           onPickCandidate={pickCandidate}
           onFocusCandidate={focusCandidate}
@@ -149,6 +191,7 @@ export function App() {
             focus={focus}
             basemap={basemap}
             plan={plan}
+            metars={metars}
             onPickCandidate={pickCandidate}
           />
         ) : (

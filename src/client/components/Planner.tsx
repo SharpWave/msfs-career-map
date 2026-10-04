@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { aircraftLabel, airportTypeLabel, airportWhere, fmtDuration, fmtFt, fmtNm, runwaySummary } from "../format";
+import { categoryFor, type MetarMap } from "../metar";
 import type { AppState, PlanCandidate, PlanResult } from "../types";
 import { AirportInput } from "./AirportInput";
 
 interface Props {
   state: AppState;
   plan: PlanResult | null;
+  metars: MetarMap;
   selectedId: number | null;
   onPlan: (p: PlanResult | null) => void;
   /** Use this candidate as the next hop's destination. */
@@ -27,7 +29,7 @@ const TYPE_OPTIONS: [string, string][] = [
 const QUICK_MINUTES = [30, 60, 90, 120, 180, 240];
 const LIST_MAX = 80;
 
-export function Planner({ state, plan, selectedId, onPlan, onPick, onFocus, onEditAircraft }: Props) {
+export function Planner({ state, plan, metars, selectedId, onPlan, onPick, onFocus, onEditAircraft }: Props) {
   const eligible = state.aircraft.filter((a) => a.cruise_kts);
   const [aircraftId, setAircraftId] = useState<number>(() =>
     selectedId && state.aircraft.some((a) => a.id === selectedId) ? selectedId : eligible[0]?.id ?? state.aircraft[0]?.id ?? 0,
@@ -222,17 +224,28 @@ export function Planner({ state, plan, selectedId, onPlan, onPick, onFocus, onEd
             <span><i className="surf surf-water" /> water</span>
             <span className="muted">· bigger dot = bigger airport</span>
           </div>
+          <div className="legend">
+            <span className="muted">ring = current weather:</span>
+            <span><i className="ring ring-VFR" /> VFR</span>
+            <span><i className="ring ring-MVFR" /> MVFR</span>
+            <span><i className="ring ring-IFR" /> IFR</span>
+            <span><i className="ring ring-LIFR" /> LIFR</span>
+            <span className="muted">(large &amp; medium, METAR under 90 min old)</span>
+          </div>
 
           {plan.candidates.length > 8 && (
             <input type="search" placeholder="Filter by code, name or city" value={filter} onChange={(e) => setFilter(e.target.value)} />
           )}
 
           <ol className="cand-list">
-            {filtered.slice(0, LIST_MAX).map((c) => (
+            {filtered.slice(0, LIST_MAX).map((c) => {
+              const cat = categoryFor(c, metars);
+              return (
               <li key={c.ident}>
                 <button type="button" className="cand-main" onClick={() => onFocus(c)} title="Show on map">
                   <span className="line1">
                     <b className="code">{c.ident}</b> <span className="name">{c.name}</span>
+                    {cat && <span className={`fltcat fltcat-${cat}`}>{cat}</span>}
                   </span>
                   <span className="line2 muted">
                     {fmtNm(c.distance_nm)} · ~{fmtDuration(c.est_minutes)} · {Math.round(c.bearing_deg).toString().padStart(3, "0")}° ·{" "}
@@ -247,7 +260,8 @@ export function Planner({ state, plan, selectedId, onPlan, onPick, onFocus, onEd
                   Use
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ol>
           {filtered.length > LIST_MAX && (
             <div className="muted small">

@@ -20,6 +20,8 @@ export const api = {
   getAirport: (code: string) => req<Airport>("GET", `/api/airports/${encodeURIComponent(code)}`),
   wiki: (code: string) => req<WikiSummary>("GET", `/api/airports/${encodeURIComponent(code)}/wiki`),
   metar: (icao: string) => req<Metar>("GET", `/api/metar/${encodeURIComponent(icao)}`),
+  metars: (ids: string[]) =>
+    req<{ metars: Record<string, Metar | null>; fetched_at: string }>("GET", `/api/metars?ids=${encodeURIComponent(ids.join(","))}`),
 
   createAircraft: (a: AircraftInput) => req<Aircraft>("POST", "/api/aircraft", a),
   updateAircraft: (id: number, a: Partial<AircraftInput>) => req<Aircraft>("PUT", `/api/aircraft/${id}`, a),

@@ -56,7 +56,10 @@ npm start       # serves API + client on http://localhost:3080
   length**, only airports with a runway at least that long are shown. Hover a dot for distance,
   time and runways; click it (or **Use** in the list) to drop it into the hop form as the next
   destination. The planner can start from any airport via the **From** box, and
-  `?plan=<aircraft id>&minutes=90` in the URL runs it on page load.
+  `?plan=<aircraft id>&minutes=90` in the URL runs it on page load. After each search the
+  current METARs for the large and medium airports in range are fetched in batches and their
+  dot rings turn green/blue/red/magenta for VFR/MVFR/IFR/LIFR as they arrive (only reports under
+  90 minutes old count; METARs are reused for five minutes between searches).
 - **Airport details**: click any airport dot (visited or planner candidate) for a popup with its
   Wikipedia lead image and blurb, the live METAR with flight category (via aviationweather.gov),
   runways, and links to Wikipedia, the official site, SkyVector and the decoded METAR/TAF page.
@@ -90,6 +93,7 @@ All JSON, under `/api`:
 | GET | `/airports/:code` | Look up one airport by any code, with its runway list |
 | GET | `/airports/:code/wiki` | Cached Wikipedia summary (title, extract, lead image) |
 | GET | `/metar/:icao` | Latest METAR from aviationweather.gov, decoded |
+| GET | `/metars?ids=A,B,C` | Same for up to 500 stations at once (unreported ones are null) |
 | GET | `/plan?aircraft_id=&max_minutes=` | Airports in range of where the aircraft is parked; optional `types=`, `paved=1`, `min_runway_ft=`, `from=`, `limit=` |
 | GET/POST | `/aircraft` | List / create |
 | PUT/DELETE | `/aircraft/:id` | Update / delete (deletes its hops) |

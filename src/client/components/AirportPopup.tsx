@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useMap } from "react-leaflet";
 import { api } from "../api";
 import { airportWhere } from "../format";
+import { metarStation } from "../metar";
 import type { Airport, Metar, WikiSummary } from "../types";
 import { RunwayInfo } from "./RunwayInfo";
 
@@ -11,13 +12,6 @@ interface Props {
   extra?: ReactNode;
   /** When given, shows a "use as next destination" button. */
   onUse?: () => void;
-}
-
-/** ICAO station id for METAR lookups, or null when the airport has none. */
-export function metarStation(a: Airport): string | null {
-  if (a.icao_code && /^[A-Z0-9]{4}$/.test(a.icao_code)) return a.icao_code;
-  if (/^[A-Z]{4}$/.test(a.ident)) return a.ident;
-  return null;
 }
 
 /**

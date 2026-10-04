@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import { Circle, CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { bearing, type LatLng } from "../geo";
 import { aircraftLabel, airportTypeLabel, airportWhere, fmtDateTime, fmtDuration, fmtFt, fmtNm, hopDurationMin, runwaySummary } from "../format";
+import { CATEGORY_COLORS, categoryFor, isFresh, metarBrief, metarStation, type FlightCategory, type MetarMap } from "../metar";
 import { headMarkerHtml } from "../icons";
 import { planLonShift, type AirportNode, type RenderData, type RenderHop } from "../paths";
 import type { Aircraft, PlanCandidate, PlanResult } from "../types";
@@ -86,10 +87,11 @@ interface Props {
   focus: Focus | null;
   basemap: Basemap;
   plan: PlanResult | null;
+  metars: MetarMap;
   onPickCandidate: (c: PlanCandidate) => void;
 }
 
-export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap, plan, onPickCandidate }: Props) {
+export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap, plan, metars, onPickCandidate }: Props) {
   const { hops, nodes, heads } = data;
   const tiles = TILES[basemap];
   const byId = new Map(aircraft.map((a) => [a.id, a]));
@@ -124,7 +126,7 @@ export function MapView({ data, aircraft, selectedId, onSelect, focus, basemap, 
           pathOptions={{ color: "#ffffff", weight: 1, opacity: 0.6, fill: false }}
         />
       )}
-      {plan && <CandidateLayer plan={plan} shift={planShift} onClick={setOpenCandidate} />}
+      {plan && <CandidateLayer plan={plan} shift={planShift} metars={metars} onClick={setOpenCandidate} />}
       {plan && openCandidate && (
         <Popup
           position={[openCandidate.lat, openCandidate.lon + planShift]}
@@ -247,49 +249,98 @@ function legLine(c: PlanCandidate): string {
 const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
 
 /** Hover tooltip for a candidate, as plain HTML so thousands of markers stay cheap. */
-function candidateTooltipHtml(c: PlanCandidate): string {
+function candidateTooltipHtml(c: PlanCandidate, metars: MetarMap): string {
   const where = airportWhere(c);
   const rwy = runwaySummary(c);
+  const st = metarStation(c);
+  const m = st ? metars.get(st)?.metar : undefined;
+  let weather = "";
+  if (isFresh(m)) {
+    const cat = m.flight_category ?? "";
+    weather = `<div class="tip-sub"><span class="fltcat fltcat-${esc(cat)}">${esc(cat || "METAR")}</span> ${esc(metarBrief(m))}</div>`;
+  } else if (m) {
+    weather = `<div class="tip-sub muted">METAR stale (${esc(metarBrief(m))})</div>`;
+  }
   return (
     `<div class="tip-title">${esc(c.ident)} · ${esc(c.name)}</div>` +
     (where ? `<div class="tip-sub">${esc(where)}</div>` : "") +
     `<div class="tip-route">${esc(legLine(c))}</div>` +
     `<div class="tip-sub">${esc(airportTypeLabel(c.type))}${c.elevation_ft != null ? ` · elev ${esc(fmtFt(c.elevation_ft))}` : ""}` +
     `${rwy ? ` · ${esc(rwy)}` : " · no runway data"}</div>` +
+    weather +
     `<div class="tip-hint">Click for photo, weather, links, and to use as the next destination</div>`
   );
+}
+
+/** Ring color/weight for a candidate: flight category when a fresh METAR is known, else the class default. */
+function ringStyle(c: PlanCandidate, cat: FlightCategory | null): { color: string; weight: number } {
+  const base = candidateStyle(c.type);
+  if (!cat) return { color: base.color, weight: base.weight };
+  return { color: CATEGORY_COLORS[cat], weight: Math.max(base.weight, c.type === "large_airport" ? 3.5 : 3) };
 }
 
 /**
  * Planner candidates drawn straight with Leaflet on a canvas: one circle marker per airport with
  * a lazily-built tooltip. This stays snappy with several thousand airports, where one React
- * component per marker would not.
+ * component per marker would not. As METARs arrive, only the markers whose category changed
+ * are restyled.
  */
-function CandidateLayer({ plan, shift, onClick }: { plan: PlanResult; shift: number; onClick: (c: PlanCandidate) => void }) {
+function CandidateLayer({
+  plan,
+  shift,
+  metars,
+  onClick,
+}: {
+  plan: PlanResult;
+  shift: number;
+  metars: MetarMap;
+  onClick: (c: PlanCandidate) => void;
+}) {
   const map = useMap();
+  const markers = useRef(new Map<string, { marker: L.CircleMarker; c: PlanCandidate; cat: FlightCategory | null }>());
+  const metarsRef = useRef(metars);
+  metarsRef.current = metars;
+
   useEffect(() => {
     const renderer = L.canvas({ padding: 0.5 });
     const group = L.layerGroup();
+    const reg = new Map<string, { marker: L.CircleMarker; c: PlanCandidate; cat: FlightCategory | null }>();
     for (const c of plan.candidates) {
       const s = candidateStyle(c.type);
+      const cat = categoryFor(c, metarsRef.current);
+      const ring = ringStyle(c, cat);
       const m = L.circleMarker([c.lat, c.lon + shift], {
         renderer,
         radius: s.radius,
-        color: s.color,
-        weight: s.weight,
+        color: ring.color,
+        weight: ring.weight,
         fillColor: candidateColor(c),
         fillOpacity: 0.9,
         opacity: 0.95,
       });
-      m.bindTooltip(candidateTooltipHtml(c), { direction: "top", offset: [0, -s.radius], className: "tip", opacity: 1 });
+      m.bindTooltip(() => candidateTooltipHtml(c, metarsRef.current), { direction: "top", offset: [0, -s.radius], className: "tip", opacity: 1 });
       m.on("click", () => onClick(c));
       group.addLayer(m);
+      reg.set(c.ident, { marker: m, c, cat });
     }
+    markers.current = reg;
     group.addTo(map);
     return () => {
       group.remove();
+      markers.current = new Map();
     };
   }, [plan, shift, map, onClick]);
+
+  // Recolor rings as METARs land.
+  useEffect(() => {
+    for (const entry of markers.current.values()) {
+      const cat = categoryFor(entry.c, metars);
+      if (cat === entry.cat) continue;
+      entry.cat = cat;
+      entry.marker.setStyle(ringStyle(entry.c, cat));
+    }
+  }, [metars]);
+
   return null;
 }
 

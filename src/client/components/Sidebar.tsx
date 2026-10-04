@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "../api";
 import { fmtDuration, fmtTimeShort, hopDurationMin } from "../format";
 import { iconInnerHtml } from "../icons";
+import type { MetarMap } from "../metar";
 import type { Aircraft, AppState, Hop, PlanCandidate, PlanResult } from "../types";
 import { AircraftForm } from "./AircraftForm";
 import { HopForm, type HopPreset } from "./HopForm";
@@ -14,6 +15,7 @@ interface Props {
   onFocusHop: (hop: Hop) => void;
   reload: () => Promise<void>;
   plan: PlanResult | null;
+  metars: MetarMap;
   onPlan: (p: PlanResult | null) => void;
   onPickCandidate: (c: PlanCandidate) => void;
   onFocusCandidate: (c: PlanCandidate) => void;
@@ -75,6 +77,7 @@ export function Sidebar(p: Props) {
           <Planner
             state={state}
             plan={p.plan}
+            metars={p.metars}
             selectedId={selectedId}
             onPlan={p.onPlan}
             onPick={p.onPickCandidate}
