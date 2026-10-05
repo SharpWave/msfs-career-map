@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { Circle, CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { bearing, type LatLng } from "../geo";
@@ -146,6 +146,12 @@ export function MapView({
   const planShift = plan ? planLonShift(data, plan) : 0;
   const planAircraft = plan ? byId.get(plan.aircraft_id) : undefined;
   const [openCandidate, setOpenCandidate] = useState<PlanCandidate | null>(null);
+  // Stable reference: react-leaflet reopens a popup whenever its `position` array changes identity,
+  // and the live tracker re-renders this component every second.
+  const candidatePos = useMemo<LatLng | null>(
+    () => (openCandidate ? [openCandidate.lat, openCandidate.lon + planShift] : null),
+    [openCandidate, planShift],
+  );
 
   // A new plan (or none) closes any candidate popup.
   useEffect(() => setOpenCandidate(null), [plan]);
@@ -179,9 +185,9 @@ export function MapView({
         />
       )}
       {plan && <CandidateLayer plan={plan} shift={planShift} metars={metars} flags={flags} hideFlagged={hideFlagged} onClick={setOpenCandidate} />}
-      {plan && openCandidate && (
+      {plan && openCandidate && candidatePos && (
         <Popup
-          position={[openCandidate.lat, openCandidate.lon + planShift]}
+          position={candidatePos}
           className="apop-wrap"
           maxWidth={360}
           minWidth={280}
