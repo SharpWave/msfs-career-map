@@ -22,6 +22,7 @@ import { currentHazards } from "./hazards.ts";
 import { terrainAlong } from "./terrain.ts";
 import { blockMinutes, maxRangeNm, profileFor } from "./performance.ts";
 import { tracker } from "./tracker.ts";
+import { fetchLatestOfp, type BriefingSummary, type FetchedOfp } from "./ofp.ts";
 
 export const api = Router();
 
@@ -322,6 +323,9 @@ export interface HopRow {
   duration_min: number | null;
   notes: string;
   track: string | null;
+  landings: string | null;
+  stats: string | null;
+  briefing_id: number | null;
   created_at: string;
 }
 
@@ -511,7 +515,9 @@ api.post("/tracker/sample", wrap((req, res) => {
     if (!Number.isFinite(n)) throw new HttpError(400, `${k} must be a number`);
     return n;
   };
+  const numOr = (k: string, d: number) => (b[k] === undefined || b[k] === null ? d : num(k));
   if (!tracker.connected) tracker.setConnected(true, "fake feed");
+  const td = b.touchdown && typeof b.touchdown === "object" ? b.touchdown : null;
   tracker.feed({
     t: num("t"),
     lat: num("lat"),
@@ -520,11 +526,154 @@ api.post("/tracker/sample", wrap((req, res) => {
     on_ground: !!b.on_ground,
     gs_kts: num("gs_kts"),
     hdg_deg: num("hdg_deg"),
+    vs_fpm: numOr("vs_fpm", 0),
+    ias_kts: numOr("ias_kts", numOr("gs_kts", 0)),
+    g: numOr("g", 1),
+    fuel_lb: numOr("fuel_lb", 0),
+    weight_lb: numOr("weight_lb", 0),
     title: String(b.title ?? ""),
     livery: String(b.livery ?? ""),
     atc_id: String(b.atc_id ?? ""),
+    touchdown: td
+      ? {
+          t: Number(td.t ?? b.t),
+          fpm: Number(td.fpm ?? 0),
+          g: Number(td.g ?? 1),
+          ias_kts: Number(td.ias_kts ?? 0),
+          sim_fpm: td.sim_fpm == null ? null : Number(td.sim_fpm),
+          pitch_deg: td.pitch_deg == null ? null : Number(td.pitch_deg),
+          bank_deg: td.bank_deg == null ? null : Number(td.bank_deg),
+        }
+      : undefined,
   });
   res.json(tracker.status());
+}));
+
+// ---------- settings ----------
+
+const settingGet = db.prepare(`SELECT value FROM settings WHERE key = ?`);
+const settingSet = db.prepare(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`);
+const settingDel = db.prepare(`DELETE FROM settings WHERE key = ?`);
+const SETTING_KEYS = ["simbrief_username"] as const;
+
+function readSettings(): Record<(typeof SETTING_KEYS)[number], string | null> {
+  const out = {} as Record<(typeof SETTING_KEYS)[number], string | null>;
+  for (const k of SETTING_KEYS) out[k] = (settingGet.get(k) as { value: string } | undefined)?.value ?? null;
+  return out;
+}
+
+api.get("/settings", wrap((_req, res) => res.json(readSettings())));
+
+api.put("/settings", wrap((req, res) => {
+  const b = req.body ?? {};
+  for (const k of SETTING_KEYS) {
+    if (b[k] === undefined) continue;
+    const v = optStr(b[k]);
+    if (v) settingSet.run(k, v);
+    else settingDel.run(k);
+  }
+  res.json(readSettings());
+}));
+
+// ---------- SimBrief briefings ----------
+
+const briefingInsert = db.prepare(
+  `INSERT INTO briefings (hop_id, aircraft_id, ofp_id, generated_at, origin, dest, summary, plan_html, ofp, fetched_at)
+   VALUES (?,?,?,?,?,?,?,?,?,?)`,
+);
+const briefingGet = db.prepare(`SELECT id, hop_id, aircraft_id, summary, plan_html, fetched_at FROM briefings WHERE id = ?`);
+const briefingByHop = db.prepare(`SELECT id, hop_id, aircraft_id, summary, plan_html, fetched_at FROM briefings WHERE hop_id = ? ORDER BY id DESC LIMIT 1`);
+const briefingDelete = db.prepare(`DELETE FROM briefings WHERE id = ?`);
+const hopSetBriefing = db.prepare(`UPDATE hops SET briefing_id = ? WHERE id = ?`);
+
+interface BriefingRow {
+  id: number;
+  hop_id: number | null;
+  aircraft_id: number | null;
+  summary: string;
+  plan_html: string | null;
+  fetched_at: string;
+}
+
+function briefingOut(r: BriefingRow) {
+  return { ...(JSON.parse(r.summary) as Omit<BriefingSummary, "id">), id: r.id, hop_id: r.hop_id, aircraft_id: r.aircraft_id, plan_html: r.plan_html, fetched_at: r.fetched_at };
+}
+
+/** Pull the latest OFP for the configured pilot (or an explicit one) or fail with SimBrief's message. */
+async function latestOfp(explicit?: unknown): Promise<FetchedOfp> {
+  const user = optStr(explicit) ?? readSettings().simbrief_username;
+  if (!user) throw new HttpError(400, "set your SimBrief alias or pilot ID first");
+  try {
+    return await fetchLatestOfp(user);
+  } catch (e) {
+    throw new HttpError(502, `SimBrief: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
+function storeBriefing(ofp: FetchedOfp, hopId: number | null, aircraftId: number | null): BriefingSummary {
+  const s = ofp.summary;
+  const r = briefingInsert.run(
+    hopId,
+    aircraftId,
+    s.ofp_id,
+    s.generated_at,
+    s.origin.icao,
+    s.dest.icao,
+    JSON.stringify(s),
+    ofp.plan_html,
+    JSON.stringify(ofp.raw),
+    new Date().toISOString(),
+  );
+  return { ...s, id: Number(r.lastInsertRowid) };
+}
+
+/** Preview the pilot's latest OFP without storing it (for the "is this the right plan?" step). */
+api.get("/simbrief/latest", wrap(async (req, res) => {
+  const ofp = await latestOfp(req.query.username);
+  res.json({ ...ofp.summary, id: null, has_plan_html: !!ofp.plan_html });
+}));
+
+/** Import the latest OFP for the flight being flown (or the next one). */
+api.post("/tracker/briefing", wrap(async (_req, res) => {
+  const ofp = await latestOfp();
+  const st = tracker.status();
+  const summary = storeBriefing(ofp, null, st.aircraft_id);
+  tracker.setBriefing(summary);
+  res.status(201).json(tracker.status());
+}));
+
+api.delete("/tracker/briefing", wrap((_req, res) => {
+  tracker.setBriefing(null);
+  res.json(tracker.status());
+}));
+
+api.get("/briefings/:id", wrap((req, res) => {
+  const r = briefingGet.get(idParam(req)) as unknown as BriefingRow | undefined;
+  if (!r) throw new HttpError(404, "briefing not found");
+  res.json(briefingOut(r));
+}));
+
+api.get("/hops/:id/briefing", wrap((req, res) => {
+  const hop = requireHop(idParam(req));
+  const r = (hop.briefing_id != null ? briefingGet.get(hop.briefing_id) : briefingByHop.get(hop.id)) as unknown as BriefingRow | undefined;
+  if (!r) throw new HttpError(404, "this hop has no briefing");
+  res.json(briefingOut(r));
+}));
+
+/** Attach the pilot's latest OFP to an already-logged hop. */
+api.post("/hops/:id/briefing", wrap(async (req, res) => {
+  const hop = requireHop(idParam(req));
+  const ofp = await latestOfp();
+  const summary = storeBriefing(ofp, hop.id, hop.aircraft_id);
+  hopSetBriefing.run(summary.id, hop.id);
+  res.status(201).json(briefingOut(briefingGet.get(summary.id) as unknown as BriefingRow));
+}));
+
+api.delete("/hops/:id/briefing", wrap((req, res) => {
+  const hop = requireHop(idParam(req));
+  if (hop.briefing_id != null) briefingDelete.run(hop.briefing_id);
+  hopSetBriefing.run(null, hop.id);
+  res.status(204).end();
 }));
 
 // ---------- SimBrief ----------
@@ -652,7 +801,7 @@ api.get("/state", wrap((_req, res) => {
 }));
 
 api.get("/status", wrap((_req, res) => {
-  res.json({ ok: true, airports: airportCount(), runways: runwayCount(), version: "0.7.0" });
+  res.json({ ok: true, airports: airportCount(), runways: runwayCount(), version: "0.8.0" });
 }));
 
 // ---------- errors ----------

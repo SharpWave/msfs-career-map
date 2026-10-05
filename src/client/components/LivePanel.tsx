@@ -1,15 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api";
 import { aircraftLabel, fmtDuration, fmtTimeShort } from "../format";
 import type { LiveState } from "../tracker";
-import type { Aircraft, PendingLeg, SimAircraft } from "../types";
+import type { Aircraft, BriefingSummary, PendingLeg, Settings, SimAircraft, TrackerStatus } from "../types";
 import { AirportInput } from "./AirportInput";
+import { LandingBadge } from "./LandingBadge";
 
 interface Props {
   live: LiveState;
   aircraft: Aircraft[];
   reload: () => Promise<void>;
   onFocusLive: () => void;
+  /** Open the live leg in the flight panel. */
+  onOpenLive: () => void;
   onSelect: (id: number) => void;
   /** Open the new-aircraft form prefilled from what the sim reports. */
   onNewFromSim: (sim: SimAircraft) => void;
@@ -17,11 +20,134 @@ interface Props {
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+type Preview = Omit<BriefingSummary, "id"> & { id: null };
+
+/** SimBrief alias setting, "import latest plan" with a confirmation step, and the attached plan. */
+function SimbriefControls({ status, busy, run }: { status: TrackerStatus; busy: boolean; run: (fn: () => Promise<unknown>) => Promise<void> }) {
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [userText, setUserText] = useState("");
+  const [editingUser, setEditingUser] = useState(false);
+  const [preview, setPreview] = useState<Preview | null>(null);
+
+  useEffect(() => {
+    api
+      .settings()
+      .then((s) => {
+        setSettings(s);
+        setUserText(s.simbrief_username ?? "");
+      })
+      .catch(() => setSettings({ simbrief_username: null }));
+  }, []);
+
+  if (!settings) return null;
+  const b = status.briefing;
+  const needUser = !settings.simbrief_username || editingUser;
+
+  const saveUser = () =>
+    run(async () => {
+      const s = await api.saveSettings({ simbrief_username: userText.trim() || null });
+      setSettings(s);
+      setEditingUser(false);
+    });
+
+  const loadPreview = () => run(async () => setPreview(await api.simbriefLatest()));
+  const useIt = () =>
+    run(async () => {
+      await api.trackerBriefing();
+      setPreview(null);
+    });
+  const drop = () => run(() => api.trackerDropBriefing());
+
+  return (
+    <div className="live-sb">
+      {needUser && (
+        <div className="row-line">
+          <input
+            value={userText}
+            onChange={(e) => setUserText(e.target.value)}
+            placeholder="SimBrief alias or pilot ID"
+            spellCheck={false}
+            onKeyDown={(e) => e.key === "Enter" && void saveUser()}
+          />
+          <button type="button" className="small" onClick={saveUser} disabled={busy || !userText.trim()}>
+            Save
+          </button>
+          {editingUser && (
+            <button type="button" className="small" onClick={() => setEditingUser(false)} disabled={busy}>
+              Cancel
+            </button>
+          )}
+        </div>
+      )}
+
+      {!needUser && !b && !preview && (
+        <div className="row-line">
+          <button type="button" className="small" onClick={loadPreview} disabled={busy} title="Fetch your most recent SimBrief OFP and attach it to this flight">
+            Import SimBrief plan
+          </button>
+          <button type="button" className="linkish" onClick={() => setEditingUser(true)} title="Change the SimBrief user">
+            {settings.simbrief_username}
+          </button>
+        </div>
+      )}
+
+      {preview && (
+        <div className="pending">
+          <div>
+            <b>Latest SimBrief plan</b>
+            {preview.callsign && <> · {preview.callsign}</>}
+          </div>
+          <div className="code">
+            {preview.origin.icao ?? "?"}
+            {preview.origin.rwy ? `/${preview.origin.rwy}` : ""} → {preview.dest.icao ?? "?"}
+            {preview.dest.rwy ? `/${preview.dest.rwy}` : ""}
+          </div>
+          <div className="muted small">
+            {[
+              preview.aircraft.icao && `${preview.aircraft.icao}${preview.aircraft.reg ? ` ${preview.aircraft.reg}` : ""}`,
+              preview.weights.pax != null && `${preview.weights.pax} pax`,
+              preview.distance_nm != null && `${Math.round(preview.distance_nm)} nm`,
+              preview.ete_min != null && fmtDuration(preview.ete_min),
+              preview.generated_at && `generated ${fmtTimeShort(preview.generated_at)}`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </div>
+          <div className="actions">
+            <button type="button" className="primary" onClick={useIt} disabled={busy}>
+              Use this plan
+            </button>
+            <button type="button" onClick={() => setPreview(null)} disabled={busy}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {b && !needUser && (
+        <div className="row-line">
+          <span>
+            Plan{" "}
+            <b className="code">
+              {b.origin.icao ?? "?"} → {b.dest.icao ?? "?"}
+            </b>
+            {b.callsign && <> · {b.callsign}</>}
+            {b.weights.pax != null && <> · {b.weights.pax} pax</>}
+          </span>
+          <button type="button" className="small" onClick={drop} disabled={busy} title="Detach the plan from this flight">
+            Remove
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * Sidebar card for the live tracker: connection state, the sim aircraft and which fleet row it is
  * bound to, the leg in progress, and any finished leg waiting for details before it is logged.
  */
-export function LivePanel({ live, aircraft, reload, onFocusLive, onSelect, onNewFromSim }: Props) {
+export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onSelect, onNewFromSim }: Props) {
   const { status: s, online } = live;
   const [open, setOpen] = useState(true);
   const [bindId, setBindId] = useState("");
@@ -133,7 +259,16 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onSelect, onNew
                 <>
                   <dt>Leg</dt>
                   <dd>
-                    from <b className="code">{s.leg.origin ?? "?"}</b> · off {fmtTimeShort(s.leg.departed_at)} · {s.leg.points} points{" "}
+                    from <b className="code">{s.leg.origin ?? "?"}</b> · off {fmtTimeShort(s.leg.departed_at)} · {s.leg.points} points
+                    {s.leg.landings.length > 0 && (
+                      <>
+                        {" "}
+                        <LandingBadge landing={s.leg.landings[s.leg.landings.length - 1]} compact />
+                      </>
+                    )}{" "}
+                    <button type="button" className="small" onClick={onOpenLive} title="Open the live profile in the flight panel">
+                      Profile
+                    </button>{" "}
                     <button
                       type="button"
                       className="small"
@@ -149,6 +284,8 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onSelect, onNew
               )}
             </dl>
           )}
+
+          {s && s.connected && s.sim && <SimbriefControls status={s} busy={busy} run={run} />}
 
           {s && s.connected && !s.sim && <p className="muted small">Connected to {s.sim_name ?? "the sim"}; waiting for the aircraft to load.</p>}
           {s && !s.connected && (

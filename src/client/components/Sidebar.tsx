@@ -8,8 +8,10 @@ import type { LiveState } from "../tracker";
 import type { Aircraft, AppState, Hop, PlanCandidate, PlanResult } from "../types";
 import { AircraftForm, type AircraftPrefill } from "./AircraftForm";
 import { HopForm, type HopPreset } from "./HopForm";
+import { LandingBadge } from "./LandingBadge";
 import { LivePanel } from "./LivePanel";
 import { Planner } from "./Planner";
+import { finalLanding } from "../landing";
 
 interface Props {
   state: AppState;
@@ -29,6 +31,7 @@ interface Props {
   onHopLogged: () => void;
   live: LiveState;
   onFocusLive: () => void;
+  onOpenLive: () => void;
 }
 
 export function Sidebar(p: Props) {
@@ -72,6 +75,7 @@ export function Sidebar(p: Props) {
           aircraft={state.aircraft}
           reload={reload}
           onFocusLive={p.onFocusLive}
+          onOpenLive={p.onOpenLive}
           onSelect={(id) => onSelect(id)}
           onNewFromSim={(sim) => {
             setPrefill({ name: sim.title, livery: sim.atc_id || sim.livery, sim_title: sim.title, sim_livery: sim.livery });
@@ -314,10 +318,19 @@ function AircraftCard(p: CardProps) {
                 </li>
               ) : (
                 <li key={h.id}>
-                  <button type="button" className="hop-main" onClick={() => p.onFocusHop(h)} title="Zoom to this hop">
+                  <button type="button" className="hop-main" onClick={() => p.onFocusHop(h)} title="Zoom to this hop and open its profile">
                     <span className="seq">{h.seq}</span>
                     <span className="route">
                       <b className="code">{h.origin}</b> → <b className="code">{h.dest}</b>
+                      {(() => {
+                        const l = finalLanding(h);
+                        return l ? (
+                          <>
+                            {" "}
+                            <LandingBadge landing={l} compact />
+                          </>
+                        ) : null;
+                      })()}
                     </span>
                     <span className="times">
                       {h.departed_at && <span>dep {fmtTimeShort(h.departed_at)}</span>}

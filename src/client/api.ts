@@ -9,6 +9,9 @@ import type {
   Metar,
   PlanQuery,
   PlanResult,
+  Briefing,
+  BriefingSummary,
+  Settings,
   TerrainResult,
   TrackerStatus,
   WikiSummary,
@@ -58,6 +61,20 @@ export const api = {
     req<Hop>("POST", "/api/tracker/pending", o),
   trackerDiscardPending: () => req<TrackerStatus>("DELETE", "/api/tracker/pending"),
   trackerDiscardLeg: () => req<TrackerStatus>("DELETE", "/api/tracker/leg"),
+  trackerBriefing: () => req<TrackerStatus>("POST", "/api/tracker/briefing"),
+  trackerDropBriefing: () => req<TrackerStatus>("DELETE", "/api/tracker/briefing"),
+
+  settings: () => req<Settings>("GET", "/api/settings"),
+  saveSettings: (s: Partial<Settings>) => req<Settings>("PUT", "/api/settings", s),
+  simbriefLatest: (username?: string) =>
+    req<Omit<BriefingSummary, "id"> & { id: null; has_plan_html: boolean }>(
+      "GET",
+      `/api/simbrief/latest${username ? `?username=${encodeURIComponent(username)}` : ""}`,
+    ),
+  briefing: (id: number) => req<Briefing>("GET", `/api/briefings/${id}`),
+  hopBriefing: (hopId: number) => req<Briefing>("GET", `/api/hops/${hopId}/briefing`),
+  attachHopBriefing: (hopId: number) => req<Briefing>("POST", `/api/hops/${hopId}/briefing`),
+  dropHopBriefing: (hopId: number) => req<void>("DELETE", `/api/hops/${hopId}/briefing`),
 
   simbriefTypes: () =>
     req<{ types: { id: string; name: string }[]; source: string; fetched_at: string | null }>("GET", "/api/simbrief/aircraft"),

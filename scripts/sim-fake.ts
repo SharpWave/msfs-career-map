@@ -7,7 +7,8 @@
  *
  * Options: --speed N (virtual seconds per real second, default 30), --cruise KTS (150),
  * --alt FT (6500), --base URL (http://localhost:3080), --touch-and-go (bounce once at the
- * destination before the full stop), --start-airborne (begin mid-flight, no departure airport).
+ * destination before the full stop), --start-airborne (begin mid-flight, no departure airport),
+ * --fpm N (touchdown descent rate, default 180), --g N (peak G at touchdown, default 1.4).
  */
 
 const args = process.argv.slice(2);
@@ -31,6 +32,12 @@ const cruiseAlt = Number(opt("alt", "6500"));
 const title = opt("title", "Fake Aircraft");
 const livery = opt("livery", "");
 const atc = opt("atc", livery || "N000FK");
+const landingFpm = Number(opt("fpm", "180"));
+const landingG = Number(opt("g", "1.4"));
+/** Fuel on board at the start and a flat burn, pounds. */
+const FUEL_START_LB = 300;
+const BURN_LB_PER_HOUR = 60;
+const EMPTY_WEIGHT_LB = 2100;
 
 interface Airport {
   ident: string;
@@ -47,9 +54,15 @@ interface Sample {
   on_ground: boolean;
   gs_kts: number;
   hdg_deg: number;
+  vs_fpm: number;
+  ias_kts: number;
+  g: number;
+  fuel_lb: number;
+  weight_lb: number;
   title: string;
   livery: string;
   atc_id: string;
+  touchdown?: { t: number; fpm: number; g: number; ias_kts: number; sim_fpm: number; pitch_deg: number; bank_deg: number };
 }
 
 const toRad = (d: number) => (d * Math.PI) / 180;
@@ -93,8 +106,32 @@ function buildFlight(from: Airport, to: Airport): Sample[] {
   const fromElev = from.elevation_ft ?? 0;
   const toElev = to.elevation_ft ?? 0;
   const ident = { title, livery, atc_id: atc };
-  const push = (lat: number, lon: number, alt: number, ground: boolean, gs: number) =>
-    out.push({ t: out.length, lat, lon, alt_ft: alt, on_ground: ground, gs_kts: gs, hdg_deg: hdg, ...ident });
+  const push = (lat: number, lon: number, alt: number, ground: boolean, gs: number) => {
+    const prev = out[out.length - 1];
+    const vs = prev ? (alt - prev.alt_ft) * 60 : 0;
+    const fuel = FUEL_START_LB - (BURN_LB_PER_HOUR * out.length) / 3600;
+    const s: Sample = {
+      t: out.length,
+      lat,
+      lon,
+      alt_ft: alt,
+      on_ground: ground,
+      gs_kts: gs,
+      hdg_deg: hdg,
+      vs_fpm: vs,
+      ias_kts: gs,
+      g: 1,
+      fuel_lb: fuel,
+      weight_lb: EMPTY_WEIGHT_LB + fuel,
+      ...ident,
+    };
+    // The first on-ground sample after flight carries what the frame watcher would have measured.
+    if (ground && prev && !prev.on_ground) {
+      s.g = landingG;
+      s.touchdown = { t: out.length, fpm: landingFpm, g: landingG, ias_kts: gs, sim_fpm: landingFpm + 10, pitch_deg: 4.2, bank_deg: -0.6 };
+    }
+    out.push(s);
+  };
 
   if (!flag("start-airborne")) {
     for (let i = 0; i < 20; i++) push(from.lat, from.lon, fromElev, true, 0); // parked
@@ -136,7 +173,7 @@ async function main() {
   );
   let lastPhase = "";
   for (const s of samples) {
-    const body = { ...s, t: start + s.t * 1000 };
+    const body = { ...s, t: start + s.t * 1000, touchdown: s.touchdown ? { ...s.touchdown, t: start + s.touchdown.t * 1000 } : undefined };
     const r = await fetch(`${base}/api/tracker/sample`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     if (!r.ok) {
       console.error(`server said ${r.status}: ${await r.text()}`);

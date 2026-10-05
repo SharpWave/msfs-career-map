@@ -131,6 +131,28 @@ CREATE TABLE IF NOT EXISTS tracker_state (
   json       TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+-- SimBrief OFPs imported per flight: a compact summary for lists/maps, the OFP text as HTML,
+-- and the raw JSON as the archived artifact.
+CREATE TABLE IF NOT EXISTS briefings (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  hop_id       INTEGER REFERENCES hops(id) ON DELETE SET NULL,
+  aircraft_id  INTEGER REFERENCES aircraft(id) ON DELETE SET NULL,
+  ofp_id       TEXT,
+  generated_at TEXT,
+  origin       TEXT,
+  dest         TEXT,
+  summary      TEXT NOT NULL,
+  plan_html    TEXT,
+  ofp          TEXT NOT NULL,
+  fetched_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS briefings_hop ON briefings(hop_id);
 `);
 
 /** Additive migrations for databases created by earlier versions. */
@@ -152,6 +174,9 @@ addColumnIfMissing("aircraft", "descent_fpm", "INTEGER");
 addColumnIfMissing("aircraft", "overhead_min", "INTEGER");
 addColumnIfMissing("aircraft", "sim_title", "TEXT");
 addColumnIfMissing("aircraft", "sim_livery", "TEXT");
+addColumnIfMissing("hops", "landings", "TEXT");
+addColumnIfMissing("hops", "stats", "TEXT");
+addColumnIfMissing("hops", "briefing_id", "INTEGER");
 addColumnIfMissing("airports", "wikipedia_link", "TEXT");
 addColumnIfMissing("airports", "home_link", "TEXT");
 addColumnIfMissing("runways", "le_heading", "REAL");

@@ -1488,3 +1488,401 @@ label.check span {
   border-bottom: 9px solid var(--c, #fff);
   filter: drop-shadow(0 0 2px #000);
 }
+
+/* ---------- flight panel (bottom of the map) ---------- */
+
+.map-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.map-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.flight-panel {
+  flex: 0 0 40%;
+  min-height: 0;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.fp-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.fp-head .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.fp-head .route {
+  font-weight: 650;
+}
+
+.fp-head .close {
+  margin-left: auto;
+}
+
+.fp-body {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr);
+  gap: 12px;
+  padding: 12px 14px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fp-chart {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.fp-side {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.fp-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.fp-card h3 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 12px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.kv dt {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.kv dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.kv .route-text {
+  white-space: normal;
+}
+
+.rating {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--rc) 55%, transparent);
+  background: color-mix(in srgb, var(--rc) 12%, transparent);
+}
+
+.rating .icon {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.rating .word {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--rc);
+}
+
+.rating .caption {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.td-chip {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--panel-3);
+  font-size: 12px;
+}
+
+.bands {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  font-size: 12px;
+  display: grid;
+  gap: 2px;
+}
+
+.bands .swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+
+.linkish {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.actions.wrap {
+  flex-wrap: wrap;
+}
+
+a.button {
+  display: inline-block;
+  text-decoration: none;
+}
+
+.ofp-html {
+  margin-top: 8px;
+  max-height: 360px;
+  overflow: auto;
+  background: #f8f8f4;
+  color: #111;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+.ofp-html * {
+  color: inherit !important;
+  background: transparent !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+}
+
+/* landing badge in hop lists and tooltips */
+
+.landing-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+  border: 1px solid color-mix(in srgb, var(--rc) 60%, transparent);
+  background: color-mix(in srgb, var(--rc) 14%, transparent);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* ---------- profile chart ---------- */
+
+.profile {
+  width: 100%;
+}
+
+.profile-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-bottom: 4px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.legend-item:hover {
+  border-color: var(--border);
+}
+
+.legend-item.off {
+  opacity: 0.45;
+}
+
+.legend-item .key,
+.profile-tip .key {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.legend-item .range {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.profile-plot {
+  position: relative;
+}
+
+.profile-plot svg {
+  display: block;
+  touch-action: none;
+}
+
+.profile-plot .grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.profile-plot .axis-line {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.profile-plot .axis {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.profile-plot .crosshair {
+  stroke: #e6edf3;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.7;
+}
+
+.profile-plot .landing-tick {
+  stroke: #fbbf24;
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  opacity: 0.8;
+}
+
+.profile-plot .landing-label {
+  fill: var(--text);
+  font-size: 11px;
+}
+
+.profile-tip {
+  position: absolute;
+  top: 8px;
+  transform: translateX(-50%);
+  background: var(--panel-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  pointer-events: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  min-width: 150px;
+}
+
+.profile-tip .when {
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+
+.profile-tip .row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.profile-table {
+  max-height: 220px;
+  overflow: auto;
+  font-size: 12px;
+}
+
+.profile-table table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.profile-table th,
+.profile-table td {
+  text-align: right;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.profile-table th:first-child,
+.profile-table td:first-child {
+  text-align: left;
+}
+
+.profile-table th {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* live card: simbrief import */
+
+.live-sb {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.live-sb .row-line {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.live-sb input {
+  flex: 1;
+  min-width: 120px;
+}
+
+@media (max-width: 1100px) {
+  .fp-body {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+}

@@ -7,9 +7,10 @@ import { assessCandidate, type Flag } from "./constraints";
 import { useTracker } from "./tracker";
 import { fmtDuration } from "./format";
 import { HAZARD_STYLE } from "./components/HazardLayer";
-import type { AppState, HazardKind, Hop, PlanCandidate, PlanResult } from "./types";
+import type { AppState, Briefing, HazardKind, Hop, OfpFix, PlanCandidate, PlanResult } from "./types";
 import { MapView, type Basemap, type Focus } from "./components/MapView";
 import { Sidebar } from "./components/Sidebar";
+import { FlightPanel, type PanelSource } from "./components/FlightPanel";
 import type { HopPreset } from "./components/HopForm";
 
 const BASEMAPS: { key: Basemap; label: string }[] = [
@@ -167,6 +168,10 @@ export function App() {
   // Live tracker stream. A leg the server logs refreshes the map, drops stale planner results and
   // shows a toast for a few seconds.
   const [toast, setToast] = useState<string | null>(null);
+  // The flight panel across the bottom of the map: a logged hop or the leg being flown.
+  const [panel, setPanel] = useState<PanelSource | null>(null);
+  const [panelBriefing, setPanelBriefing] = useState<Briefing | null>(null);
+  const [briefingVersion, setBriefingVersion] = useState(0);
   const live = useTracker(
     useCallback(
       (hop: Hop) => {
@@ -174,10 +179,48 @@ export function App() {
         setPlan(null);
         setHopPreset(null);
         setToast(`Logged ${hop.origin} → ${hop.dest}${hop.duration_min != null ? ` · ${fmtDuration(hop.duration_min)}` : ""}`);
+        // A live panel follows the leg into the logbook.
+        setPanel((p) => (p?.kind === "live" ? { kind: "hop", hopId: hop.id } : p));
       },
       [reload],
     ),
   );
+
+  const panelHop = panel?.kind === "hop" && state ? state.hops.find((h) => h.id === panel.hopId) : undefined;
+  const panelBriefingId = panel?.kind === "hop" ? (panelHop?.briefing_id ?? null) : panel?.kind === "live" ? (live.status?.briefing?.id ?? null) : null;
+
+  // Load the full briefing (OFP text, fixes) for whatever the panel shows.
+  useEffect(() => {
+    let cancelled = false;
+    if (panelBriefingId == null) {
+      setPanelBriefing(null);
+      return;
+    }
+    api
+      .briefing(panelBriefingId)
+      .then((b) => !cancelled && setPanelBriefing(b))
+      .catch(() => !cancelled && setPanelBriefing(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [panelBriefingId, briefingVersion]);
+
+  // Close the panel if its hop was deleted.
+  useEffect(() => {
+    if (panel?.kind === "hop" && state && !state.hops.some((h) => h.id === panel.hopId)) setPanel(null);
+  }, [panel, state]);
+
+  // SimBrief routes to draw: the plan for the flight being flown, plus the opened hop's plan.
+  const routes = useMemo(() => {
+    const out: { fixes: OfpFix[]; color: string }[] = [];
+    const colorOf = (id: number | null | undefined) => state?.aircraft.find((a) => a.id === id)?.color ?? "#ffffff";
+    const lb = live.status?.briefing;
+    if (lb && lb.fixes.length > 1) out.push({ fixes: lb.fixes, color: colorOf(live.status?.aircraft_id) });
+    if (panelBriefing && panelBriefing.id !== lb?.id && panelBriefing.fixes.length > 1) {
+      out.push({ fixes: panelBriefing.fixes, color: colorOf(panelHop?.aircraft_id) });
+    }
+    return out;
+  }, [live.status?.briefing, live.status?.aircraft_id, panelBriefing, panelHop?.aircraft_id, state?.aircraft]);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 8000);
@@ -220,7 +263,12 @@ export function App() {
     if (id != null) requestFocus(focusPoints(data, { aircraftId: id }));
   };
 
-  const focusHop = (hop: Hop) => requestFocus(focusPoints(data, { hopId: hop.id }));
+  /** Zoom to a hop and open its profile in the flight panel. */
+  const openHop = (hop: Hop) => {
+    setPanel({ kind: "hop", hopId: hop.id });
+    setSelectedId(hop.aircraft_id);
+    requestFocus(focusPoints(data, { hopId: hop.id }));
+  };
 
   const onPlan = (p: PlanResult | null) => {
     setPlan(p);
@@ -270,7 +318,7 @@ export function App() {
           state={state}
           selectedId={selectedId}
           onSelect={select}
-          onFocusHop={focusHop}
+          onFocusHop={openHop}
           reload={reload}
           plan={plan}
           metars={metars}
@@ -287,9 +335,11 @@ export function App() {
           }}
           live={live}
           onFocusLive={focusLive}
+          onOpenLive={() => setPanel({ kind: "live" })}
         />
       )}
       <div className="map-wrap">
+        <div className="map-area">
         {state ? (
           <MapView
             data={data}
@@ -308,6 +358,8 @@ export function App() {
             onHazardStatus={setHazardStatus}
             onPickCandidate={pickCandidate}
             live={live}
+            onOpenHop={openHop}
+            routes={routes}
           />
         ) : (
           <div className="loading">{error ? "" : "Loading…"}</div>
@@ -377,6 +429,21 @@ export function App() {
               Retry
             </button>
           </div>
+        )}
+        </div>
+
+        {panel && state && (
+          <FlightPanel
+            source={panel}
+            state={state}
+            live={live}
+            briefing={panelBriefing}
+            onClose={() => setPanel(null)}
+            onBriefingChanged={() => {
+              void reload();
+              setBriefingVersion((v) => v + 1);
+            }}
+          />
         )}
       </div>
     </div>

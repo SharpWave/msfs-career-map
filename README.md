@@ -5,10 +5,12 @@ always starts where it last parked, so each one builds its own tour across the m
 draws those tours as big colorful hop-to-hop paths, shows where each plane currently sits, and
 remembers when you landed at or left each airport.
 
-Version 0.7: manual hop logging, editable paths, per-aircraft icons and colors, airport lookup
+Version 0.8: manual hop logging, editable paths, per-aircraft icons and colors, airport lookup
 by ICAO/IATA/local code, runway data on every airport, a "next hop" planner that shows which
 airports are within a given flight time of where a plane is parked, and live tracking from the
-sim: with MSFS running, each takeoff and landing becomes a logged hop with the actual flown track.
+sim: with MSFS running, each takeoff and landing becomes a logged hop with the actual flown track,
+a rated landing (butter to graveyard), a speed/altitude profile, fuel and weight figures, and
+optionally the SimBrief plan it was flown from.
 
 ## Quick start
 
@@ -62,6 +64,30 @@ install in the sim); see **Live tracking** below.
   restart does not. Tracked hops are drawn with their real path (hover shows the distance flown)
   instead of a great circle, still tied to the airport dots at both ends. `npm run sim-probe`
   prints what the sim reports, for checking the connection.
+- **Landing rate**: a few variables are watched every frame, so the moment the wheels touch the
+  tracker records the descent rate on the last airborne frame, the peak G over the next second,
+  the touchdown airspeed, pitch and bank, and the sim's own touchdown velocity for comparison
+  with third-party monitors. Each touchdown is rated **butter** (≤ 100 fpm), **solid** (≤ 250),
+  **hard** (≤ 500), **hospital** (≤ 800) or **graveyard**, with a peak G above 1.6 / 2.0 / 2.6 /
+  3.5 bumping the class up. The rating shows as a badge in the hop list, on the hop's hover, and
+  in the flight panel with a line about how the passengers took it. A touch-and-go keeps every
+  touchdown; the last one is the hop's rating.
+- **Flight panel**: click a hop (its line on the map or its row in the aircraft card) and a panel
+  opens across the bottom 40% of the map. The chart plots altitude, ground speed, vertical speed,
+  indicated airspeed and fuel against elapsed time, each indexed to its own range so they share
+  one plot; the legend shows each series' real min–max, the crosshair shows real values, series
+  can be toggled, and a table view lists every sample. Beside it: the landing card, flight stats
+  (distance flown vs direct, max altitude and speed, fuel used, takeoff and landing weight) and
+  the SimBrief card. **Profile** in the live card opens the same panel for the leg being flown,
+  and it follows the leg into the logbook when it lands. Close it to get the map back.
+- **SimBrief plans**: enter your SimBrief alias or pilot ID once in the live card, then
+  **Import SimBrief plan** fetches your most recent OFP, shows origin, destination, aircraft,
+  passengers and when it was generated for you to confirm, and attaches it to the flight (before
+  or during the leg). The planned route is drawn as a dashed line with its fixes, and when the
+  hop is logged the whole OFP is archived with it: the summary (callsign, runways, route, cruise,
+  distance, ETE, fuel plan, passengers, cargo, weights), the OFP text, a link to SimBrief's PDF,
+  and the raw JSON. The flight panel shows it all and can also attach your latest plan to an
+  already-logged hop. No PDF is stored; SimBrief keeps those on its side.
 - **Map**: each aircraft's hops are drawn as thick colored great-circle lines with direction
   chevrons. The icon at the end of each path is where that plane is parked now. Hover an airport dot
   to see every arrival and departure logged there, hover a line for that hop's details. Click an
@@ -157,6 +183,11 @@ All JSON, under `/api`:
 | DELETE | `/tracker/pending` | Discard the pending leg |
 | DELETE | `/tracker/leg` | Discard the leg being flown |
 | POST | `/tracker/sample` | Feed one synthetic position sample (only with `TRACKER_FAKE=1`) |
+| POST/DELETE | `/tracker/briefing` | Attach your latest SimBrief OFP to the flight being flown (or the next one) / detach it |
+| GET/PUT | `/settings` | `{ simbrief_username }` |
+| GET | `/simbrief/latest` | Preview your latest SimBrief OFP without storing it; optional `?username=` |
+| GET | `/briefings/:id` | A stored briefing: summary, fixes, OFP text as HTML |
+| GET/POST/DELETE | `/hops/:id/briefing` | The hop's briefing / attach your latest OFP to it / remove it |
 | GET/POST | `/aircraft` | List / create |
 | PUT/DELETE | `/aircraft/:id` | Update / delete (deletes its hops) |
 | POST | `/aircraft/:id/icon` | Upload a custom icon as a base64 data URL |
@@ -167,28 +198,35 @@ All JSON, under `/api`:
 
 Timestamps are ISO 8601 UTC; the UI enters and displays them in local time. Aircraft carry
 optional `cruise_kts` and `min_runway_ft`; the planner needs the first and honours the second.
-A tracked hop's `track` is a JSON array of `[lat, lon, alt_ft, unix_seconds]` samples; aircraft
-carry `sim_title` and `sim_livery` so the tracker can find them.
+A tracked hop's `track` is a JSON array of `[lat, lon, alt_ft, unix_seconds, gs_kts, vs_fpm,
+ias_kts, fuel_lb]` samples (hops from 0.7 have the first four only), `landings` a JSON array of
+touchdowns with their rating, `stats` the fuel/weight/altitude figures, and `briefing_id` points
+at the archived SimBrief OFP. Aircraft carry `sim_title` and `sim_livery` so the tracker can find
+them.
 
 ## Project layout
 
 ```
 src/server/   Express API, SQLite schema, airport + runway import, planner query (TypeScript via tsx)
-  simconnect.ts  SimConnect link (node-simconnect, pure TypeScript): position samples, system events, reconnect
-  tracker.ts     turns samples into hops: takeoff/landing detection, track recording, pending legs
+  simconnect.ts  SimConnect link (node-simconnect, pure TypeScript): samples, touchdown watcher, system events
+  tracker.ts     turns samples into hops: takeoff/landing detection, landing rating, track + stats, pending legs
+  ofp.ts         SimBrief OFP fetch + parse
 src/client/   Vite + React + Leaflet UI
   paths.ts    turns hops into map geometry (great circles or recorded tracks, antimeridian unwrapping)
   icons.ts    built-in aircraft silhouettes and the path color palette
   tracker.ts  subscribes to the tracker's event stream
+  landing.ts  how landing ratings are shown
+  components/FlightPanel.tsx, ProfileChart.tsx   the bottom panel and its chart
 scripts/      import-airports.ts, sim-probe.ts (print what the sim reports), sim-fake.ts (synthetic flight)
 data/         runtime data (ignored by git)
 ```
 
 ## Roadmap
 
-Live tracking shipped in 0.7 on [`node-simconnect`](https://github.com/EvenAR/node-simconnect).
-Around it: thin very long tracks before storing them, an altitude profile on hover, and
-per-aircraft totals that include tracked time.
+Live tracking shipped in 0.7 on [`node-simconnect`](https://github.com/EvenAR/node-simconnect);
+landing rates, flight profiles and SimBrief briefings in 0.8. Around them: thin very long tracks
+before storing them, per-aircraft totals that include tracked time and landing averages, and
+comparing the flown track against the SimBrief route.
 
 Other ideas: engine-hours per aircraft, flight-time totals, exporting the map, importing a
 logbook from other tools.

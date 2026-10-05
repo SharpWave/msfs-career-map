@@ -19,6 +19,16 @@ description, API table and roadmap.
   and only produces position samples and system events; `src/server/tracker.ts` is the
   sim-independent state machine (`feed(sample)`), checkpointed to the `tracker_state` row so a
   leg survives a server restart. The client subscribes to `/api/tracker/events` (SSE).
+- Landing rating thresholds (`rateLanding`) live in `src/server/tracker.ts`; the client only
+  maps a rating to icon/word/color in `src/client/landing.ts`. The per-frame touchdown watcher
+  is in `simconnect.ts`; the tracker makes a provisional landing from 1 Hz data and replaces it
+  when the frame-accurate one arrives within 6 s.
+- SimBrief: `src/server/ofp.ts` fetches `xml.fetcher.php?...&json=v2` by alias or pilot ID (the
+  only setting, in the `settings` table) and parses both the v2 and the older all-strings shape.
+  Briefings are archived whole (raw JSON + OFP HTML + summary) in `briefings`, linked from
+  `hops.briefing_id`. The tracker holds one "current" briefing that the next logged hop consumes.
+- Charts follow the dataviz skill: no dual axes; the profile chart indexes each series to its own
+  range and shows real values in the legend and crosshair. Palette validated for the dark surface.
 
 ## Commands
 
@@ -28,17 +38,20 @@ description, API table and roadmap.
 - `npm run import-airports [-- --fresh]` — re-import (optionally re-download) airports.
 - `npm run sim-probe` — print what a running sim reports, without touching the database.
 - `TRACKER_FAKE=1 npm run dev` then `npm run sim-fake -- KBOS KPVD [--touch-and-go]
-  [--start-airborne]` — drive the tracker with a synthetic flight; test against a copy of the
-  database (`CAREER_DB=...`) so fake hops never land in the real logbook.
+  [--start-airborne] [--fpm 320 --g 2.1]` — drive the tracker with a synthetic flight; test
+  against a copy of the database (`CAREER_DB=...`) so fake hops never land in the real logbook.
+  Copy `career.db` with `-wal`/`-shm` or after a checkpoint, or recent rows are missing.
 
 ## Conventions
 
 - Hops are ordered per aircraft by `seq`; the server renumbers after deletes/reorders.
 - Airport codes are resolved server-side to the canonical OurAirports `ident` before storage.
 - Timestamps are stored as ISO UTC strings; the client converts to/from `datetime-local`.
-- `hops.track` is a JSON array of `[lat, lon, alt_ft, unix_seconds]`, written only by the tracker
-  (one sample per 5 s). `parseTrack()` in `src/client/tracker.ts` reads it and `paths.ts` draws it
-  in place of the great circle, with the airport positions prepended/appended.
+- `hops.track` is a JSON array of `[lat, lon, alt_ft, unix_seconds, gs_kts, vs_fpm, ias_kts,
+  fuel_lb]` (0.7 rows have four fields), written only by the tracker (one sample per 5 s).
+  `parseTrack()` in `src/client/tracker.ts` reads it and `paths.ts` draws it in place of the
+  great circle, with the airport positions prepended/appended. `hops.landings` and `hops.stats`
+  are JSON too (`Landing[]`, `HopStats`); readers must tolerate null for hand-logged hops.
 - Aircraft rows carry `sim_title` / `sim_livery` (the sim's `TITLE` and `LIVERY NAME`); the
   tracker matches on both, with a blank `sim_livery` meaning any livery.
 - Map geometry (great circles, antimeridian unwrapping, parked-aircraft positions) is computed in

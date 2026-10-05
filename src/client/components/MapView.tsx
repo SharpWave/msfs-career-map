@@ -9,7 +9,11 @@ import { isBlocked, type Flag } from "../constraints";
 import { NightLayer } from "./NightLayer";
 import { HazardLayer } from "./HazardLayer";
 import { LiveLayer } from "./LiveLayer";
+import { BriefingLayer } from "./BriefingLayer";
+import { LandingBadge } from "./LandingBadge";
+import { finalLanding } from "../landing";
 import type { LiveState } from "../tracker";
+import type { Hop, OfpFix } from "../types";
 import type { HazardKind } from "../types";
 import { headMarkerHtml } from "../icons";
 import { planLonShift, type AirportNode, type RenderData, type RenderHop } from "../paths";
@@ -109,6 +113,10 @@ interface Props {
   onHazardStatus?: (s: { count: number; fetched_at: string | null; error: string | null }) => void;
   onPickCandidate: (c: PlanCandidate) => void;
   live?: LiveState;
+  /** Clicking a hop's line opens it in the flight panel. */
+  onOpenHop?: (hop: Hop) => void;
+  /** SimBrief routes to draw under the paths. */
+  routes?: { fixes: OfpFix[]; color: string }[];
 }
 
 export function MapView({
@@ -128,6 +136,8 @@ export function MapView({
   onHazardStatus,
   onPickCandidate,
   live,
+  onOpenHop,
+  routes,
 }: Props) {
   const { hops, nodes, heads } = data;
   const tiles = TILES[basemap];
@@ -188,6 +198,9 @@ export function MapView({
         </Popup>
       )}
 
+      {/* 0b. SimBrief planned routes, dashed, under the flown paths */}
+      {routes?.map((r, i) => <BriefingLayer key={`route-${i}`} fixes={r.fixes} color={r.color} />)}
+
       {/* 1. dark casing under every path so colors pop on any basemap */}
       {hops.map((r) => (
         <Polyline
@@ -204,7 +217,7 @@ export function MapView({
           key={`hop-${r.hop.id}`}
           positions={r.pts}
           pathOptions={{ color: r.aircraft.color, weight: 5, opacity: isDim(r.aircraft, selectedId) ? DIM.path : 0.95, lineCap: "round", lineJoin: "round" }}
-          eventHandlers={{ click: () => onSelect(r.aircraft.id) }}
+          eventHandlers={{ click: () => (onOpenHop ? onOpenHop(r.hop) : onSelect(r.aircraft.id)) }}
         >
           <Tooltip sticky className="tip" opacity={1}>
             <HopTip r={r} />
@@ -419,6 +432,7 @@ function CandidateLayer({
 
 function HopTip({ r }: { r: RenderHop }) {
   const dur = hopDurationMin(r.hop);
+  const landing = finalLanding(r.hop);
   return (
     <>
       <div className="tip-title" style={{ color: r.aircraft.color }}>
@@ -438,7 +452,14 @@ function HopTip({ r }: { r: RenderHop }) {
           {dur != null && <>· {fmtDuration(dur)}</>}
         </div>
       )}
+      {landing && (
+        <div className="tip-sub">
+          <LandingBadge landing={landing} />
+          {landing.g != null && <span className="muted"> · {landing.g.toFixed(2)} G</span>}
+        </div>
+      )}
       {r.hop.notes && <div className="tip-notes">{r.hop.notes}</div>}
+      {r.tracked && <div className="tip-hint">Click for the flight profile</div>}
     </>
   );
 }

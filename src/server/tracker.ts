@@ -1,7 +1,8 @@
 import { EventEmitter } from "node:events";
 import { db } from "./db.ts";
 import { distanceNm, nearestAirport } from "./airports.ts";
-import type { SimAircraft, SimSample } from "./simconnect.ts";
+import type { SimAircraft, SimSample, Touchdown } from "./simconnect.ts";
+import type { BriefingSummary } from "./ofp.ts";
 
 /**
  * Turns a stream of position samples from the sim into logged hops.
@@ -13,13 +14,17 @@ import type { SimAircraft, SimSample } from "./simconnect.ts";
  * the aircraft stopped. The in-progress leg is checkpointed to `tracker_state` so a server
  * restart mid-flight loses nothing.
  *
- * A finished leg is logged straight into `hops` (with its track) when the sim aircraft is bound to
- * a fleet row and both airports are known; otherwise it is parked as `pending` for the user to
- * complete from the UI.
+ * Each touchdown is rated from its descent rate and peak G (see rateLanding). The frame-rate
+ * watcher in simconnect.ts supplies accurate numbers a moment after the wheels touch; until then
+ * (and always with the fake feed) a provisional landing is derived from the 1 Hz samples.
+ *
+ * A finished leg is logged straight into `hops` (with track, landings, stats and any SimBrief
+ * briefing imported for it) when the sim aircraft is bound to a fleet row and both airports are
+ * known; otherwise it is parked as `pending` for the user to complete from the UI.
  */
 
-/** [lat, lon, alt_ft, unix_seconds]: the sample shape stored in hops.track. */
-export type TrackPoint = [number, number, number, number];
+/** `[lat, lon, alt_ft, unix_seconds, gs_kts, vs_fpm, ias_kts, fuel_lb]`; old rows have the first four only. */
+export type TrackPoint = number[];
 export type Phase = "idle" | "ground" | "airborne" | "landed";
 
 /** Airborne this long before a takeoff counts (filters runway bounces). */
@@ -37,6 +42,59 @@ const TELEPORT_NM = 50;
 const MIN_LEG_MIN = 1;
 /** Checkpoint the in-progress leg to the database at most this often outside phase changes. */
 const SAVE_MS = 5000;
+/** A frame-accurate touchdown within this of a provisional one replaces it. */
+const TOUCHDOWN_MATCH_MS = 6000;
+
+// ------------------------------------------------------------------ landings
+
+export type LandingRating = "butter" | "solid" | "hard" | "hospital" | "graveyard";
+const RATINGS: LandingRating[] = ["butter", "solid", "hard", "hospital", "graveyard"];
+/** Upper bound of descent rate (fpm) for each rating; the last is open-ended. */
+const FPM_LIMITS = [100, 250, 500, 800];
+/** Upper bound of peak G for each rating. A hard G floor bumps a gentle-looking fpm up a class. */
+const G_LIMITS = [1.6, 2.0, 2.6, 3.5];
+
+export function rateLanding(fpm: number, g: number | null): LandingRating {
+  let r = FPM_LIMITS.findIndex((lim) => fpm <= lim);
+  if (r < 0) r = 4;
+  if (g != null && Number.isFinite(g)) {
+    let byG = G_LIMITS.findIndex((lim) => g < lim);
+    if (byG < 0) byG = 4;
+    r = Math.max(r, byG);
+  }
+  return RATINGS[r];
+}
+
+export interface Landing {
+  t: string;
+  /** Descent rate at touchdown, fpm, positive down. */
+  fpm: number;
+  /** Peak load factor just after touchdown (null when only 1 Hz samples were available). */
+  g: number | null;
+  ias_kts: number | null;
+  /** The sim's own touchdown normal velocity as fpm, for comparison with third-party monitors. */
+  sim_fpm: number | null;
+  pitch_deg: number | null;
+  bank_deg: number | null;
+  lat: number;
+  lon: number;
+  rating: LandingRating;
+  /** "frames" from the per-frame watcher, "samples" derived from 1 Hz data. */
+  source: "frames" | "samples";
+}
+
+export interface HopStats {
+  fuel_start_lb: number | null;
+  fuel_end_lb: number | null;
+  fuel_used_lb: number | null;
+  weight_start_lb: number | null;
+  weight_end_lb: number | null;
+  max_alt_ft: number | null;
+  max_gs_kts: number | null;
+  flown_nm: number | null;
+}
+
+// ------------------------------------------------------------------ state
 
 interface Leg {
   origin: string | null;
@@ -45,6 +103,11 @@ interface Leg {
   /** Most recent touchdown, epoch ms; cleared again by a touch-and-go. */
   touchdown_at: number | null;
   track: TrackPoint[];
+  landings: Landing[];
+  fuel_start_lb: number | null;
+  weight_start_lb: number | null;
+  max_alt_ft: number;
+  max_gs_kts: number;
 }
 
 export interface PendingLeg {
@@ -56,6 +119,9 @@ export interface PendingLeg {
   arrived_at: string;
   duration_min: number;
   track: TrackPoint[];
+  landings: Landing[];
+  stats: HopStats;
+  briefing_id: number | null;
   /** Why it was not logged automatically. */
   reason: string;
 }
@@ -66,8 +132,11 @@ interface Persisted {
   aircraft_id: number | null;
   leg: Leg | null;
   pending: PendingLeg | null;
+  /** SimBrief plan imported for the flight being flown (or about to be); consumed by the next hop. */
+  briefing: BriefingSummary | null;
   last: SimSample | null;
   lastGround: SimSample | null;
+  lastAirborne: SimSample | null;
   airborneSince: number | null;
   stopSince: number | null;
   message: string | null;
@@ -83,9 +152,29 @@ export interface TrackerStatus {
   sim: SimAircraft | null;
   aircraft_id: number | null;
   phase: Phase;
-  position: { lat: number; lon: number; alt_ft: number; gs_kts: number; hdg_deg: number; on_ground: boolean; t: string } | null;
-  leg: { origin: string | null; departed_at: string; touchdown_at: string | null; points: number } | null;
+  position: {
+    lat: number;
+    lon: number;
+    alt_ft: number;
+    gs_kts: number;
+    hdg_deg: number;
+    vs_fpm: number;
+    ias_kts: number;
+    fuel_lb: number;
+    on_ground: boolean;
+    t: string;
+  } | null;
+  leg: {
+    origin: string | null;
+    departed_at: string;
+    touchdown_at: string | null;
+    points: number;
+    landings: Landing[];
+    max_alt_ft: number;
+    fuel_used_lb: number | null;
+  } | null;
   pending: (Omit<PendingLeg, "track"> & { points: number }) | null;
+  briefing: BriefingSummary | null;
   message: string | null;
   message_at: string | null;
 }
@@ -101,6 +190,9 @@ export interface LoggedHop {
   duration_min: number | null;
   notes: string;
   track: string | null;
+  landings: string | null;
+  stats: string | null;
+  briefing_id: number | null;
   created_at: string;
 }
 
@@ -110,8 +202,10 @@ const EMPTY: Persisted = {
   aircraft_id: null,
   leg: null,
   pending: null,
+  briefing: null,
   last: null,
   lastGround: null,
+  lastAirborne: null,
   airborneSince: null,
   stopSince: null,
   message: null,
@@ -131,16 +225,24 @@ const bindSet = db.prepare(`UPDATE aircraft SET sim_title = ?, sim_livery = ? WH
 const aircraftExists = db.prepare(`SELECT id FROM aircraft WHERE id = ?`);
 const nextSeq = db.prepare(`SELECT COALESCE(MAX(seq),0)+1 AS s FROM hops WHERE aircraft_id = ?`);
 const insertHopStmt = db.prepare(
-  `INSERT INTO hops (aircraft_id, seq, origin, dest, departed_at, arrived_at, duration_min, notes, track)
-   VALUES (?,?,?,?,?,?,?,?,?)`,
+  `INSERT INTO hops (aircraft_id, seq, origin, dest, departed_at, arrived_at, duration_min, notes, track, landings, stats, briefing_id)
+   VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
 );
 const hopGet = db.prepare(`SELECT * FROM hops WHERE id = ?`);
+const briefingAttach = db.prepare(`UPDATE briefings SET hop_id = ?, aircraft_id = ? WHERE id = ?`);
+const briefingDropUnused = db.prepare(`DELETE FROM briefings WHERE id = ? AND hop_id IS NULL`);
 
 function load(): Persisted {
   const row = loadStmt.get() as { json: string } | undefined;
   if (!row) return { ...EMPTY };
   try {
-    return { ...EMPTY, ...(JSON.parse(row.json) as Partial<Persisted>) };
+    const p = { ...EMPTY, ...(JSON.parse(row.json) as Partial<Persisted>) };
+    // A leg checkpointed by an older version lacks the landing/stat fields.
+    if (p.leg) {
+      const defaults: Partial<Leg> = { landings: [], fuel_start_lb: null, weight_start_lb: null, max_alt_ft: 0, max_gs_kts: 0 };
+      p.leg = { ...defaults, ...(p.leg as Partial<Leg>) } as Leg;
+    }
+    return p;
   } catch {
     return { ...EMPTY };
   }
@@ -148,12 +250,28 @@ function load(): Persisted {
 
 const iso = (ms: number) => new Date(ms).toISOString();
 const round = (v: number, places: number) => Number(v.toFixed(places));
-const point = (s: SimSample): TrackPoint => [round(s.lat, 5), round(s.lon, 5), Math.round(s.alt_ft), Math.round(s.t / 1000)];
+const fin = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+const point = (s: SimSample): TrackPoint => [
+  round(s.lat, 5),
+  round(s.lon, 5),
+  Math.round(s.alt_ft),
+  Math.round(s.t / 1000),
+  Math.round(fin(s.gs_kts)),
+  Math.round(fin(s.vs_fpm)),
+  Math.round(fin(s.ias_kts)),
+  Math.round(fin(s.fuel_lb)),
+];
 
 function fmtMin(min: number): string {
   const h = Math.floor(min / 60);
   const m = min % 60;
   return h ? `${h} h ${m.toString().padStart(2, "0")} min` : `${m} min`;
+}
+
+function trackNm(track: TrackPoint[]): number {
+  let nm = 0;
+  for (let i = 1; i < track.length; i++) nm += distanceNm(track[i - 1][0], track[i - 1][1], track[i][0], track[i][1]);
+  return round(nm, 1);
 }
 
 interface HopDraft {
@@ -163,12 +281,30 @@ interface HopDraft {
   arrived_at: string;
   duration_min: number;
   track: TrackPoint[];
+  landings: Landing[];
+  stats: HopStats;
+  briefing_id: number | null;
 }
 
 function insertHop(aircraftId: number, h: HopDraft): LoggedHop {
   const seq = (nextSeq.get(aircraftId) as { s: number }).s;
-  const r = insertHopStmt.run(aircraftId, seq, h.origin, h.dest, h.departed_at, h.arrived_at, h.duration_min, "", JSON.stringify(h.track));
-  return hopGet.get(Number(r.lastInsertRowid)) as unknown as LoggedHop;
+  const r = insertHopStmt.run(
+    aircraftId,
+    seq,
+    h.origin,
+    h.dest,
+    h.departed_at,
+    h.arrived_at,
+    h.duration_min,
+    "",
+    JSON.stringify(h.track),
+    JSON.stringify(h.landings),
+    JSON.stringify(h.stats),
+    h.briefing_id,
+  );
+  const id = Number(r.lastInsertRowid);
+  if (h.briefing_id != null) briefingAttach.run(id, aircraftId, h.briefing_id);
+  return hopGet.get(id) as unknown as LoggedHop;
 }
 
 export class Tracker extends EventEmitter {
@@ -190,6 +326,7 @@ export class Tracker extends EventEmitter {
   status(): TrackerStatus {
     const st = this.s;
     const l = st.last;
+    const leg = st.leg;
     const { track: pendingTrack, ...pendingRest } = st.pending ?? { track: [] as TrackPoint[] };
     return {
       connected: this.connected,
@@ -205,21 +342,28 @@ export class Tracker extends EventEmitter {
             lat: l.lat,
             lon: l.lon,
             alt_ft: Math.round(l.alt_ft),
-            gs_kts: Math.round(l.gs_kts),
-            hdg_deg: Math.round(l.hdg_deg),
+            gs_kts: Math.round(fin(l.gs_kts)),
+            hdg_deg: Math.round(fin(l.hdg_deg)),
+            vs_fpm: Math.round(fin(l.vs_fpm)),
+            ias_kts: Math.round(fin(l.ias_kts)),
+            fuel_lb: Math.round(fin(l.fuel_lb)),
             on_ground: l.on_ground,
             t: iso(l.t),
           }
         : null,
-      leg: st.leg
+      leg: leg
         ? {
-            origin: st.leg.origin,
-            departed_at: iso(st.leg.departed_at),
-            touchdown_at: st.leg.touchdown_at ? iso(st.leg.touchdown_at) : null,
-            points: st.leg.track.length,
+            origin: leg.origin,
+            departed_at: iso(leg.departed_at),
+            touchdown_at: leg.touchdown_at ? iso(leg.touchdown_at) : null,
+            points: leg.track.length,
+            landings: leg.landings,
+            max_alt_ft: leg.max_alt_ft,
+            fuel_used_lb: leg.fuel_start_lb != null && l ? Math.round(leg.fuel_start_lb - fin(l.fuel_lb)) : null,
           }
         : null,
       pending: st.pending ? { ...(pendingRest as Omit<PendingLeg, "track">), points: pendingTrack.length } : null,
+      briefing: st.briefing,
       message: st.message,
       message_at: st.message_at,
     };
@@ -280,6 +424,16 @@ export class Tracker extends EventEmitter {
     this.emitStatus();
   }
 
+  /** Attach (or clear) the SimBrief plan for the flight being flown or about to be flown. */
+  setBriefing(b: BriefingSummary | null): void {
+    const prev = this.s.briefing;
+    this.s.briefing = b;
+    if (prev && (!b || b.id !== prev.id)) briefingDropUnused.run(prev.id);
+    this.note(b ? `SimBrief plan ${b.origin.icao ?? "?"} → ${b.dest.icao ?? "?"} attached to this flight` : "SimBrief plan removed");
+    this.save(true);
+    this.emitStatus();
+  }
+
   discardLeg(reason: string): void {
     const st = this.s;
     if (!st.leg) return;
@@ -304,7 +458,17 @@ export class Tracker extends EventEmitter {
     if (!aircraftId || !aircraftExists.get(aircraftId)) throw new Error("choose a fleet aircraft for this leg");
     if (!origin) throw new Error("the departure airport is required");
     if (!dest) throw new Error("the arrival airport is required");
-    const hop = insertHop(aircraftId, { origin, dest, departed_at: p.departed_at, arrived_at: p.arrived_at, duration_min: p.duration_min, track: p.track });
+    const hop = insertHop(aircraftId, {
+      origin,
+      dest,
+      departed_at: p.departed_at,
+      arrived_at: p.arrived_at,
+      duration_min: p.duration_min,
+      track: p.track,
+      landings: p.landings ?? [],
+      stats: p.stats,
+      briefing_id: p.briefing_id ?? null,
+    });
     this.s.pending = null;
     this.note(`Logged ${origin} → ${dest}, ${fmtMin(p.duration_min)}`);
     this.emit("hop", hop);
@@ -314,7 +478,9 @@ export class Tracker extends EventEmitter {
   }
 
   discardPending(): void {
-    if (!this.s.pending) return;
+    const p = this.s.pending;
+    if (!p) return;
+    if (p.briefing_id != null) briefingDropUnused.run(p.briefing_id);
     this.s.pending = null;
     this.note("Discarded the unlogged leg");
     this.save(true);
@@ -355,10 +521,13 @@ export class Tracker extends EventEmitter {
         if (st.leg) this.discardLeg(`the position jumped ${Math.round(d)} nm`);
         st.phase = "idle";
         st.lastGround = null;
+        st.lastAirborne = null;
         st.airborneSince = null;
         st.stopSince = null;
       }
     }
+
+    if (s.touchdown && st.leg) this.applyTouchdown(st.leg, s.touchdown, s);
 
     switch (st.phase) {
       case "idle":
@@ -367,7 +536,7 @@ export class Tracker extends EventEmitter {
           st.lastGround = s;
         } else {
           st.phase = "airborne";
-          st.leg = { origin: null, departed_at: s.t, touchdown_at: null, track: [point(s)] };
+          st.leg = this.newLeg(null, s.t, s, [point(s)]);
           this.note("Tracking started in the air: the departure airport is unknown");
           this.emit("track", st.leg.track);
         }
@@ -382,7 +551,7 @@ export class Tracker extends EventEmitter {
           if (s.t - st.airborneSince >= TAKEOFF_CONFIRM_MS) {
             const g = st.lastGround ?? s;
             const ap = nearestAirport(g.lat, g.lon, NEAR_NM);
-            st.leg = { origin: ap?.ident ?? null, departed_at: st.airborneSince, touchdown_at: null, track: [point(g), point(s)] };
+            st.leg = this.newLeg(ap?.ident ?? null, st.airborneSince, g, [point(g), point(s)]);
             st.phase = "airborne";
             st.airborneSince = null;
             this.note(ap ? `Took off from ${ap.ident}` : `Took off with no airport within ${NEAR_NM} nm`);
@@ -398,8 +567,12 @@ export class Tracker extends EventEmitter {
           leg.touchdown_at = s.t;
           st.phase = "landed";
           st.stopSince = null;
+          // The frame watcher may already have delivered this touchdown on the same sample.
+          const recent = leg.landings[leg.landings.length - 1];
+          if (!recent || Math.abs(new Date(recent.t).getTime() - s.t) > TOUCHDOWN_MATCH_MS) this.provisionalLanding(leg, s);
           const ap = nearestAirport(s.lat, s.lon, NEAR_NM);
-          this.note(ap ? `Landed at ${ap.ident}` : "Landed away from any airport");
+          const last = leg.landings[leg.landings.length - 1];
+          this.note(`${ap ? `Landed at ${ap.ident}` : "Landed away from any airport"}: ${last.fpm} fpm, ${last.rating}`);
         }
         break;
       }
@@ -422,6 +595,7 @@ export class Tracker extends EventEmitter {
       }
     }
 
+    if (!s.on_ground) st.lastAirborne = s;
     st.last = s;
     this.save(false);
     this.emitStatus();
@@ -434,17 +608,77 @@ export class Tracker extends EventEmitter {
     return row?.id ?? null;
   }
 
+  private newLeg(origin: string | null, departedAt: number, start: SimSample, track: TrackPoint[]): Leg {
+    return {
+      origin,
+      departed_at: departedAt,
+      touchdown_at: null,
+      track,
+      landings: [],
+      fuel_start_lb: Math.round(fin(start.fuel_lb)) || null,
+      weight_start_lb: Math.round(fin(start.weight_lb)) || null,
+      max_alt_ft: Math.round(start.alt_ft),
+      max_gs_kts: Math.round(fin(start.gs_kts)),
+    };
+  }
+
   private ensureLeg(s: SimSample): Leg {
-    if (!this.s.leg) this.s.leg = { origin: null, departed_at: s.t, touchdown_at: null, track: [point(s)] };
+    if (!this.s.leg) this.s.leg = this.newLeg(null, s.t, s, [point(s)]);
     return this.s.leg;
   }
 
   private record(leg: Leg, s: SimSample) {
+    leg.max_alt_ft = Math.max(leg.max_alt_ft, Math.round(s.alt_ft));
+    leg.max_gs_kts = Math.max(leg.max_gs_kts, Math.round(fin(s.gs_kts)));
     const last = leg.track[leg.track.length - 1];
     if (last && s.t - last[3] * 1000 < SAMPLE_MS) return;
     const p = point(s);
     leg.track.push(p);
     this.emit("point", p);
+  }
+
+  /** A landing worked out from 1 Hz samples; replaced by the frame watcher's numbers when they arrive. */
+  private provisionalLanding(leg: Leg, s: SimSample) {
+    const air = this.s.lastAirborne;
+    const fpm = Math.round(Math.max(0, -fin(air?.vs_fpm)));
+    leg.landings.push({
+      t: iso(s.t),
+      fpm,
+      g: null,
+      ias_kts: air ? Math.round(fin(air.ias_kts)) : null,
+      sim_fpm: null,
+      pitch_deg: null,
+      bank_deg: null,
+      lat: round(s.lat, 5),
+      lon: round(s.lon, 5),
+      rating: rateLanding(fpm, null),
+      source: "samples",
+    });
+  }
+
+  private applyTouchdown(leg: Leg, td: Touchdown, s: SimSample) {
+    const fpm = Math.round(td.fpm);
+    const g = round(td.g, 2);
+    const landing: Landing = {
+      t: iso(td.t),
+      fpm,
+      g,
+      ias_kts: Math.round(td.ias_kts),
+      sim_fpm: td.sim_fpm,
+      pitch_deg: td.pitch_deg != null ? round(td.pitch_deg, 1) : null,
+      bank_deg: td.bank_deg != null ? round(td.bank_deg, 1) : null,
+      lat: round(s.lat, 5),
+      lon: round(s.lon, 5),
+      rating: rateLanding(fpm, g),
+      source: "frames",
+    };
+    const last = leg.landings[leg.landings.length - 1];
+    if (last && last.source === "samples" && Math.abs(new Date(last.t).getTime() - td.t) <= TOUCHDOWN_MATCH_MS) {
+      leg.landings[leg.landings.length - 1] = landing;
+    } else {
+      leg.landings.push(landing);
+    }
+    this.note(`Touchdown ${fpm} fpm, ${g.toFixed(2)} G: ${landing.rating}`);
   }
 
   /** Close the current leg at sample `s` (where the aircraft stopped) and log or park it. */
@@ -471,9 +705,32 @@ export class Tracker extends EventEmitter {
       return;
     }
 
+    const fuelEnd = Math.round(fin(s.fuel_lb)) || null;
+    const stats: HopStats = {
+      fuel_start_lb: leg.fuel_start_lb,
+      fuel_end_lb: fuelEnd,
+      fuel_used_lb: leg.fuel_start_lb != null && fuelEnd != null ? leg.fuel_start_lb - fuelEnd : null,
+      weight_start_lb: leg.weight_start_lb,
+      weight_end_lb: Math.round(fin(s.weight_lb)) || null,
+      max_alt_ft: leg.max_alt_ft,
+      max_gs_kts: leg.max_gs_kts,
+      flown_nm: trackNm(leg.track),
+    };
     const dest = nearestAirport(s.lat, s.lon, NEAR_NM)?.ident ?? null;
     const aircraftId = st.aircraft_id && aircraftExists.get(st.aircraft_id) ? st.aircraft_id : null;
-    const draft = { origin: leg.origin, dest, departed_at: iso(leg.departed_at), arrived_at: iso(touchdown), duration_min: durationMin, track: leg.track };
+    const briefingId = st.briefing?.id ?? null;
+    st.briefing = null;
+    const draft = {
+      origin: leg.origin,
+      dest,
+      departed_at: iso(leg.departed_at),
+      arrived_at: iso(touchdown),
+      duration_min: durationMin,
+      track: leg.track,
+      landings: leg.landings,
+      stats,
+      briefing_id: briefingId,
+    };
     const reason = !aircraftId
       ? "no fleet aircraft is bound to this sim aircraft"
       : !leg.origin
@@ -484,7 +741,8 @@ export class Tracker extends EventEmitter {
 
     if (!reason) {
       const hop = insertHop(aircraftId!, draft as HopDraft);
-      this.note(`Logged ${draft.origin} → ${dest}, ${fmtMin(durationMin)}`);
+      const landing = leg.landings[leg.landings.length - 1];
+      this.note(`Logged ${draft.origin} → ${dest}, ${fmtMin(durationMin)}${landing ? `, ${landing.fpm} fpm ${landing.rating}` : ""}`);
       this.emit("hop", hop);
     } else {
       st.pending = { sim: st.sim ?? { title: s.title, livery: s.livery, atc_id: s.atc_id }, aircraft_id: aircraftId, ...draft, reason };

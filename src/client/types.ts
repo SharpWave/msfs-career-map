@@ -95,7 +95,13 @@ export interface Hop {
   arrived_at: string | null;
   duration_min: number | null;
   notes: string;
+  /** JSON array of TrackPoint, written by the live tracker. */
   track: string | null;
+  /** JSON array of Landing. */
+  landings: string | null;
+  /** JSON HopStats. */
+  stats: string | null;
+  briefing_id: number | null;
   created_at: string;
 }
 
@@ -132,8 +138,85 @@ export interface AircraftInput {
 
 // ---------------------------------------------------------------- live tracker
 
-/** [lat, lon, alt_ft, unix_seconds]: one recorded sample; `hops.track` is a JSON array of these. */
-export type TrackPoint = [number, number, number, number];
+/**
+ * One recorded sample: `[lat, lon, alt_ft, unix_seconds, gs_kts, vs_fpm, ias_kts, fuel_lb]`.
+ * Tracks from before v0.8 carry only the first four.
+ */
+export type TrackPoint = number[];
+
+export type LandingRating = "butter" | "solid" | "hard" | "hospital" | "graveyard";
+
+export interface Landing {
+  t: string;
+  /** Descent rate at touchdown, fpm, positive down. */
+  fpm: number;
+  /** Peak load factor just after touchdown; null when only 1 Hz samples were available. */
+  g: number | null;
+  ias_kts: number | null;
+  /** The sim's own touchdown normal velocity as fpm. */
+  sim_fpm: number | null;
+  pitch_deg: number | null;
+  bank_deg: number | null;
+  lat: number;
+  lon: number;
+  rating: LandingRating;
+  source: "frames" | "samples";
+}
+
+export interface HopStats {
+  fuel_start_lb: number | null;
+  fuel_end_lb: number | null;
+  fuel_used_lb: number | null;
+  weight_start_lb: number | null;
+  weight_end_lb: number | null;
+  max_alt_ft: number | null;
+  max_gs_kts: number | null;
+  flown_nm: number | null;
+}
+
+export interface OfpFix {
+  ident: string;
+  name: string;
+  type: string;
+  lat: number;
+  lon: number;
+  alt_ft: number | null;
+  airway: string | null;
+  is_sid_star: boolean;
+}
+
+export interface BriefingSummary {
+  id: number;
+  ofp_id: string | null;
+  static_id: string | null;
+  generated_at: string | null;
+  airline: string | null;
+  flight_number: string | null;
+  callsign: string | null;
+  aircraft: { icao: string | null; name: string | null; reg: string | null };
+  origin: { icao: string | null; name: string | null; rwy: string | null };
+  dest: { icao: string | null; name: string | null; rwy: string | null };
+  alternate: { icao: string | null; name: string | null } | null;
+  route: string | null;
+  distance_nm: number | null;
+  cruise_alt_ft: number | null;
+  ete_min: number | null;
+  fuel: { units: string; ramp: number | null; takeoff: number | null; landing: number | null; burn: number | null };
+  weights: { pax: number | null; cargo: number | null; payload: number | null; zfw: number | null; tow: number | null; ldw: number | null };
+  pdf_url: string | null;
+  fixes: OfpFix[];
+}
+
+export interface Briefing extends BriefingSummary {
+  hop_id: number | null;
+  aircraft_id: number | null;
+  plan_html: string | null;
+  fetched_at: string;
+}
+
+export interface Settings {
+  simbrief_username: string | null;
+}
 
 export interface SimAircraft {
   title: string;
@@ -152,6 +235,9 @@ export interface PendingLeg {
   arrived_at: string;
   duration_min: number;
   points: number;
+  landings: Landing[];
+  stats: HopStats;
+  briefing_id: number | null;
   reason: string;
 }
 
@@ -164,9 +250,29 @@ export interface TrackerStatus {
   sim: SimAircraft | null;
   aircraft_id: number | null;
   phase: TrackerPhase;
-  position: { lat: number; lon: number; alt_ft: number; gs_kts: number; hdg_deg: number; on_ground: boolean; t: string } | null;
-  leg: { origin: string | null; departed_at: string; touchdown_at: string | null; points: number } | null;
+  position: {
+    lat: number;
+    lon: number;
+    alt_ft: number;
+    gs_kts: number;
+    hdg_deg: number;
+    vs_fpm: number;
+    ias_kts: number;
+    fuel_lb: number;
+    on_ground: boolean;
+    t: string;
+  } | null;
+  leg: {
+    origin: string | null;
+    departed_at: string;
+    touchdown_at: string | null;
+    points: number;
+    landings: Landing[];
+    max_alt_ft: number;
+    fuel_used_lb: number | null;
+  } | null;
   pending: PendingLeg | null;
+  briefing: BriefingSummary | null;
   message: string | null;
   message_at: string | null;
 }

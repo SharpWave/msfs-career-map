@@ -43,7 +43,7 @@ export function parseTrack(json: string | null): TrackPoint[] {
   if (!json) return [];
   try {
     const v = JSON.parse(json);
-    return Array.isArray(v) ? (v as TrackPoint[]).filter((p) => Array.isArray(p) && p.length >= 2) : [];
+    return Array.isArray(v) ? (v as TrackPoint[]).filter((p) => Array.isArray(p) && p.length >= 4) : [];
   } catch {
     return [];
   }
