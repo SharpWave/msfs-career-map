@@ -69,6 +69,9 @@ export interface Aircraft {
   climb_kts: number | null;
   descent_fpm: number | null;
   overhead_min: number | null;
+  /** Sim `TITLE` / `LIVERY NAME` this row is bound to for live tracking. */
+  sim_title: string | null;
+  sim_livery: string | null;
   created_at: string;
 }
 
@@ -122,7 +125,50 @@ export interface AircraftInput {
   climb_kts: number | null;
   descent_fpm: number | null;
   overhead_min: number | null;
+  sim_title?: string | null;
+  sim_livery?: string | null;
   visible?: boolean;
+}
+
+// ---------------------------------------------------------------- live tracker
+
+/** [lat, lon, alt_ft, unix_seconds]: one recorded sample; `hops.track` is a JSON array of these. */
+export type TrackPoint = [number, number, number, number];
+
+export interface SimAircraft {
+  title: string;
+  livery: string;
+  atc_id: string;
+}
+
+export type TrackerPhase = "idle" | "ground" | "airborne" | "landed";
+
+export interface PendingLeg {
+  sim: SimAircraft;
+  aircraft_id: number | null;
+  origin: string | null;
+  dest: string | null;
+  departed_at: string;
+  arrived_at: string;
+  duration_min: number;
+  points: number;
+  reason: string;
+}
+
+export interface TrackerStatus {
+  connected: boolean;
+  sim_name: string | null;
+  sim_running: boolean;
+  paused: boolean;
+  livery_supported: boolean;
+  sim: SimAircraft | null;
+  aircraft_id: number | null;
+  phase: TrackerPhase;
+  position: { lat: number; lon: number; alt_ft: number; gs_kts: number; hdg_deg: number; on_ground: boolean; t: string } | null;
+  leg: { origin: string | null; departed_at: string; touchdown_at: string | null; points: number } | null;
+  pending: PendingLeg | null;
+  message: string | null;
+  message_at: string | null;
 }
 
 export type HazardKind = "ICE" | "TURB" | "IFR" | "MT_OBSC" | "CONVECTIVE" | "VA" | "TC";

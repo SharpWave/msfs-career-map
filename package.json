@@ -1,6 +1,6 @@
 {
   "name": "msfs-career-map",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "Map-centric tracker for a home-spun MSFS 2024 career mode: per-aircraft hop paths, airports and times.",
   "type": "module",
@@ -11,6 +11,8 @@
     "build": "vite build",
     "start": "node --no-warnings=ExperimentalWarning --import tsx src/server/index.ts",
     "import-airports": "tsx --no-warnings=ExperimentalWarning scripts/import-airports.ts",
+    "sim-probe": "tsx --no-warnings=ExperimentalWarning scripts/sim-probe.ts",
+    "sim-fake": "tsx --no-warnings=ExperimentalWarning scripts/sim-fake.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit"
   },
   "engines": {
@@ -19,6 +21,7 @@
   "dependencies": {
     "express": "^4.21.2",
     "leaflet": "^1.9.4",
+    "node-simconnect": "^4.2.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-leaflet": "^4.2.1",

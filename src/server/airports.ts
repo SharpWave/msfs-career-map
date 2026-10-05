@@ -549,3 +549,33 @@ export function planCandidates(origin: AirportRow, o: PlanOptions): { candidates
   inRange.sort((x, y) => x.distance_nm - y.distance_nm);
   return { candidates: inRange.slice(0, o.limit), total: inRange.length };
 }
+
+// ---------------------------------------------------------------- live tracker
+
+const nearestStmt = db.prepare(`${SELECT}
+  WHERE a.lat BETWEEN ? AND ? AND a.lon BETWEEN ? AND ? AND a.type IN (${AIRPORT_TYPES.map(() => "?").join(",")})`);
+
+/** Smaller classes give way to a big airport next door so the main field wins over its heliport. */
+const CLASS_PENALTY_NM: Record<string, number> = { large_airport: 0, medium_airport: 0.3, small_airport: 0.8 };
+
+/**
+ * The open airport nearest to a point, within `maxNm`. Used to name where a tracked flight took
+ * off and where it stopped.
+ */
+export function nearestAirport(lat: number, lon: number, maxNm: number): (AirportRow & { distance_nm: number }) | undefined {
+  const dLat = maxNm / 60;
+  const dLon = maxNm / (60 * Math.max(0.05, Math.cos(toRad(lat))));
+  const rows = nearestStmt.all(lat - dLat, lat + dLat, lon - dLon, lon + dLon, ...AIRPORT_TYPES) as unknown as AirportRow[];
+  let best: (AirportRow & { distance_nm: number }) | undefined;
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (const a of rows) {
+    const d = distanceNm(lat, lon, a.lat, a.lon);
+    if (d > maxNm) continue;
+    const score = d + (CLASS_PENALTY_NM[a.type] ?? 2);
+    if (score < bestScore) {
+      bestScore = score;
+      best = { ...a, distance_nm: d };
+    }
+  }
+  return best;
+}

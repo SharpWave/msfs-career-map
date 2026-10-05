@@ -4,9 +4,11 @@ import { fmtDuration, fmtTimeShort, hopDurationMin } from "../format";
 import { iconInnerHtml } from "../icons";
 import type { Flag } from "../constraints";
 import type { MetarMap } from "../metar";
+import type { LiveState } from "../tracker";
 import type { Aircraft, AppState, Hop, PlanCandidate, PlanResult } from "../types";
-import { AircraftForm } from "./AircraftForm";
+import { AircraftForm, type AircraftPrefill } from "./AircraftForm";
 import { HopForm, type HopPreset } from "./HopForm";
+import { LivePanel } from "./LivePanel";
 import { Planner } from "./Planner";
 
 interface Props {
@@ -25,13 +27,21 @@ interface Props {
   onFocusCandidate: (c: PlanCandidate) => void;
   hopPreset: HopPreset | null;
   onHopLogged: () => void;
+  live: LiveState;
+  onFocusLive: () => void;
 }
 
 export function Sidebar(p: Props) {
   const { state, selectedId, onSelect, onFocusHop, reload } = p;
   const [aircraftForm, setAircraftForm] = useState<"new" | number | null>(null);
+  const [prefill, setPrefill] = useState<AircraftPrefill | null>(null);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [plannerOpen, setPlannerOpen] = useState(true);
+
+  const closeNewForm = () => {
+    setAircraftForm(null);
+    setPrefill(null);
+  };
 
   const toggleExpanded = (id: number) =>
     setExpanded((s) => {
@@ -55,6 +65,21 @@ export function Sidebar(p: Props) {
           {state.runwayCount.toLocaleString()} runways
         </div>
       </header>
+
+      <section className="card">
+        <LivePanel
+          live={p.live}
+          aircraft={state.aircraft}
+          reload={reload}
+          onFocusLive={p.onFocusLive}
+          onSelect={(id) => onSelect(id)}
+          onNewFromSim={(sim) => {
+            setPrefill({ name: sim.title, livery: sim.atc_id || sim.livery, sim_title: sim.title, sim_livery: sim.livery });
+            setAircraftForm("new");
+            document.getElementById("fleet")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+        />
+      </section>
 
       <section className="card">
         <h2>Log a hop</h2>
@@ -97,10 +122,10 @@ export function Sidebar(p: Props) {
         )}
       </section>
 
-      <section className="fleet">
+      <section className="fleet" id="fleet">
         <div className="row">
           <h2>Fleet</h2>
-          <button type="button" className="small" onClick={() => setAircraftForm(aircraftForm === "new" ? null : "new")}>
+          <button type="button" className="small" onClick={() => (aircraftForm === "new" ? closeNewForm() : setAircraftForm("new"))}>
             + Aircraft
           </button>
         </div>
@@ -108,11 +133,13 @@ export function Sidebar(p: Props) {
         {aircraftForm === "new" && (
           <div className="card">
             <AircraftForm
+              key={prefill ? `${prefill.sim_title}|${prefill.sim_livery}` : "blank"}
+              prefill={prefill ?? undefined}
               usedColors={usedColors}
-              onCancel={() => setAircraftForm(null)}
+              onCancel={closeNewForm}
               onSaved={async () => {
                 await reload();
-                setAircraftForm(null);
+                closeNewForm();
               }}
             />
           </div>
@@ -225,6 +252,9 @@ function AircraftCard(p: CardProps) {
             {a.cruise_kts && <span>{a.cruise_kts} kts</span>}
             {a.ceiling_ft && <span>ceil {Math.round(a.ceiling_ft / 1000)}k</span>}
             {!a.ifr_capable && <span>VFR only</span>}
+            {a.sim_title && (
+              <span title={`Tracked from the sim as “${a.sim_title}”${a.sim_livery ? ` / ${a.sim_livery}` : ""}`}>🔗 sim</span>
+            )}
           </div>
         </button>
         <div className="card-actions">

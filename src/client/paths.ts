@@ -1,5 +1,6 @@
 import { distanceNm, greatCircle, type LatLng } from "./geo";
-import type { Aircraft, Airport, AppState, Hop } from "./types";
+import { parseTrack } from "./tracker";
+import type { Aircraft, Airport, AppState, Hop, TrackPoint } from "./types";
 
 /**
  * Turns the raw state into map-ready geometry.
@@ -16,9 +17,14 @@ export interface RenderHop {
   aircraft: Aircraft;
   from: Airport;
   to: Airport;
-  /** Unwrapped great-circle points, first = origin, last = destination. */
+  /** Unwrapped points, first = origin, last = destination: the recorded track when the hop has one, else a great circle. */
   pts: LatLng[];
+  /** Direct distance between the two airports. */
   nm: number;
+  /** True when `pts` is a track recorded from the sim. */
+  tracked: boolean;
+  /** Length of the recorded track, when there is one. */
+  flownNm: number | null;
 }
 
 export interface AirportEvent {
@@ -61,6 +67,25 @@ function nearLon(lon: number, ref: number): number {
   return lon;
 }
 
+/** Track samples as map points, each longitude unwrapped to sit next to the previous one (starting from `ref`). */
+export function unwrapTrack(track: TrackPoint[], ref?: LatLng): LatLng[] {
+  const out: LatLng[] = [];
+  let refLon = ref ? ref[1] : track[0]?.[1] ?? 0;
+  for (const p of track) {
+    const lon = nearLon(p[1], refLon);
+    out.push([p[0], lon]);
+    refLon = lon;
+  }
+  return out;
+}
+
+/** Length of a polyline in nautical miles. */
+export function pathNm(pts: LatLng[]): number {
+  let nm = 0;
+  for (let i = 1; i < pts.length; i++) nm += distanceNm(pts[i - 1], pts[i]);
+  return nm;
+}
+
 export function buildRenderData(state: AppState | null): RenderData {
   if (!state) return EMPTY;
   const nodeMap = new Map<string, AirportNode>();
@@ -91,23 +116,26 @@ export function buildRenderData(state: AppState | null): RenderData {
       if (!from || !to) continue;
       const A: LatLng = [from.lat, prevEnd ? nearLon(from.lon, prevEnd[1]) : from.lon];
       const B: LatLng = [to.lat, nearLon(to.lon, A[1])];
-      const pts = greatCircle(A, B);
-      const r: RenderHop = { hop: h, aircraft: a, from, to, pts, nm: distanceNm(A, B) };
+      const track = parseTrack(h.track);
+      const tracked = track.length >= 2;
+      // A recorded track is tied to the airport dots at both ends so the line never floats free.
+      const pts = tracked ? [A, ...unwrapTrack(track, A), B] : greatCircle(A, B);
+      const r: RenderHop = { hop: h, aircraft: a, from, to, pts, nm: distanceNm(A, B), tracked, flownNm: tracked ? pathNm(pts) : null };
       hops.push(r);
 
-      const nf = node(from, pts[0]);
+      const nf = node(from, A);
       nf.events.push({ aircraft: a, hop: h, kind: "departed", time: h.departed_at });
       nf.aircraftIds.add(a.id);
-      const nt = node(to, pts[pts.length - 1]);
+      const nt = node(to, B);
       nt.events.push({ aircraft: a, hop: h, kind: "arrived", time: h.arrived_at });
       nt.aircraftIds.add(a.id);
 
-      prevEnd = pts[pts.length - 1];
+      prevEnd = B;
       last = r;
     }
 
-    if (last) {
-      const pos = last.pts[last.pts.length - 1];
+    if (last && prevEnd) {
+      const pos = prevEnd;
       const n = node(last.to, pos);
       n.parked.push(a);
       const k = headsAt.get(n.key) ?? 0;
@@ -162,6 +190,8 @@ export function focusPoints(data: RenderData, filter?: { aircraftId?: number; ho
     if (filter?.aircraftId != null && r.aircraft.id !== filter.aircraftId) continue;
     if (filter?.hopId != null && r.hop.id !== filter.hopId) continue;
     pts.push(r.pts[0], r.pts[r.pts.length - 1]);
+    // A recorded track can wander well off the direct line; sample it so the fit includes the detour.
+    if (r.tracked) for (let i = 0; i < r.pts.length; i += 10) pts.push(r.pts[i]);
   }
   return pts;
 }

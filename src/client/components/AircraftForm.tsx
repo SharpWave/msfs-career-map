@@ -39,17 +39,28 @@ function loadSimbriefTypes(): Promise<[string, string][]> {
   return typeListPromise;
 }
 
+/** Starting values for a new aircraft, e.g. taken from what the sim reports. */
+export interface AircraftPrefill {
+  name?: string;
+  livery?: string;
+  sim_title?: string | null;
+  sim_livery?: string | null;
+}
+
 interface Props {
   initial?: Aircraft;
+  prefill?: AircraftPrefill;
   usedColors: string[];
   onSaved: () => void | Promise<void>;
   onCancel: () => void;
   onDeleted?: () => void | Promise<void>;
 }
 
-export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted }: Props) {
-  const [name, setName] = useState(initial?.name ?? "");
-  const [livery, setLivery] = useState(initial?.livery ?? "");
+export function AircraftForm({ initial, prefill, usedColors, onSaved, onCancel, onDeleted }: Props) {
+  const [name, setName] = useState(initial?.name ?? prefill?.name ?? "");
+  const [livery, setLivery] = useState(initial?.livery ?? prefill?.livery ?? "");
+  const [simTitle, setSimTitle] = useState(initial?.sim_title ?? prefill?.sim_title ?? "");
+  const [simLivery, setSimLivery] = useState(initial?.sim_livery ?? prefill?.sim_livery ?? "");
   const [color, setColor] = useState(initial?.color ?? nextColor(usedColors));
   const [icon, setIcon] = useState(initial?.icon ?? "builtin:twin-piston");
   const [urlText, setUrlText] = useState(initial?.icon.startsWith("http") ? initial.icon : "");
@@ -150,6 +161,8 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
         max_xwind_kts: maxXwindKts,
         ifr_capable: ifrCapable,
         ...perfNums,
+        sim_title: simTitle.trim() || null,
+        sim_livery: simLivery.trim() || null,
       };
       const saved = initial ? await api.updateAircraft(initial.id, body) : await api.createAircraft(body);
       if (pendingImage) await api.uploadIcon(saved.id, pendingImage);
@@ -341,6 +354,22 @@ export function AircraftForm({ initial, usedColors, onSaved, onCancel, onDeleted
           {typeName ?? (simbriefType ? "Not in SimBrief's list (it may still accept it)" : `${typeList.length} types; type a code or name to search`)}
         </div>
       </label>
+
+      <div className="two">
+        <label>
+          <span>
+            Sim aircraft title <em>(live tracking)</em>
+          </span>
+          <input value={simTitle} onChange={(e) => setSimTitle(e.target.value)} placeholder="TITLE as the sim reports it" spellCheck={false} />
+        </label>
+        <label>
+          <span>
+            Sim livery <em>(blank = any livery)</em>
+          </span>
+          <input value={simLivery} onChange={(e) => setSimLivery(e.target.value)} placeholder="LIVERY NAME" spellCheck={false} />
+        </label>
+      </div>
+      <div className="muted small">The Live panel’s Bind button fills these from the sim; flights in that aircraft are then logged here.</div>
 
       <label>
         <span>Notes</span>

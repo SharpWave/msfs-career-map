@@ -4,6 +4,8 @@ import type { LatLng } from "./geo";
 import { buildRenderData, focusPoints, planBounds, planLonShift } from "./paths";
 import { METAR_REUSE_MS, metarStation, type MetarMap } from "./metar";
 import { assessCandidate, type Flag } from "./constraints";
+import { useTracker } from "./tracker";
+import { fmtDuration } from "./format";
 import { HAZARD_STYLE } from "./components/HazardLayer";
 import type { AppState, HazardKind, Hop, PlanCandidate, PlanResult } from "./types";
 import { MapView, type Basemap, type Focus } from "./components/MapView";
@@ -162,6 +164,31 @@ export function App() {
     void reload();
   }, [reload]);
 
+  // Live tracker stream. A leg the server logs refreshes the map, drops stale planner results and
+  // shows a toast for a few seconds.
+  const [toast, setToast] = useState<string | null>(null);
+  const live = useTracker(
+    useCallback(
+      (hop: Hop) => {
+        void reload();
+        setPlan(null);
+        setHopPreset(null);
+        setToast(`Logged ${hop.origin} → ${hop.dest}${hop.duration_min != null ? ` · ${fmtDuration(hop.duration_min)}` : ""}`);
+      },
+      [reload],
+    ),
+  );
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 8000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const focusLive = () => {
+    const p = live.status?.position;
+    if (p) setFocus({ key: ++seq.current, points: [[p.lat, p.lon]], zoom: 10 });
+  };
+
   const requestFocus = (points: LatLng[]) => {
     if (points.length) setFocus({ key: ++seq.current, points });
   };
@@ -258,6 +285,8 @@ export function App() {
             setPlan(null);
             setHopPreset(null);
           }}
+          live={live}
+          onFocusLive={focusLive}
         />
       )}
       <div className="map-wrap">
@@ -278,6 +307,7 @@ export function App() {
             hazardKinds={hazardKinds}
             onHazardStatus={setHazardStatus}
             onPickCandidate={pickCandidate}
+            live={live}
           />
         ) : (
           <div className="loading">{error ? "" : "Loading…"}</div>
@@ -337,6 +367,8 @@ export function App() {
             <p>Add an aircraft in the sidebar, then log its first hop. Each plane’s path grows from wherever it last parked.</p>
           </div>
         )}
+
+        {toast && <div className="toast">{toast}</div>}
 
         {error && (
           <div className="banner">

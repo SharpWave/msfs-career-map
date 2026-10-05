@@ -5,10 +5,10 @@ always starts where it last parked, so each one builds its own tour across the m
 draws those tours as big colorful hop-to-hop paths, shows where each plane currently sits, and
 remembers when you landed at or left each airport.
 
-Version 0.6: manual hop logging, editable paths, per-aircraft icons and colors, airport lookup
-by ICAO/IATA/local code, runway data on every airport, and a "next hop" planner that shows which
-airports are within a given flight time of where a plane is parked. Live flight tracking from the
-sim is planned (see Roadmap).
+Version 0.7: manual hop logging, editable paths, per-aircraft icons and colors, airport lookup
+by ICAO/IATA/local code, runway data on every airport, a "next hop" planner that shows which
+airports are within a given flight time of where a plane is parked, and live tracking from the
+sim: with MSFS running, each takeoff and landing becomes a logged hop with the actual flown track.
 
 ## Quick start
 
@@ -35,6 +35,9 @@ server (or reuses one that is already up), and opens the app in your browser. Cl
 stop the server. `powershell -File scripts\install-shortcut.ps1` puts a **MSFS Career Map**
 shortcut with the app icon on your desktop that does the same thing.
 
+With MSFS running on the same PC the app talks to it through SimConnect on its own (nothing to
+install in the sim); see **Live tracking** below.
+
 ## Using it
 
 - **Fleet**: click **+ Aircraft**, give it a name and livery/registration (that pairing is the unit
@@ -44,6 +47,21 @@ shortcut with the app icon on your desktop that does the same thing.
 - **Log a hop**: pick the aircraft, origin, destination, and optionally departure/arrival times,
   flight time and notes. The origin defaults to wherever that aircraft last parked, and after you
   add a hop the form rolls forward so the next hop starts at the destination you just entered.
+- **Live tracking**: the **Live from the sim** card shows whether the app is talking to MSFS,
+  which aircraft and livery is loaded, and what it is doing. The first time you fly a sim aircraft,
+  bind it to a fleet aircraft (**Bind**) or create one from it (**+ New**); the pairing of the
+  sim's `TITLE` and `LIVERY NAME` is remembered on the aircraft, so every later flight in that
+  livery is logged to the right row by itself. A takeoff starts a leg (the on-ground flag off for
+  five seconds; the origin is the nearest airport to where the wheels left), the map shows the
+  plane moving with its track growing behind it, and thirty seconds after it stops rolling after a
+  landing the leg is logged as a hop: departure and touchdown times, airborne minutes, and the
+  track sampled every five seconds. A touch-and-go stays inside the one leg. Legs the tracker
+  cannot finish by itself (unbound aircraft, tracking started in the air, stopped away from any
+  airport) wait in the card for you to fill in and log, or discard. Loading a new flight, changing
+  aircraft, slewing far away or closing the sim mid-flight drops the leg being flown; an app
+  restart does not. Tracked hops are drawn with their real path (hover shows the distance flown)
+  instead of a great circle, still tied to the airport dots at both ends. `npm run sim-probe`
+  prints what the sim reports, for checking the connection.
 - **Map**: each aircraft's hops are drawn as thick colored great-circle lines with direction
   chevrons. The icon at the end of each path is where that plane is parked now. Hover an airport dot
   to see every arrival and departure logged there, hover a line for that hop's details. Click an
@@ -112,6 +130,10 @@ Everything is in `data/` (git-ignored):
 Back up `career.db` and `images/` and you have everything. Set `CAREER_DB` to use a different
 database path, `PORT` to change the server port (default 3080).
 
+Live tracking: `TRACKER=0` turns it off. `SIMCONNECT_HOST` and `SIMCONNECT_PORT` reach a sim on
+another PC (enable TCP in that PC's `SimConnect.xml`). `TRACKER_FAKE=1` replaces the sim with
+`npm run sim-fake -- KBOS KPVD`, a synthetic flight for trying the feature without MSFS.
+
 ## API
 
 All JSON, under `/api`:
@@ -128,6 +150,13 @@ All JSON, under `/api`:
 | GET | `/hazards` | Current G-AIRMET / SIGMET areas, normalised, cached 10 min |
 | GET | `/terrain?from=lat,lon&to=lat,lon` | Terrain profile along a leg with a suggested minimum altitude |
 | GET | `/plan?aircraft_id=&max_minutes=` | Airports in range of where the aircraft is parked; optional `types=`, `paved=1`, `min_runway_ft=`, `from=`, `cruise_alt_ft=`, `limit=` |
+| GET | `/tracker` | Live tracker status: connection, sim aircraft, bound fleet row, phase, position, leg, pending leg |
+| GET | `/tracker/events` | Server-sent events: `status`, `track`, `point`, `hop`, `pending` |
+| POST | `/tracker/bind` | Bind the sim aircraft being flown to a fleet row: `{ aircraft_id }` |
+| POST | `/tracker/pending` | Log the pending leg, supplying any of `{ aircraft_id, origin, dest }` it lacked |
+| DELETE | `/tracker/pending` | Discard the pending leg |
+| DELETE | `/tracker/leg` | Discard the leg being flown |
+| POST | `/tracker/sample` | Feed one synthetic position sample (only with `TRACKER_FAKE=1`) |
 | GET/POST | `/aircraft` | List / create |
 | PUT/DELETE | `/aircraft/:id` | Update / delete (deletes its hops) |
 | POST | `/aircraft/:id/icon` | Upload a custom icon as a base64 data URL |
@@ -138,32 +167,28 @@ All JSON, under `/api`:
 
 Timestamps are ISO 8601 UTC; the UI enters and displays them in local time. Aircraft carry
 optional `cruise_kts` and `min_runway_ft`; the planner needs the first and honours the second.
+A tracked hop's `track` is a JSON array of `[lat, lon, alt_ft, unix_seconds]` samples; aircraft
+carry `sim_title` and `sim_livery` so the tracker can find them.
 
 ## Project layout
 
 ```
 src/server/   Express API, SQLite schema, airport + runway import, planner query (TypeScript via tsx)
+  simconnect.ts  SimConnect link (node-simconnect, pure TypeScript): position samples, system events, reconnect
+  tracker.ts     turns samples into hops: takeoff/landing detection, track recording, pending legs
 src/client/   Vite + React + Leaflet UI
-  paths.ts    turns hops into map geometry (great circles, antimeridian unwrapping)
+  paths.ts    turns hops into map geometry (great circles or recorded tracks, antimeridian unwrapping)
   icons.ts    built-in aircraft silhouettes and the path color palette
-scripts/      import-airports.ts
+  tracker.ts  subscribes to the tracker's event stream
+scripts/      import-airports.ts, sim-probe.ts (print what the sim reports), sim-fake.ts (synthetic flight)
 data/         runtime data (ignored by git)
 ```
 
 ## Roadmap
 
-**1.0 — live tracking.** Record the actual flown track from the sim instead of a straight line,
-and auto-fill departure/arrival airports and times. The `hops.track` column is already reserved
-for a JSON array of `[lat, lon, alt_ft, timestamp]` samples. Candidate approaches, all SimConnect
-based so they work with MSFS 2024:
-
-- [`node-simconnect`](https://github.com/EvenAR/node-simconnect) — fits this Node stack directly;
-  subscribe to `PLANE LATITUDE/LONGITUDE/ALTITUDE`, `SIM ON GROUND`, `TITLE` and `ATC ID` a few times
-  a second and detect takeoff/landing from the on-ground flag.
-- [`Python-SimConnect`](https://github.com/odwdinc/Python-SimConnect) — same idea as a small
-  sidecar script posting to this API.
-- Reading `TITLE` / livery from the sim would let the tracker pick the matching aircraft row
-  automatically.
+Live tracking shipped in 0.7 on [`node-simconnect`](https://github.com/EvenAR/node-simconnect).
+Around it: thin very long tracks before storing them, an altitude profile on hover, and
+per-aircraft totals that include tracked time.
 
 Other ideas: engine-hours per aircraft, flight-time totals, exporting the map, importing a
 logbook from other tools.

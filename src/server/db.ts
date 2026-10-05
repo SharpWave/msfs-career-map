@@ -124,6 +124,13 @@ CREATE TABLE IF NOT EXISTS hops (
   created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 CREATE INDEX IF NOT EXISTS hops_aircraft ON hops(aircraft_id, seq);
+
+-- Single-row checkpoint of the live tracker (in-progress leg, pending leg, last sample).
+CREATE TABLE IF NOT EXISTS tracker_state (
+  id         INTEGER PRIMARY KEY CHECK (id = 1),
+  json       TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
 `);
 
 /** Additive migrations for databases created by earlier versions. */
@@ -143,6 +150,8 @@ addColumnIfMissing("aircraft", "climb_fpm", "INTEGER");
 addColumnIfMissing("aircraft", "climb_kts", "INTEGER");
 addColumnIfMissing("aircraft", "descent_fpm", "INTEGER");
 addColumnIfMissing("aircraft", "overhead_min", "INTEGER");
+addColumnIfMissing("aircraft", "sim_title", "TEXT");
+addColumnIfMissing("aircraft", "sim_livery", "TEXT");
 addColumnIfMissing("airports", "wikipedia_link", "TEXT");
 addColumnIfMissing("airports", "home_link", "TEXT");
 addColumnIfMissing("runways", "le_heading", "REAL");

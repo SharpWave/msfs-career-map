@@ -10,6 +10,7 @@ import type {
   PlanQuery,
   PlanResult,
   TerrainResult,
+  TrackerStatus,
   WikiSummary,
 } from "./types";
 
@@ -50,6 +51,13 @@ export const api = {
   hazards: () => req<HazardSet>("GET", "/api/hazards"),
   terrain: (from: [number, number], to: [number, number]) =>
     req<TerrainResult>("GET", `/api/terrain?from=${from[0]},${from[1]}&to=${to[0]},${to[1]}`),
+
+  tracker: () => req<TrackerStatus>("GET", "/api/tracker"),
+  trackerBind: (aircraftId: number) => req<TrackerStatus>("POST", "/api/tracker/bind", { aircraft_id: aircraftId }),
+  trackerSavePending: (o: { aircraft_id?: number | null; origin?: string | null; dest?: string | null }) =>
+    req<Hop>("POST", "/api/tracker/pending", o),
+  trackerDiscardPending: () => req<TrackerStatus>("DELETE", "/api/tracker/pending"),
+  trackerDiscardLeg: () => req<TrackerStatus>("DELETE", "/api/tracker/leg"),
 
   simbriefTypes: () =>
     req<{ types: { id: string; name: string }[]; source: string; fetched_at: string | null }>("GET", "/api/simbrief/aircraft"),

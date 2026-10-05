@@ -21,6 +21,7 @@ import { simbriefAircraftTypes } from "./simbrief.ts";
 import { currentHazards } from "./hazards.ts";
 import { terrainAlong } from "./terrain.ts";
 import { blockMinutes, maxRangeNm, profileFor } from "./performance.ts";
+import { tracker } from "./tracker.ts";
 
 export const api = Router();
 
@@ -139,6 +140,9 @@ export interface AircraftRow {
   climb_kts: number | null;
   descent_fpm: number | null;
   overhead_min: number | null;
+  /** Sim `TITLE` / `LIVERY NAME` this row is bound to, so the live tracker can pick it automatically. */
+  sim_title: string | null;
+  sim_livery: string | null;
   created_at: string;
 }
 
@@ -234,13 +238,14 @@ api.post("/aircraft", wrap((req, res) => {
   const r = db
     .prepare(`INSERT INTO aircraft
       (name, livery, color, icon, notes, cruise_kts, min_runway_ft, simbrief_type, ceiling_ft, oxygen, max_xwind_kts, ifr_capable,
-       cruise_alt_ft, climb_fpm, climb_kts, descent_fpm, overhead_min)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+       cruise_alt_ft, climb_fpm, climb_kts, descent_fpm, overhead_min, sim_title, sim_livery)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(
       name, optStr(b.livery) ?? "", color, optStr(b.icon) ?? "builtin:twin-piston", optStr(b.notes) ?? "",
       cruiseKts(b.cruise_kts), minRunwayFt(b.min_runway_ft), simbriefType(b.simbrief_type),
       ceilingFt(b.ceiling_ft), bool(b.oxygen, 0), maxXwind(b.max_xwind_kts), bool(b.ifr_capable, 1),
       ...PERF_FIELDS.map(([k, label, lo, hi]) => perfInt(b[k], label, lo, hi)),
+      optStr(b.sim_title), optStr(b.sim_livery),
     );
   res.status(201).json(requireAircraft(Number(r.lastInsertRowid)));
 }));
@@ -255,7 +260,7 @@ api.put("/aircraft/:id", wrap((req, res) => {
   if (!COLOR_RE.test(color)) throw new HttpError(400, "color must be #rrggbb");
   db.prepare(`UPDATE aircraft SET name=?, livery=?, color=?, icon=?, notes=?, visible=?, cruise_kts=?, min_runway_ft=?, simbrief_type=?,
                 ceiling_ft=?, oxygen=?, max_xwind_kts=?, ifr_capable=?,
-                cruise_alt_ft=?, climb_fpm=?, climb_kts=?, descent_fpm=?, overhead_min=? WHERE id=?`).run(
+                cruise_alt_ft=?, climb_fpm=?, climb_kts=?, descent_fpm=?, overhead_min=?, sim_title=?, sim_livery=? WHERE id=?`).run(
     name,
     b.livery === undefined ? cur.livery : optStr(b.livery) ?? "",
     color,
@@ -270,6 +275,8 @@ api.put("/aircraft/:id", wrap((req, res) => {
     b.max_xwind_kts === undefined ? cur.max_xwind_kts : maxXwind(b.max_xwind_kts),
     bool(b.ifr_capable, cur.ifr_capable),
     ...PERF_FIELDS.map(([k, label, lo, hi]) => (b[k] === undefined ? cur[k] : perfInt(b[k], label, lo, hi))),
+    b.sim_title === undefined ? cur.sim_title : optStr(b.sim_title),
+    b.sim_livery === undefined ? cur.sim_livery : optStr(b.sim_livery),
     id,
   );
   res.json(requireAircraft(id));
@@ -431,6 +438,95 @@ api.put("/aircraft/:id/hops/order", wrap((req, res) => {
   res.json(hopsForAircraft.all(aircraftId));
 }));
 
+// ---------- live tracker ----------
+
+api.get("/tracker", wrap((_req, res) => res.json(tracker.status())));
+
+/**
+ * Server-sent events: `status` about once a second, `track` (the live leg's full point list),
+ * `point` (one new point), `hop` when a leg was logged, `pending` when one needs details.
+ */
+api.get("/tracker/events", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+  const send = (event: string, data: unknown) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  send("status", tracker.status());
+  send("track", tracker.track());
+  const handlers = ["status", "track", "point", "hop", "pending"].map((ev) => [ev, (d: unknown) => send(ev, d)] as const);
+  for (const [ev, fn] of handlers) tracker.on(ev, fn);
+  const ping = setInterval(() => res.write(": ping\n\n"), 25000);
+  req.on("close", () => {
+    clearInterval(ping);
+    for (const [ev, fn] of handlers) tracker.off(ev, fn);
+  });
+});
+
+/** Bind the sim aircraft being flown to a fleet row: { aircraft_id }. Remembered on the aircraft. */
+api.post("/tracker/bind", wrap((req, res) => {
+  const id = Number(req.body?.aircraft_id);
+  requireAircraft(id);
+  try {
+    tracker.bind(id);
+  } catch (e) {
+    throw new HttpError(400, e instanceof Error ? e.message : String(e));
+  }
+  res.json(tracker.status());
+}));
+
+/** Log the pending leg, optionally supplying { aircraft_id, origin, dest } the tracker lacked. */
+api.post("/tracker/pending", wrap((req, res) => {
+  const b = req.body ?? {};
+  const o = {
+    aircraft_id: b.aircraft_id === undefined || b.aircraft_id === null ? undefined : Number(b.aircraft_id),
+    origin: b.origin === undefined || b.origin === null || b.origin === "" ? undefined : resolveIdent(b.origin, "origin"),
+    dest: b.dest === undefined || b.dest === null || b.dest === "" ? undefined : resolveIdent(b.dest, "destination"),
+  };
+  if (o.aircraft_id !== undefined) requireAircraft(o.aircraft_id);
+  try {
+    res.status(201).json(tracker.savePending(o));
+  } catch (e) {
+    throw new HttpError(400, e instanceof Error ? e.message : String(e));
+  }
+}));
+
+api.delete("/tracker/pending", wrap((_req, res) => {
+  tracker.discardPending();
+  res.json(tracker.status());
+}));
+
+api.delete("/tracker/leg", wrap((_req, res) => {
+  tracker.discardLeg("discarded from the app");
+  res.json(tracker.status());
+}));
+
+/** Test feed, only with TRACKER_FAKE=1: one SimSample per call (see scripts/sim-fake.ts). */
+api.post("/tracker/sample", wrap((req, res) => {
+  if (process.env.TRACKER_FAKE !== "1") throw new HttpError(403, "start the server with TRACKER_FAKE=1 to accept synthetic samples");
+  const b = req.body ?? {};
+  const num = (k: string) => {
+    const n = Number(b[k]);
+    if (!Number.isFinite(n)) throw new HttpError(400, `${k} must be a number`);
+    return n;
+  };
+  if (!tracker.connected) tracker.setConnected(true, "fake feed");
+  tracker.feed({
+    t: num("t"),
+    lat: num("lat"),
+    lon: num("lon"),
+    alt_ft: num("alt_ft"),
+    on_ground: !!b.on_ground,
+    gs_kts: num("gs_kts"),
+    hdg_deg: num("hdg_deg"),
+    title: String(b.title ?? ""),
+    livery: String(b.livery ?? ""),
+    atc_id: String(b.atc_id ?? ""),
+  });
+  res.json(tracker.status());
+}));
+
 // ---------- SimBrief ----------
 
 /** SimBrief's aircraft type list (ICAO designator + name), cached daily. */
@@ -556,7 +652,7 @@ api.get("/state", wrap((_req, res) => {
 }));
 
 api.get("/status", wrap((_req, res) => {
-  res.json({ ok: true, airports: airportCount(), runways: runwayCount(), version: "0.6.0" });
+  res.json({ ok: true, airports: airportCount(), runways: runwayCount(), version: "0.7.0" });
 }));
 
 // ---------- errors ----------

@@ -8,6 +8,8 @@ import { legFor } from "../simbrief";
 import { isBlocked, type Flag } from "../constraints";
 import { NightLayer } from "./NightLayer";
 import { HazardLayer } from "./HazardLayer";
+import { LiveLayer } from "./LiveLayer";
+import type { LiveState } from "../tracker";
 import type { HazardKind } from "../types";
 import { headMarkerHtml } from "../icons";
 import { planLonShift, type AirportNode, type RenderData, type RenderHop } from "../paths";
@@ -106,6 +108,7 @@ interface Props {
   hazardKinds: Set<HazardKind>;
   onHazardStatus?: (s: { count: number; fetched_at: string | null; error: string | null }) => void;
   onPickCandidate: (c: PlanCandidate) => void;
+  live?: LiveState;
 }
 
 export function MapView({
@@ -124,6 +127,7 @@ export function MapView({
   hazardKinds,
   onHazardStatus,
   onPickCandidate,
+  live,
 }: Props) {
   const { hops, nodes, heads } = data;
   const tiles = TILES[basemap];
@@ -274,6 +278,9 @@ export function MapView({
           </Tooltip>
         </Marker>
       ))}
+
+      {/* 6. the aircraft being flown right now, with its track so far */}
+      {live && <LiveLayer live={live} aircraft={aircraft} data={data} />}
     </MapContainer>
   );
 }
@@ -421,6 +428,7 @@ function HopTip({ r }: { r: RenderHop }) {
         <b>{r.hop.origin}</b> → <b>{r.hop.dest}</b>{" "}
         <span className="muted">
           · hop {r.hop.seq} · {Math.round(r.nm)} nm
+          {r.flownNm != null && <> · {Math.round(r.flownNm)} nm flown (tracked)</>}
         </span>
       </div>
       {(r.hop.departed_at || r.hop.arrived_at || dur != null) && (
