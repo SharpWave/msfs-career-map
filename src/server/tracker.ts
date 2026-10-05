@@ -241,6 +241,13 @@ function load(): Persisted {
     if (p.leg) {
       const defaults: Partial<Leg> = { landings: [], fuel_start_lb: null, weight_start_lb: null, max_alt_ft: 0, max_gs_kts: 0 };
       p.leg = { ...defaults, ...(p.leg as Partial<Leg>) } as Leg;
+      // A leg that began at the main menu's null-island position is not a flight.
+      const first = p.leg.track[0];
+      if (first && !isRealPosition({ lat: first[0], lon: first[1], alt_ft: first[2] })) {
+        console.log("[tracker] dropped a checkpointed leg that started at the sim's menu position");
+        p.leg = null;
+        p.phase = "idle";
+      }
     }
     return p;
   } catch {
@@ -249,6 +256,16 @@ function load(): Persisted {
 }
 
 const iso = (ms: number) => new Date(ms).toISOString();
+
+/**
+ * In the main menu (and while a flight loads) the sim reports the user aircraft parked at
+ * latitude 0, longitude 0, tens of thousands of feet up and "airborne". Nothing real happens
+ * within a few miles of that spot, so such samples are ignored rather than becoming a leg.
+ */
+export function isRealPosition(s: { lat: number; lon: number; alt_ft: number }): boolean {
+  if (!Number.isFinite(s.lat) || !Number.isFinite(s.lon) || !Number.isFinite(s.alt_ft)) return false;
+  return Math.abs(s.lat) > 0.05 || Math.abs(s.lon) > 0.05;
+}
 const round = (v: number, places: number) => Number(v.toFixed(places));
 const fin = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 const point = (s: SimSample): TrackPoint => [
@@ -341,7 +358,7 @@ export class Tracker extends EventEmitter {
         ? {
             lat: l.lat,
             lon: l.lon,
-            alt_ft: Math.round(l.alt_ft),
+            alt_ft: Math.round(fin(l.alt_ft)),
             gs_kts: Math.round(fin(l.gs_kts)),
             hdg_deg: Math.round(fin(l.hdg_deg)),
             vs_fpm: Math.round(fin(l.vs_fpm)),
@@ -491,7 +508,7 @@ export class Tracker extends EventEmitter {
 
   feed(s: SimSample): void {
     const st = this.s;
-    if (!this.simRunning || this.paused) {
+    if (!this.simRunning || this.paused || !isRealPosition(s)) {
       this.emitStatus();
       return;
     }

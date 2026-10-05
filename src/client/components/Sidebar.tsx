@@ -8,6 +8,7 @@ import type { LiveState } from "../tracker";
 import type { Aircraft, AppState, Hop, PlanCandidate, PlanResult } from "../types";
 import { AircraftForm, type AircraftPrefill } from "./AircraftForm";
 import { HopForm, type HopPreset } from "./HopForm";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { LandingBadge } from "./LandingBadge";
 import { LivePanel } from "./LivePanel";
 import { Planner } from "./Planner";
@@ -70,19 +71,21 @@ export function Sidebar(p: Props) {
       </header>
 
       <section className="card">
-        <LivePanel
-          live={p.live}
-          aircraft={state.aircraft}
-          reload={reload}
-          onFocusLive={p.onFocusLive}
-          onOpenLive={p.onOpenLive}
-          onSelect={(id) => onSelect(id)}
-          onNewFromSim={(sim) => {
-            setPrefill({ name: sim.title, livery: sim.atc_id || sim.livery, sim_title: sim.title, sim_livery: sim.livery });
-            setAircraftForm("new");
-            document.getElementById("fleet")?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
-        />
+        <ErrorBoundary label="Live card">
+          <LivePanel
+            live={p.live}
+            aircraft={state.aircraft}
+            reload={reload}
+            onFocusLive={p.onFocusLive}
+            onOpenLive={p.onOpenLive}
+            onSelect={(id) => onSelect(id)}
+            onNewFromSim={(sim) => {
+              setPrefill({ name: sim.title, livery: sim.atc_id || sim.livery, sim_title: sim.title, sim_livery: sim.livery });
+              setAircraftForm("new");
+              document.getElementById("fleet")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          />
+        </ErrorBoundary>
       </section>
 
       <section className="card">

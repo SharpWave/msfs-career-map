@@ -47,18 +47,19 @@ export function FlightPanel({ source, state, live, briefing, onClose, onBriefing
     sub = leg ? `airborne since ${fmtDateTime(leg.departed_at)} · ${leg.points} points` : "nothing being flown";
     track = live.track;
     landings = leg?.landings ?? [];
-    stats = leg
-      ? {
-          fuel_start_lb: null,
-          fuel_end_lb: s?.position?.fuel_lb ?? null,
-          fuel_used_lb: leg.fuel_used_lb,
-          weight_start_lb: null,
-          weight_end_lb: null,
-          max_alt_ft: leg.max_alt_ft,
-          max_gs_kts: null,
-          flown_nm: null,
-        }
-      : null;
+    stats = null;
+    if (leg) {
+      stats = {
+        fuel_start_lb: null,
+        fuel_end_lb: s?.position?.fuel_lb ?? null,
+        fuel_used_lb: leg.fuel_used_lb ?? null,
+        weight_start_lb: null,
+        weight_end_lb: null,
+        max_alt_ft: leg.max_alt_ft ?? null,
+        max_gs_kts: null,
+        flown_nm: null,
+      };
+    }
   }
 
   const landing = hop ? finalLanding(hop) : landings.length ? landings[landings.length - 1] : null;

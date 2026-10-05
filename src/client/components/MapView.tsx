@@ -10,6 +10,7 @@ import { NightLayer } from "./NightLayer";
 import { HazardLayer } from "./HazardLayer";
 import { LiveLayer } from "./LiveLayer";
 import { BriefingLayer } from "./BriefingLayer";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { LandingBadge } from "./LandingBadge";
 import { finalLanding } from "../landing";
 import type { LiveState } from "../tracker";
@@ -199,7 +200,7 @@ export function MapView({
       )}
 
       {/* 0b. SimBrief planned routes, dashed, under the flown paths */}
-      {routes?.map((r, i) => <BriefingLayer key={`route-${i}`} fixes={r.fixes} color={r.color} />)}
+      <ErrorBoundary label="Planned route">{routes?.map((r, i) => <BriefingLayer key={`route-${i}`} fixes={r.fixes} color={r.color} />)}</ErrorBoundary>
 
       {/* 1. dark casing under every path so colors pop on any basemap */}
       {hops.map((r) => (
@@ -293,7 +294,11 @@ export function MapView({
       ))}
 
       {/* 6. the aircraft being flown right now, with its track so far */}
-      {live && <LiveLayer live={live} aircraft={aircraft} data={data} />}
+      {live && (
+        <ErrorBoundary label="Live aircraft">
+          <LiveLayer live={live} aircraft={aircraft} data={data} />
+        </ErrorBoundary>
+      )}
     </MapContainer>
   );
 }

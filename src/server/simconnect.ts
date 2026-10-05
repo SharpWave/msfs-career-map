@@ -211,7 +211,7 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
           const tdBank = d.data.readFloat64();
           const title = d.data.readString128().trim();
           const atc_id = d.data.readString32().trim();
-          if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+          if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(alt_ft)) return;
           const sample: SimSample = {
             t: Date.now(),
             lat,

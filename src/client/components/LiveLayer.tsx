@@ -28,7 +28,7 @@ export function LiveLayer({ live, aircraft, data }: Props) {
   const iconSource = bound ?? ({ icon: "builtin:single-piston", name: s.sim?.title ?? "aircraft", color } as Aircraft);
   const html =
     `<div class="live-marker" style="--c:${color}">${headMarkerHtml(iconSource, false)}` +
-    `<div class="hdg" style="transform:rotate(${s.position.hdg_deg}deg)"></div></div>`;
+    `<div class="hdg" style="transform:rotate(${s.position.hdg_deg ?? 0}deg)"></div></div>`;
 
   return (
     <>
@@ -44,7 +44,7 @@ export function LiveLayer({ live, aircraft, data }: Props) {
             LIVE · {bound ? bound.name : s.sim?.title ?? "aircraft"}
           </div>
           <div className="tip-sub">
-            {s.position.alt_ft.toLocaleString()} ft · {s.position.gs_kts} kt · hdg {s.position.hdg_deg.toString().padStart(3, "0")}°
+            {(s.position.alt_ft ?? 0).toLocaleString()} ft · {s.position.gs_kts ?? 0} kt · hdg {String(s.position.hdg_deg ?? 0).padStart(3, "0")}°
             {s.position.on_ground ? " · on ground" : ""}
           </div>
           {s.leg && (

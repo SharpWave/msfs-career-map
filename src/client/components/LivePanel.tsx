@@ -247,7 +247,7 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
                 <>
                   <dt>Position</dt>
                   <dd>
-                    {p.alt_ft.toLocaleString()} ft · {p.gs_kts} kt · {p.hdg_deg.toString().padStart(3, "0")}°{" "}
+                    {(p.alt_ft ?? 0).toLocaleString()} ft · {p.gs_kts ?? 0} kt · {String(p.hdg_deg ?? 0).padStart(3, "0")}°{" "}
                     <button type="button" className="small" onClick={onFocusLive} title="Zoom the map to the aircraft">
                       Zoom
                     </button>
@@ -260,7 +260,7 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
                   <dt>Leg</dt>
                   <dd>
                     from <b className="code">{s.leg.origin ?? "?"}</b> · off {fmtTimeShort(s.leg.departed_at)} · {s.leg.points} points
-                    {s.leg.landings.length > 0 && (
+                    {(s.leg.landings?.length ?? 0) > 0 && (
                       <>
                         {" "}
                         <LandingBadge landing={s.leg.landings[s.leg.landings.length - 1]} compact />

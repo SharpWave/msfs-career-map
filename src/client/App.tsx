@@ -11,6 +11,7 @@ import type { AppState, Briefing, HazardKind, Hop, OfpFix, PlanCandidate, PlanRe
 import { MapView, type Basemap, type Focus } from "./components/MapView";
 import { Sidebar } from "./components/Sidebar";
 import { FlightPanel, type PanelSource } from "./components/FlightPanel";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import type { HopPreset } from "./components/HopForm";
 
 const BASEMAPS: { key: Basemap; label: string }[] = [
@@ -433,17 +434,19 @@ export function App() {
         </div>
 
         {panel && state && (
-          <FlightPanel
-            source={panel}
-            state={state}
-            live={live}
-            briefing={panelBriefing}
-            onClose={() => setPanel(null)}
-            onBriefingChanged={() => {
-              void reload();
-              setBriefingVersion((v) => v + 1);
-            }}
-          />
+          <ErrorBoundary label="Flight panel">
+            <FlightPanel
+              source={panel}
+              state={state}
+              live={live}
+              briefing={panelBriefing}
+              onClose={() => setPanel(null)}
+              onBriefingChanged={() => {
+                void reload();
+                setBriefingVersion((v) => v + 1);
+              }}
+            />
+          </ErrorBoundary>
         )}
       </div>
     </div>
