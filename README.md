@@ -37,6 +37,10 @@ server (or reuses one that is already up), and opens the app in your browser. Cl
 stop the server. `powershell -File scripts\install-shortcut.ps1` puts a **MSFS Career Map**
 shortcut with the app icon on your desktop that does the same thing.
 
+After updating the code, close the launcher window (that stops the server), run `npm run build`,
+and launch again: the launcher only builds when there is no bundle yet, and a page built for a
+newer version will not get along with a server still running the old one.
+
 With MSFS running on the same PC the app talks to it through SimConnect on its own (nothing to
 install in the sim); see **Live tracking** below.
 
@@ -61,9 +65,10 @@ install in the sim); see **Live tracking** below.
   cannot finish by itself (unbound aircraft, tracking started in the air, stopped away from any
   airport) wait in the card for you to fill in and log, or discard. Loading a new flight, changing
   aircraft, slewing far away or closing the sim mid-flight drops the leg being flown; an app
-  restart does not. Tracked hops are drawn with their real path (hover shows the distance flown)
-  instead of a great circle, still tied to the airport dots at both ends. `npm run sim-probe`
-  prints what the sim reports, for checking the connection.
+  restart does not. Nothing is tracked while the sim sits in its menus or a loading screen (it
+  reports a bogus position there). Tracked hops are drawn with their real path (hover shows the
+  distance flown) instead of a great circle, still tied to the airport dots at both ends.
+  `npm run sim-probe` prints what the sim reports, for checking the connection.
 - **Landing rate**: a few variables are watched every frame, so the moment the wheels touch the
   tracker records the descent rate on the last airborne frame, the peak G over the next second,
   the touchdown airspeed, pitch and bank, and the sim's own touchdown velocity for comparison
@@ -88,10 +93,12 @@ install in the sim); see **Live tracking** below.
   distance, ETE, fuel plan, passengers, cargo, weights), the OFP text, a link to SimBrief's PDF,
   and the raw JSON. The flight panel shows it all and can also attach your latest plan to an
   already-logged hop. No PDF is stored; SimBrief keeps those on its side.
-- **Map**: each aircraft's hops are drawn as thick colored great-circle lines with direction
-  chevrons. The icon at the end of each path is where that plane is parked now. Hover an airport dot
-  to see every arrival and departure logged there, hover a line for that hop's details. Click an
-  aircraft (in the sidebar or on the map) to highlight it and zoom to its path.
+- **Map**: each aircraft's hops are drawn as thick colored lines with direction chevrons: the
+  real flown track for hops the sim recorded, a great circle for hops logged by hand. The icon at
+  the end of each path is where that plane is parked now; while you fly, a pulsing marker shows
+  the aircraft itself. Hover an airport dot to see every arrival and departure logged there,
+  hover a line for that hop's details, click a line for its flight panel. Click an aircraft (in
+  the sidebar or on the map) to highlight it and zoom to its path.
 - **Edit**: expand an aircraft card (the `▸ n` button) to see its hops. Each hop can be edited,
   reordered, or deleted. Edit the aircraft itself with the pencil, hide it from the map with the eye.
 - **Runways**: every airport tooltip lists its class (large/medium/small, seaplane base, heliport),
@@ -129,11 +136,11 @@ install in the sim); see **Live tracking** below.
   (CONUS) and SIGMET (worldwide) hazard areas from aviationweather.gov, the same areas SimBrief
   puts in its briefing, with base/top altitudes and validity on hover; refreshed every ten
   minutes. G-AIRMETs show the forecast snapshot nearest to now.
-- **SimBrief**: give an aircraft its ICAO type designator (the aircraft form offers SimBrief's own
-  list of about 200 profiles, searchable by code or name, refreshed daily) and every planner
-  candidate gets a SimBrief link, in the popup and
-  as the **SB** button in the list, that opens SimBrief's dispatch page with origin, destination,
-  aircraft type and registration already filled in.
+- **SimBrief links**: give an aircraft its ICAO type designator (the aircraft form offers
+  SimBrief's own list of about 200 profiles, searchable by code or name, refreshed daily) and
+  every planner candidate gets a SimBrief link, in the popup and as the **SB** button in the
+  list, that opens SimBrief's dispatch page with origin, destination, aircraft type and
+  registration already filled in.
 - **Airport details**: click any airport dot (visited or planner candidate) for a popup with its
   Wikipedia lead image and blurb, the live METAR with flight category (via aviationweather.gov),
   runways, and links to Wikipedia, the official site, SkyVector and the decoded METAR/TAF page.
@@ -149,7 +156,7 @@ Everything is in `data/` (git-ignored):
 
 | File | Contents |
 | --- | --- |
-| `data/career.db` | SQLite database: aircraft, hops, imported airports and runways |
+| `data/career.db` | SQLite database: aircraft, hops (with tracks, landings and stats), archived SimBrief briefings, settings, the live tracker's checkpoint, imported airports and runways |
 | `data/airports.csv`, `data/runways.csv` | OurAirports source lists, re-importable with `npm run import-airports` |
 | `data/images/` | Uploaded aircraft icons |
 
