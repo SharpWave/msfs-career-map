@@ -89,6 +89,28 @@ export const PALETTE = [
   "#e71d36", "#8338ec", "#80ed99", "#f9c74f",
 ];
 
+/** Mix a #rrggbb color toward white (t > 0) or black (t < 0); |t| is the fraction of the way. */
+export function shade(hex: string, t: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const target = t > 0 ? 255 : 0;
+  const f = Math.min(1, Math.abs(t));
+  const ch = (shift: number) => {
+    const v = (n >> shift) & 0xff;
+    return Math.round(v + (target - v) * f);
+  };
+  return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, "0")}`;
+}
+
+/**
+ * Stroke color for a hop: the aircraft's color on odd hops, a lighter shade on even ones, so two
+ * consecutive legs that share an airport read as separate lines when zoomed in.
+ */
+export function hopStroke(color: string, seq: number): string {
+  return seq % 2 === 0 ? shade(color, 0.38) : color;
+}
+
 export function nextColor(used: string[]): string {
   const lower = used.map((c) => c.toLowerCase());
   return PALETTE.find((c) => !lower.includes(c)) ?? PALETTE[used.length % PALETTE.length];

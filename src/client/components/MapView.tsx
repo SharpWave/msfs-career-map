@@ -16,7 +16,7 @@ import { finalLanding } from "../landing";
 import type { LiveState } from "../tracker";
 import type { Hop, OfpFix } from "../types";
 import type { HazardKind } from "../types";
-import { headMarkerHtml } from "../icons";
+import { headMarkerHtml, hopStroke } from "../icons";
 import { planLonShift, type AirportNode, type RenderData, type RenderHop } from "../paths";
 import type { Aircraft, PlanCandidate, PlanResult } from "../types";
 import { RunwayInfo } from "./RunwayInfo";
@@ -223,7 +223,7 @@ export function MapView({
         <Polyline
           key={`hop-${r.hop.id}`}
           positions={r.pts}
-          pathOptions={{ color: r.aircraft.color, weight: 5, opacity: isDim(r.aircraft, selectedId) ? DIM.path : 0.95, lineCap: "round", lineJoin: "round" }}
+          pathOptions={{ color: hopStroke(r.aircraft.color, r.hop.seq), weight: 5, opacity: isDim(r.aircraft, selectedId) ? DIM.path : 0.95, lineCap: "round", lineJoin: "round" }}
           eventHandlers={{ click: () => (onOpenHop ? onOpenHop(r.hop) : onSelect(r.aircraft.id)) }}
         >
           <Tooltip sticky className="tip" opacity={1}>
@@ -244,7 +244,7 @@ export function MapView({
             interactive={false}
             icon={L.divIcon({
               className: "chev-wrap",
-              html: `<div class="chev" style="--c:${r.aircraft.color};transform:rotate(${brg.toFixed(1)}deg)"></div>`,
+              html: `<div class="chev" style="--c:${hopStroke(r.aircraft.color, r.hop.seq)};transform:rotate(${brg.toFixed(1)}deg)"></div>`,
               iconSize: [16, 16],
               iconAnchor: [8, 8],
             })}

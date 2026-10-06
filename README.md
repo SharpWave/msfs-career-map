@@ -94,7 +94,9 @@ install in the sim); see **Live tracking** below.
   and the raw JSON. The flight panel shows it all and can also attach your latest plan to an
   already-logged hop. No PDF is stored; SimBrief keeps those on its side.
 - **Map**: each aircraft's hops are drawn as thick colored lines with direction chevrons: the
-  real flown track for hops the sim recorded, a great circle for hops logged by hand. The icon at
+  real flown track for hops the sim recorded, a great circle for hops logged by hand. Consecutive
+  hops alternate between the aircraft's color and a lighter shade of it, so the leg that landed
+  at an airport and the one that left it stay apart when zoomed in. The icon at
   the end of each path is where that plane is parked now; while you fly, a pulsing marker shows
   the aircraft itself. Hover an airport dot to see every arrival and departure logged there,
   hover a line for that hop's details, click a line for its flight panel. Click an aircraft (in
