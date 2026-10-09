@@ -10,11 +10,12 @@ switching and closing), `HEAD` (header), `CHART` (profile chart), `LAND` (landin
 
 - [x] **PANEL-OPEN-001**: When the user opens a hop (from its map path or its hop row) or the live leg (from the live card's **Profile**), the system shall show that flight in the flight panel across the bottom of the map, replacing any flight already shown.
 - [ ] **PANEL-OPEN-002**: When the user clicks **Profile** on a pending leg in the live card, the system shall show that pending leg in the flight panel, replacing any flight already shown.
-- [x] **PANEL-OPEN-003**: When the user clicks the flight panel's ✕, the system shall close the panel.
+- [x] **PANEL-OPEN-003**: When the user clicks the flight panel's close button, the system shall close the panel.
 - [x] **PANEL-OPEN-004**: When the hop shown in the flight panel is deleted, the system shall close the panel.
 - [x] **PANEL-OPEN-005**: When the live leg shown in the flight panel is logged as a hop, the system shall show that hop in the panel instead.
 - [ ] **PANEL-OPEN-006**: When the pending leg shown in the flight panel is logged, the system shall show the new hop in the panel instead; when it is discarded, the system shall close the panel.
 - [x] **PANEL-OPEN-007**: If the flight panel fails to render, then the system shall confine the failure to the panel and keep the rest of the app working.
+- [x] **PANEL-OPEN-008**: While the flight panel is narrower than 720 px, the system shall stack the panel's cards under the chart and scroll the panel's body; otherwise it shall show the chart on the left and the cards on the right.
 
 ## Header
 

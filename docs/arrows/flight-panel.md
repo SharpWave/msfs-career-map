@@ -20,7 +20,8 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
 - docs/intent/flight-panel/flight-panel-specs.md (33 specs)
 
 ### Tests
-- none yet (they go in `tests/flight-panel/`; the harness is app-shell's)
+- tests/flight-panel/flight-panel.test.tsx — PANEL-OPEN-003, PANEL-OPEN-007
+- tests/e2e/layout.spec.ts — PANEL-OPEN-008
 
 ### Code
 - src/client/components/FlightPanel.tsx — all but `BriefingCard` (simbrief)
@@ -56,10 +57,10 @@ leg being flown.
 
 ## Key Findings
 
-1. **Live header says "airborne since" after touchdown** — FlightPanel.tsx:47.
+1. **Live header says "airborne since" after touchdown** — FlightPanel.tsx:50.
 2. **Live flight card is mostly "—"** — the tracker status lacks fuel at takeoff, weight, max ground
-   speed and distance flown (FlightPanel.tsx:51-62).
-3. **Scale says "above" for G thresholds that apply at the threshold** — FlightPanel.tsx:175.
+   speed and distance flown (FlightPanel.tsx:54-65).
+3. **Scale says "above" for G thresholds that apply at the threshold** — FlightPanel.tsx:179.
 4. **Pending legs cannot be opened** — no track in the status and no button in the live card.
 
 ## Work Required

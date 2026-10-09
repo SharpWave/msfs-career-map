@@ -24,7 +24,7 @@ This segment owns:
   (`GET /api/plan`, [routes.ts:694-766](../../../src/server/routes.ts#L694-L766);
   `planCandidates`, [airports.ts:491-551](../../../src/server/airports.ts#L491-L551));
 - the live checks — fetching METARs for candidates and flagging IFR, crosswind and darkness
-  ([constraints.ts](../../../src/client/constraints.ts), [App.tsx:102-153](../../../src/client/App.tsx#L102-L153));
+  ([constraints.ts](../../../src/client/constraints.ts), [App.tsx:91-142](../../../src/client/App.tsx#L91-L142));
 - the terrain check along a leg ([terrain.ts](../../../src/server/terrain.ts), `GET /api/terrain`);
 - the planner card in the sidebar ([Planner.tsx](../../../src/client/components/Planner.tsx));
 - the planner's map layers: range ring, candidate dots, candidate tooltips, and what the airport
@@ -123,7 +123,7 @@ stops at that many and understates the count
 Conditions that change by the minute are checked in the browser against the current result, so
 they update without a new search ([constraints.ts](../../../src/client/constraints.ts)).
 
-**METARs for candidates** ([App.tsx:102-139](../../../src/client/App.tsx#L102-L139)). After each
+**METARs for candidates** ([App.tsx:91-128](../../../src/client/App.tsx#L91-L128)). After each
 search, the large and medium candidates with a METAR station, and the small candidates whose
 station is a four-letter ICAO code, are looked up in batches of 150. Each batch is merged in as
 it arrives, so the map colors in progressively. A station looked up in the last 5 minutes is not
@@ -171,8 +171,9 @@ Opening a candidate's popup checks the terrain on the direct leg from the plan's
 
 ## The Planner Card
 
-The sidebar's **Plan next hop** card, collapsible, open by default
-([Sidebar.tsx:107-113](../../../src/client/components/Sidebar.tsx#L107-L113)). With no aircraft it
+The sidebar's **Plan next hop** card, collapsible; open on a first visit, then as the user left it (app-shell)
+([Sidebar.tsx](../../../src/client/components/Sidebar.tsx)). It takes the sidebar's height below the
+live card and scrolls inside itself, the candidate list with it (app-shell). With no aircraft it
 reads "Add an aircraft with a cruise speed to plan its next hop."
 
 **Form** ([Planner.tsx:152-244](../../../src/client/components/Planner.tsx#L152-L244)):
@@ -180,8 +181,8 @@ reads "Add an aircraft with a cruise speed to plan its next hop."
 - **Aircraft** — every aircraft, labelled with its cruise speed or "no cruise speed". It starts
   on, and follows, the highlighted aircraft; otherwise the first with a cruise speed. If the chosen
   aircraft is deleted it falls back the same way. An aircraft without a cruise speed shows "Set a
-  cruise speed on this aircraft to unlock the planner." with an **Edit aircraft** link, and the
-  search button is disabled.
+  cruise speed on this aircraft to unlock the planner." with an **Edit aircraft** link, which opens
+  that aircraft's form in the Fleet drawer (app-shell), and the search button is disabled.
 - **Max flight time, min** — default 90, with quick picks 30 min, 1 h, 1 h 30, 2 h, 3 h, 4 h.
 - **From** — an airport input (airports' `AirportInput`), "(default: where it's parked)", with the
   parked airport as its placeholder.
@@ -216,7 +217,7 @@ reads "Add an aircraft with a cruise speed to plan its next hop."
   the candidate. **SB** opens SimBrief's dispatch page for the leg; **Use** hands the airport to
   the hop form (LOG-FORM-004) and zooms to it.
 
-**Plan lifecycle** ([App.tsx:169-188](../../../src/client/App.tsx#L169-L188), [274-313](../../../src/client/App.tsx#L274-L313)).
+**Plan lifecycle** ([App.tsx:158-177](../../../src/client/App.tsx#L158-L177), [268-318](../../../src/client/App.tsx#L268-L318)).
 A new result highlights the planning aircraft and zooms to the ring. The card's **Clear**, the
 map toolbar's **Clear plan**, logging a hop from the form (LOG-FORM-005) and the live tracker
 logging a leg all remove the result. `?plan=<aircraft id>&minutes=N[&paved=1]` runs one search
@@ -230,9 +231,9 @@ the 180° meridian from the origin (MAP-GEO-010, MAP-GEO-013).
 
 - **Range ring**: a dashed circle of the ring radius in the planning aircraft's color with a faint
   fill, not clickable. When truncated, a thin white inner ring at `shown_nm` marks how far the
-  drawn candidates reach ([MapView.tsx:170-186](../../../src/client/components/MapView.tsx#L170-L186)).
-- **Candidate dots** ([MapView.tsx:59-91](../../../src/client/components/MapView.tsx#L59-L91),
-  [348-442](../../../src/client/components/MapView.tsx#L348-L442)): filled by runway surface —
+  drawn candidates reach ([MapView.tsx:179-195](../../../src/client/components/MapView.tsx#L179-L195)).
+- **Candidate dots** ([MapView.tsx:62-94](../../../src/client/components/MapView.tsx#L62-L94),
+  [357-451](../../../src/client/components/MapView.tsx#L357-L451)): filled by runway surface —
   paved when any runway is, else the first surface class (paved near-black, grass lime, gravel and
   dirt amber, water cyan, snow white, unknown grey), colors chosen to stay clear of the
   flight-category colors; sized and outlined by class (large 12 px with a white outline, medium
@@ -242,11 +243,11 @@ the 180° meridian from the origin (MAP-GEO-010, MAP-GEO-013).
 - **Candidate tooltip**: "IDENT · Name"; location; distance · ~time · bearing; class, elevation and
   runway summary (or "no runway data"); the category badge and METAR summary, or "METAR stale (…)";
   each flag; "Click for photo, weather, terrain, links, and to use as the next destination"
-  ([MapView.tsx:322-346](../../../src/client/components/MapView.tsx#L322-L346)).
+  ([MapView.tsx:331-355](../../../src/client/components/MapView.tsx#L331-L355)).
 - **Candidate popup**: clicking a dot opens the airport popup (airports) with the planner's leg
   line, the flags, the terrain check, a SimBrief link for the leg and **Use as next
   destination**, which hands the airport to the hop form and closes the popup. A new result
-  closes an open candidate popup ([MapView.tsx:188-206](../../../src/client/components/MapView.tsx#L188-L206)).
+  closes an open candidate popup ([MapView.tsx:197-215](../../../src/client/components/MapView.tsx#L197-L215)).
 
 ## Decisions & Alternatives
 
@@ -283,7 +284,7 @@ the 180° meridian from the origin (MAP-GEO-010, MAP-GEO-013).
 3. **Oxygen altitude** is 12,000 ft in the code, not 12,500 ft ([routes.ts:153](../../../src/server/routes.ts#L153),
    [Planner.tsx:199-227](../../../src/client/components/Planner.tsx#L199-L227)).
 4. **Small airports get no weather** — METARs are looked up for large and medium candidates only
-   ([App.tsx:111](../../../src/client/App.tsx#L111)).
+   ([App.tsx:100](../../../src/client/App.tsx#L100)).
 5. **Short legs between fields at different heights** — when a leg is too short to reach cruise
    altitude, the climb and descent are sized as if both fields were at the same height
    ([performance.ts:57-61](../../../src/server/performance.ts#L57-L61)), so a short leg up to a
@@ -317,7 +318,7 @@ the 180° meridian from the origin (MAP-GEO-010, MAP-GEO-013).
   candidate styles, rings, `CandidateLayer`, candidate tooltip and popup),
   [src/client/components/AirportPopup.tsx](../../../src/client/components/AirportPopup.tsx)
   (terrain fetch, flags, `TerrainBlock`, **Use**), [src/client/App.tsx](../../../src/client/App.tsx)
-  (METAR batching, flags, plan lifecycle, URL auto-plan)
+  (METAR batching, flags, plan lifecycle, URL auto-plan, the **Edit aircraft** hand-off `editAircraft`)
 - External: Open-Meteo elevation API; aviationweather.gov METARs (through airports)
 - Consumes: fleet (performance and limit fields), logbook (parked position, hop form hand-off),
   airports (records, runway summary, METARs, geodesy, retained-airport exclusion), tour-map (world

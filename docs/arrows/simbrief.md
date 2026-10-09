@@ -64,8 +64,8 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
 
 ## Key Findings
 
-1. **OFP HTML inserted unsanitised** — FlightPanel.tsx:336.
-2. **Use this plan fetches again** instead of keeping the previewed plan — LivePanel.tsx:54-58, routes.ts:647-653.
+1. **OFP HTML inserted unsanitised** — FlightPanel.tsx:340.
+2. **Use this plan fetches again** instead of keeping the previewed plan — LivePanel.tsx:58-62, routes.ts:647-653.
 3. **Re-attaching keeps the old plan** pointing at the hop — routes.ts:666-687.
 4. **Route can land a world copy away** — the `ref` prop never arrives (BriefingLayer.tsx:9-19).
 5. **Any short livery is sent as a registration** — simbrief.ts:15-18.
@@ -77,7 +77,7 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
 *(none)*
 
 ### Should Fix
-1. Sanitise the OFP HTML before showing it (SB-CARD-006; FlightPanel.tsx:336).
+1. Sanitise the OFP HTML before showing it (SB-CARD-006; FlightPanel.tsx:340).
 2. Preview, then store exactly the previewed plan, in both the live card and the panel; 409 when
    the latest plan changed (SB-PICK-001, SB-PICK-002, SB-CARD-003).
 3. Replace a hop's old plan when attaching, delete plans with their hops, and return only the

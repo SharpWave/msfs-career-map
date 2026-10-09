@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties } from "react";
 import { api } from "./api";
 import type { LatLng } from "./geo";
 import { buildRenderData, focusPoints, planBounds, planLonShift } from "./paths";
@@ -6,31 +6,18 @@ import { METAR_REUSE_MS, metarStation, type MetarMap } from "./metar";
 import { assessCandidate, type Flag } from "./constraints";
 import { useTracker } from "./tracker";
 import { fmtDuration } from "./format";
-import { HAZARD_STYLE } from "./components/HazardLayer";
-import type { AppState, Briefing, HazardKind, Hop, OfpFix, PlanCandidate, PlanResult } from "./types";
+import { clearInsets, columnReducer, initialColumn, type DrawerKey } from "./layout";
+import { readPref, writePref } from "./prefs";
+import type { AppState, Briefing, HazardKind, Hop, OfpFix, PlanCandidate, PlanResult, SimAircraft } from "./types";
 import { MapView, type Basemap, type Focus } from "./components/MapView";
 import { Sidebar } from "./components/Sidebar";
 import { FlightPanel, type PanelSource } from "./components/FlightPanel";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import type { HopPreset } from "./components/HopForm";
+import { Menu } from "./components/Menu";
+import { MapToolbar, HAZARD_TOGGLES } from "./components/MapToolbar";
+import { LeftColumn, type DrawerRequest } from "./components/Drawer";
+import { Fleet, type FleetForm } from "./components/Fleet";
+import { HopForm, type HopPreset } from "./components/HopForm";
 
-const BASEMAPS: { key: Basemap; label: string }[] = [
-  { key: "dark", label: "Dark" },
-  { key: "light", label: "Light" },
-  { key: "satellite", label: "Satellite" },
-];
-
-function readBasemap(): Basemap {
-  try {
-    const v = localStorage.getItem("basemap");
-    if (v === "dark" || v === "light" || v === "satellite") return v;
-  } catch {
-    /* storage unavailable */
-  }
-  return "dark";
-}
-
-const HAZARD_TOGGLES: HazardKind[] = ["ICE", "TURB", "IFR", "CONVECTIVE"];
 /** Mountain obscuration rides with IFR; ash and cyclones with convective. */
 const HAZARD_GROUPS: Record<string, HazardKind[]> = {
   ICE: ["ICE"],
@@ -39,28 +26,23 @@ const HAZARD_GROUPS: Record<string, HazardKind[]> = {
   CONVECTIVE: ["CONVECTIVE", "VA", "TC"],
 };
 
-function readPref<T>(key: string, fallback: T, parse: (s: string) => T): T {
-  try {
-    const v = localStorage.getItem(key);
-    return v === null ? fallback : parse(v);
-  } catch {
-    return fallback;
-  }
-}
+const readBasemap = () => readPref<Basemap>("basemap", "dark", (v) => (v === "light" || v === "satellite" ? v : "dark"));
+const windowSize = () => ({ width: window.innerWidth, height: window.innerHeight });
 
-function writePref(key: string, value: string) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    /* ignore */
-  }
-}
-
+/**
+ * The page: the map across the whole window, with the top bar, the left column (the sidebar or a
+ * drawer) and the flight panel floating over it.
+ */
+// @spec APP-UI-001, APP-UI-002, APP-UI-017, APP-UI-020, APP-UI-022
 export function App() {
   const [state, setState] = useState<AppState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [column, dispatchColumn] = useReducer(columnReducer, initialColumn);
+  const [drawerRequest, setDrawerRequest] = useState<DrawerRequest | null>(null);
+  const [fleetForm, setFleetForm] = useState<FleetForm>(null);
+  const [openMenu, setOpenMenu] = useState<"app" | "layers" | null>(null);
+  const [win, setWin] = useState(windowSize);
   const [basemap, setBasemapState] = useState<Basemap>(readBasemap);
   const [focus, setFocus] = useState<Focus | null>(null);
   const [plan, setPlan] = useState<PlanResult | null>(null);
@@ -75,11 +57,18 @@ export function App() {
   const [hideFlagged, setHideFlagged] = useState(true);
   const seq = useRef(0);
   const didInitialFit = useRef(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
 
   // A minute tick drives the day/night overlay and the "dark at ETA" checks.
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => setWin(windowSize());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   const hazardKinds = useMemo(() => new Set<HazardKind>([...hazardToggles].flatMap((k) => HAZARD_GROUPS[k] ?? [k])), [hazardToggles]);
@@ -228,13 +217,22 @@ export function App() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const focusLive = () => {
-    const p = live.status?.position;
-    if (p) setFocus({ key: ++seq.current, points: [[p.lat, p.lon]], zoom: 10 });
+  // Which panels cover the map, as of this render; a zoom that opens one says so itself.
+  const covered = { columnShown: !column.hidden, panelOpen: panel != null && state != null };
+  const coveredRef = useRef(covered);
+  coveredRef.current = covered;
+  const clear = clearInsets(win, covered);
+
+  /** Ask the map to zoom, into the part the panels leave clear once this update has applied. */
+  const requestFocus = (points: LatLng[], opts: { zoom?: number; panelOpen?: boolean } = {}) => {
+    if (!points.length) return;
+    const open = { ...coveredRef.current, ...(opts.panelOpen != null ? { panelOpen: opts.panelOpen } : {}) };
+    setFocus({ key: ++seq.current, points, zoom: opts.zoom, clear: clearInsets(windowSize(), open) });
   };
 
-  const requestFocus = (points: LatLng[]) => {
-    if (points.length) setFocus({ key: ++seq.current, points });
+  const focusLive = () => {
+    const p = live.status?.position;
+    if (p) requestFocus([[p.lat, p.lon]], { zoom: 10 });
   };
 
   useEffect(() => {
@@ -252,11 +250,7 @@ export function App() {
 
   const setBasemap = (b: Basemap) => {
     setBasemapState(b);
-    try {
-      localStorage.setItem("basemap", b);
-    } catch {
-      /* ignore */
-    }
+    writePref("basemap", b);
   };
 
   const select = (id: number | null) => {
@@ -268,7 +262,7 @@ export function App() {
   const openHop = (hop: Hop) => {
     setPanel({ kind: "hop", hopId: hop.id });
     setSelectedId(hop.aircraft_id);
-    requestFocus(focusPoints(data, { hopId: hop.id }));
+    requestFocus(focusPoints(data, { hopId: hop.id }), { panelOpen: true });
   };
 
   const onPlan = (p: PlanResult | null) => {
@@ -284,18 +278,27 @@ export function App() {
     requestFocus([[c.lat, c.lon + planLonShift(data, plan)]]);
   };
 
+  /**
+   * Show a drawer, from the menu or a hand-off. The focus returns to whatever opened it when it
+   * closes, or to the menu button when that was a menu entry.
+   */
+  const openDrawer = (drawer: DrawerKey, target?: string) => {
+    const active = document.activeElement as HTMLElement | null;
+    const opener = active && active !== document.body && !active.closest("[role=menu]") ? active : menuButton.current;
+    dispatchColumn({ type: "open", drawer });
+    setDrawerRequest({ key: ++seq.current, target, opener });
+  };
+
   // Auto-run the planner from the URL, e.g. ?plan=1&minutes=90 (handy for bookmarks and testing).
   const autoPlanned = useRef(false);
   useEffect(() => {
     if (!state || autoPlanned.current) return;
     autoPlanned.current = true;
     const q = new URLSearchParams(window.location.search);
-    if (q.get("wx")) setHazardToggles(new Set(q.get("wx") === "1" ? HAZARD_TOGGLES : (q.get("wx")!.split(",") as HazardKind[])));
+    if (q.get("wx")) setHazardToggles(new Set(q.get("wx") === "1" ? HAZARD_TOGGLES.map((t) => t.key) : (q.get("wx")!.split(",") as HazardKind[])));
     if (q.get("night")) setNightOn(q.get("night") === "1");
     const view = q.get("view")?.split(",").map(Number);
-    if (view && view.length === 3 && view.every(Number.isFinite)) {
-      setFocus({ key: ++seq.current, points: [[view[0], view[1]]], zoom: view[2] });
-    }
+    if (view && view.length === 3 && view.every(Number.isFinite)) requestFocus([[view[0], view[1]]], { zoom: view[2] });
     const aircraftId = Number(q.get("plan"));
     const minutes = Number(q.get("minutes") ?? 90);
     if (!aircraftId || !minutes) return;
@@ -306,41 +309,141 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
+  // @spec LOG-FORM-004
   const pickCandidate = (c: PlanCandidate) => {
     if (!plan) return;
     setHopPreset({ key: ++seq.current, aircraftId: plan.aircraft_id, dest: c.ident });
     focusCandidate(c);
+    openDrawer("log", ".hop-form");
   };
 
+  // @spec FLEET-SIM-003
+  const newFromSim = (sim: SimAircraft) => {
+    setFleetForm({ mode: "new", prefill: { name: sim.title, livery: sim.atc_id || sim.livery, sim_title: sim.title, sim_livery: sim.livery } });
+    openDrawer("fleet", "#aircraft-form-new");
+  };
+
+  // @spec PLAN-FORM-003
+  const editAircraft = (id: number) => {
+    setFleetForm({ mode: "edit", id });
+    openDrawer("fleet", `#aircraft-${id}`);
+  };
+
+  const vars = {
+    "--clear-top": `${clear.top}px`,
+    "--clear-left": `${clear.left}px`,
+    "--clear-bottom": `${clear.bottom}px`,
+  } as CSSProperties;
+
   return (
-    <div className={`app${sidebarOpen ? "" : " collapsed"}`}>
-      {state && sidebarOpen && (
-        <Sidebar
-          state={state}
-          selectedId={selectedId}
-          onSelect={select}
-          onFocusHop={openHop}
-          reload={reload}
-          plan={plan}
-          metars={metars}
-          flags={flags}
-          hideFlagged={hideFlagged}
-          onHideFlagged={setHideFlagged}
-          onPlan={onPlan}
-          onPickCandidate={pickCandidate}
-          onFocusCandidate={focusCandidate}
-          hopPreset={hopPreset}
-          onHopLogged={() => {
-            setPlan(null);
-            setHopPreset(null);
+    <div className={`app${column.hidden ? " column-hidden" : ""}${panel && state ? " panel-open" : ""}`} data-basemap={basemap} style={vars}>
+      <header className="top-bar">
+        <Menu
+          ref={menuButton}
+          counts={state ? { aircraft: state.aircraft.length, hops: state.hops.length, airports: state.airportCount, runways: state.runwayCount } : null}
+          open={openMenu === "app"}
+          onOpenChange={(o) => setOpenMenu((m) => (o ? "app" : m === "app" ? null : m))}
+          onChoose={(d) => openDrawer(d)}
+          columnHidden={column.hidden}
+          onToggleColumn={() => dispatchColumn({ type: "toggle" })}
+        />
+        <MapToolbar
+          basemap={basemap}
+          onBasemap={setBasemap}
+          nightOn={nightOn}
+          onToggleNight={toggleNight}
+          hazards={hazardToggles}
+          onToggleHazard={toggleHazard}
+          hazardStatus={hazardStatus}
+          layersOpen={openMenu === "layers"}
+          onLayersOpenChange={(o) => setOpenMenu((m) => (o ? "layers" : m === "layers" ? null : m))}
+          onFitAll={() => requestFocus(focusPoints(data))}
+          highlighted={selectedId != null}
+          onClearHighlight={() => select(null)}
+          planShown={plan != null}
+          onClearPlan={() => setPlan(null)}
+        />
+      </header>
+
+      {state && (
+        <LeftColumn
+          column={column}
+          request={drawerRequest}
+          onClose={() => dispatchColumn({ type: "close" })}
+          fallbackFocus={menuButton.current}
+          sidebar={
+            <Sidebar
+              state={state}
+              selectedId={selectedId}
+              onSelect={select}
+              reload={reload}
+              plan={plan}
+              metars={metars}
+              flags={flags}
+              hideFlagged={hideFlagged}
+              onHideFlagged={setHideFlagged}
+              onPlan={onPlan}
+              onPickCandidate={pickCandidate}
+              onFocusCandidate={focusCandidate}
+              onEditAircraft={editAircraft}
+              live={live}
+              onFocusLive={focusLive}
+              onOpenLive={() => setPanel({ kind: "live" })}
+              onNewFromSim={newFromSim}
+            />
+          }
+          drawers={{
+            log: {
+              title: "Log a hop",
+              body: (
+                <HopForm
+                  aircraft={state.aircraft}
+                  hops={state.hops}
+                  defaultAircraftId={selectedId}
+                  preset={hopPreset}
+                  onSaved={async () => {
+                    await reload();
+                    setPlan(null);
+                    setHopPreset(null);
+                  }}
+                />
+              ),
+            },
+            fleet: {
+              title: "Fleet",
+              actions: (
+                <button
+                  type="button"
+                  className="small"
+                  aria-pressed={fleetForm?.mode === "new"}
+                  onClick={() => setFleetForm((f) => (f?.mode === "new" ? null : { mode: "new" }))}
+                >
+                  + Aircraft
+                </button>
+              ),
+              body: (
+                <Fleet state={state} selectedId={selectedId} onSelect={select} onFocusHop={openHop} reload={reload} form={fleetForm} onFormChange={setFleetForm} />
+              ),
+            },
           }}
-          live={live}
-          onFocusLive={focusLive}
-          onOpenLive={() => setPanel({ kind: "live" })}
         />
       )}
-      <div className="map-wrap">
-        <div className="map-area">
+
+      {panel && state && (
+        <FlightPanel
+          source={panel}
+          state={state}
+          live={live}
+          briefing={panelBriefing}
+          onClose={() => setPanel(null)}
+          onBriefingChanged={() => {
+            void reload();
+            setBriefingVersion((v) => v + 1);
+          }}
+        />
+      )}
+
+      <main className="map-layer">
         {state ? (
           <MapView
             data={data}
@@ -361,94 +464,34 @@ export function App() {
             live={live}
             onOpenHop={openHop}
             routes={routes}
+            clear={clear}
           />
         ) : (
           <div className="loading">{error ? "" : "Loading…"}</div>
         )}
+      </main>
 
-        <div className="map-toolbar">
-          <button type="button" onClick={() => setSidebarOpen((o) => !o)} title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}>
-            {sidebarOpen ? "◀" : "▶"}
-          </button>
-          <div className="seg">
-            {BASEMAPS.map((b) => (
-              <button type="button" key={b.key} className={basemap === b.key ? "on" : ""} onClick={() => setBasemap(b.key)}>
-                {b.label}
-              </button>
-            ))}
-          </div>
-          <button type="button" className={nightOn ? "on" : ""} onClick={toggleNight} title="Day/night shading (civil twilight)">
-            Night
-          </button>
-          <div className="seg" title="Weather hazard areas from aviationweather.gov (G-AIRMET / SIGMET)">
-            {HAZARD_TOGGLES.map((k) => (
-              <button
-                type="button"
-                key={k}
-                className={hazardToggles.has(k) ? "on hz" : "hz"}
-                style={hazardToggles.has(k) ? ({ "--hz": HAZARD_STYLE[k].color } as React.CSSProperties) : undefined}
-                onClick={() => toggleHazard(k)}
-                title={`${HAZARD_STYLE[k].label}${k === "IFR" ? " + mountain obscuration" : k === "CONVECTIVE" ? " + volcanic ash, cyclones" : ""}`}
-              >
-                {k === "ICE" ? "Ice" : k === "TURB" ? "Turb" : k === "IFR" ? "IFR" : "Storms"}
-              </button>
-            ))}
-          </div>
-          {hazardKinds.size > 0 && hazardStatus && (
-            <span className="toolbar-note" title={hazardStatus.fetched_at ? `fetched ${new Date(hazardStatus.fetched_at).toLocaleTimeString()}` : ""}>
-              {hazardStatus.error ? "hazards unavailable" : `${hazardStatus.count} areas`}
-            </span>
-          )}
-          <button type="button" onClick={() => requestFocus(focusPoints(data))} title="Zoom to every path">
-            Fit all
-          </button>
-          {selectedId != null && (
-            <button type="button" onClick={() => select(null)} title="Show all aircraft at full strength">
-              Clear highlight
-            </button>
-          )}
-          {plan && (
-            <button type="button" onClick={() => setPlan(null)} title="Remove the planner results from the map">
-              Clear plan
-            </button>
-          )}
+      {state && state.hops.length === 0 && (
+        <div className="map-empty glass">
+          <h2>Nothing on the map yet</h2>
+          <p>Add an aircraft under Fleet in the menu, then log its first hop. Each plane’s path grows from wherever it last parked.</p>
         </div>
+      )}
 
-        {state && state.hops.length === 0 && (
-          <div className="map-empty">
-            <h2>Nothing on the map yet</h2>
-            <p>Add an aircraft in the sidebar, then log its first hop. Each plane’s path grows from wherever it last parked.</p>
-          </div>
-        )}
-
-        {toast && <div className="toast">{toast}</div>}
-
-        {error && (
-          <div className="banner">
-            Server error: {error}{" "}
-            <button type="button" className="small" onClick={() => void reload()}>
-              Retry
-            </button>
-          </div>
-        )}
+      {toast && (
+        <div className="toast glass" role="status">
+          {toast}
         </div>
+      )}
 
-        {panel && state && (
-          <ErrorBoundary label="Flight panel">
-            <FlightPanel
-              source={panel}
-              state={state}
-              live={live}
-              briefing={panelBriefing}
-              onClose={() => setPanel(null)}
-              onBriefingChanged={() => {
-                void reload();
-                setBriefingVersion((v) => v + 1);
-              }}
-            />
-          </ErrorBoundary>
-        )}
-      </div>
+      {error && (
+        <div className="banner glass" role="alert">
+          Server error: {error}{" "}
+          <button type="button" className="small" onClick={() => void reload()}>
+            Retry
+          </button>
+        </div>
+      )}
     </div>
   );
 }

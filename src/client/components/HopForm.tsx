@@ -54,7 +54,8 @@ export function HopForm({ aircraft, hops, initial, defaultAircraftId, preset, on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultAircraftId]);
 
-  // The planner picked a destination: switch to that aircraft and fill it in.
+  // The planner picked a destination: switch to that aircraft and fill it in. The page opens the
+  // Log a hop drawer at this form.
   useEffect(() => {
     if (isEdit || !preset) return;
     setAircraftId(preset.aircraftId);
@@ -62,7 +63,6 @@ export function HopForm({ aircraft, hops, initial, defaultAircraftId, preset, on
     setDest(preset.dest);
     setFlash(null);
     setError(null);
-    document.querySelector(".hop-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preset?.key]);
 
@@ -142,7 +142,7 @@ export function HopForm({ aircraft, hops, initial, defaultAircraftId, preset, on
         </label>
         <label>
           <span>To</span>
-          <AirportInput value={dest} onChange={setDest} placeholder="KHYA" autoFocus={!isEdit && !!origin} />
+          <AirportInput value={dest} onChange={setDest} placeholder="KHYA" handoffFocus={!isEdit} />
         </label>
       </div>
 

@@ -65,6 +65,9 @@ description, API table and roadmap.
   tracker matches on both, with a blank `sim_livery` meaning any livery.
 - Map geometry (great circles, antimeridian unwrapping, parked-aircraft positions) is computed in
   `src/client/paths.ts` and shared by the map and the zoom-to-fit logic. Keep those in sync.
+- Panels float over a full-window map. Their sizes (column width, top bar, flight panel height)
+  live in `src/client/layout.ts` and are mirrored in `styles.css`; zooms fit into the part of the
+  map the panels leave clear, worked out from `layout.ts`, so keep the two in step.
 - Data locations come from `dataLocations()` in `src/server/locations.ts`: the database
   (`CAREER_DB` or `data/career.db`) with `images/`, `airports.csv` and `runways.csv` beside it.
   The app itself is built by `createApp()` in `src/server/app.ts`, which starts nothing; tests

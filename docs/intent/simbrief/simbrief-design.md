@@ -98,7 +98,7 @@ latest plan has changed in between, the request is refused (`409`) and the newer
 for confirmation instead. **Cancel** stores nothing.
 
 Today **Use this plan** in the live card fetches the latest again and stores whatever it gets
-([LivePanel.tsx:54-58](../../../src/client/components/LivePanel.tsx#L54-L58), [routes.ts:647-653](../../../src/server/routes.ts#L647-L653)),
+([LivePanel.tsx:58-62](../../../src/client/components/LivePanel.tsx#L58-L62), [routes.ts:647-653](../../../src/server/routes.ts#L647-L653)),
 and the flight panel attaches the latest plan with no preview at all.
 
 **For the flight being flown** (live card). A confirmed plan becomes the tracker's current plan
@@ -138,7 +138,7 @@ The `ofp_id` checks and the `409` are intended; today both `POST`s store whateve
 
 ## SimBrief Controls in the Live Card
 
-([LivePanel.tsx:25-144](../../../src/client/components/LivePanel.tsx#L25-L144)), shown while the sim is
+([LivePanel.tsx:29-148](../../../src/client/components/LivePanel.tsx#L29-L148)), shown while the sim is
 connected with an aircraft:
 
 - **No alias** (or changing it): a "SimBrief alias or pilot ID" field with **Save** (Enter saves)
@@ -151,9 +151,9 @@ connected with an aircraft:
 
 ## SimBrief Card in the Flight Panel
 
-([FlightPanel.tsx:225-339](../../../src/client/components/FlightPanel.tsx#L225-L339)) The app loads
+([FlightPanel.tsx:229-343](../../../src/client/components/FlightPanel.tsx#L229-L343)) The app loads
 the full plan for whatever the panel shows — a hop's plan, or the current plan for the live leg —
-and reloads it after a change ([App.tsx:190-207](../../../src/client/App.tsx#L190-L207)). For a
+and reloads it after a change ([App.tsx:179-196](../../../src/client/App.tsx#L179-L196)). For a
 pending leg it is meant to show that leg's plan too (PANEL-OPEN-002).
 
 - **No plan**: "No plan attached to this flight.", and for a hop **Attach my latest SimBrief plan**,
@@ -166,12 +166,12 @@ pending leg it is meant to show that leg's plan too (PANEL-OPEN-002).
 
 The OFP text is SimBrief's HTML and is meant to be shown with scripts, event handlers and anything
 else active stripped. Today it is inserted as it comes
-([FlightPanel.tsx:336](../../../src/client/components/FlightPanel.tsx#L336)). Today the PDF link is
+([FlightPanel.tsx:340](../../../src/client/components/FlightPanel.tsx#L340)). Today the PDF link is
 unstyled, and with neither callsign nor airline the Flight line is blank rather than "—".
 
 ## Route on the Map
 
-([BriefingLayer.tsx](../../../src/client/components/BriefingLayer.tsx), [App.tsx:214-224](../../../src/client/App.tsx#L214-L224))
+([BriefingLayer.tsx](../../../src/client/components/BriefingLayer.tsx), [App.tsx:203-213](../../../src/client/App.tsx#L203-L213))
 
 - Which routes: the current plan of the flight being flown, in the bound aircraft's color (white
   when unbound), and the plan of the flight open in the panel when it is a different plan, in that
@@ -209,19 +209,19 @@ unstyled, and with neither callsign nor airline the Flight line is blank rather 
 ### Deferred
 
 1. **Registration test too loose** — any short word is sent as `reg` ([simbrief.ts:15-18](../../../src/client/simbrief.ts#L15-L18)).
-2. **Use this plan fetches again** ([LivePanel.tsx:54-58](../../../src/client/components/LivePanel.tsx#L54-L58), [routes.ts:647-653](../../../src/server/routes.ts#L647-L653)).
+2. **Use this plan fetches again** ([LivePanel.tsx:58-62](../../../src/client/components/LivePanel.tsx#L58-L62), [routes.ts:647-653](../../../src/server/routes.ts#L647-L653)).
 3. **Re-attaching keeps the old plan** pointing at the hop, where `GET /api/hops/:id/briefing` can
    find it again ([routes.ts:666-687](../../../src/server/routes.ts#L666-L687)).
 4. **Plans of deleted hops** stay in the table with nothing pointing to them.
 5. **Attaching to a logged hop has no preview** — it takes whatever plan is latest
-   ([FlightPanel.tsx:230-242](../../../src/client/components/FlightPanel.tsx#L230-L242)).
-6. **OFP HTML is not sanitised** ([FlightPanel.tsx:336](../../../src/client/components/FlightPanel.tsx#L336)).
+   ([FlightPanel.tsx:234-246](../../../src/client/components/FlightPanel.tsx#L234-L246)).
+6. **OFP HTML is not sanitised** ([FlightPanel.tsx:340](../../../src/client/components/FlightPanel.tsx#L340)).
 7. **Route world copy** — the `ref` prop never arrives ([BriefingLayer.tsx:9-19](../../../src/client/components/BriefingLayer.tsx#L9-L19)).
 8. **Pending legs' plans** cannot be seen until the leg is logged.
 9. **Two fallback type lists** — the server's built-in 35 and the form's own
    ([simbrief.ts:22-33](../../../src/server/simbrief.ts#L22-L33), [client simbrief.ts:44-96](../../../src/client/simbrief.ts#L44-L96)).
 10. **PDF link unstyled; blank Flight line** with neither callsign nor airline
-    ([FlightPanel.tsx:280](../../../src/client/components/FlightPanel.tsx#L280), [324-328](../../../src/client/components/FlightPanel.tsx#L324-L328)).
+    ([FlightPanel.tsx:284](../../../src/client/components/FlightPanel.tsx#L284), [328-332](../../../src/client/components/FlightPanel.tsx#L328-L332)).
 11. **The archived OFP is never read back** — `ofp` is stored but no endpoint returns it.
 
 ## References

@@ -4,6 +4,8 @@ import { aircraftLabel, fmtDateTime, fmtDuration, hopDurationMin } from "../form
 import { RATING_BANDS, RATING_META, finalLanding, parseLandings, parseStats } from "../landing";
 import { parseTrack, type LiveState } from "../tracker";
 import type { Aircraft, AppState, Briefing, Hop, HopStats, Landing, TrackPoint } from "../types";
+import { ErrorBoundary } from "./ErrorBoundary";
+import { IconButton } from "./Icon";
 import { ProfileChart } from "./ProfileChart";
 
 /** What the panel is showing: a logged hop, or the leg being flown right now. */
@@ -21,6 +23,7 @@ interface Props {
 
 const num = (v: number | null | undefined, unit = "") => (v == null ? "—" : `${Math.round(v).toLocaleString()}${unit}`);
 
+// @spec PANEL-OPEN-003, APP-UI-005
 export function FlightPanel({ source, state, live, briefing, onClose, onBriefingChanged }: Props) {
   const hop: Hop | undefined = source.kind === "hop" ? state.hops.find((h) => h.id === source.hopId) : undefined;
   const aircraft: Aircraft | undefined =
@@ -65,27 +68,28 @@ export function FlightPanel({ source, state, live, briefing, onClose, onBriefing
   const landing = hop ? finalLanding(hop) : landings.length ? landings[landings.length - 1] : null;
 
   return (
-    <section className="flight-panel">
+    <section className="flight-panel glass">
       <header className="fp-head">
         {aircraft && <span className="dot" style={{ background: aircraft.color }} />}
         <b>{aircraft ? aircraftLabel(aircraft) : live.status?.sim?.title ?? "aircraft"}</b>
         <span className="route code">{title}</span>
         <span className="muted small">{sub}</span>
         {source.kind === "live" && <span className="pill air">live</span>}
-        <button type="button" className="icon close" onClick={onClose} title="Close the flight panel">
-          ✕
-        </button>
+        <IconButton icon="close" label="Close the flight panel" className="close" onClick={onClose} />
       </header>
-      <div className="fp-body">
-        <div className="fp-chart">
-          <ProfileChart track={track} landings={landings} />
+      {/* A malformed record fails here, inside the panel, which keeps its place and close button. */}
+      <ErrorBoundary label="Flight panel">
+        <div className="fp-body">
+          <div className="fp-chart">
+            <ProfileChart track={track} landings={landings} />
+          </div>
+          <aside className="fp-side">
+            <LandingCard landing={landing} all={landings} />
+            <StatsCard stats={stats} points={track.length} directNm={hop ? directNm(hop, state) : null} />
+            <BriefingCard hop={hop} briefing={briefing} onChanged={onBriefingChanged} />
+          </aside>
         </div>
-        <aside className="fp-side">
-          <LandingCard landing={landing} all={landings} />
-          <StatsCard stats={stats} points={track.length} directNm={hop ? directNm(hop, state) : null} />
-          <BriefingCard hop={hop} briefing={briefing} onChanged={onBriefingChanged} />
-        </aside>
-      </div>
+      </ErrorBoundary>
     </section>
   );
 }

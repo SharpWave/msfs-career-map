@@ -75,7 +75,7 @@ and do not re-sort.
 **Parked position.** An aircraft is parked at the `dest` of its highest-`seq` hop; with no hops it
 has no position. The position is derived, never stored, so reordering or deleting the last hop
 moves the plane. The rule is evaluated in several places: the aircraft card
-([Sidebar.tsx:204](../../../src/client/components/Sidebar.tsx#L204)), the hop form
+([Fleet.tsx:106](../../../src/client/components/Fleet.tsx#L106)), the hop form
 ([HopForm.tsx:28-32](../../../src/client/components/HopForm.tsx#L28-L32)), and, outside this
 segment, the planner, the map's parked icons, the `/plan` origin, and live tracking, which prefers
 the parked airport when a takeoff position is nearly tied between two airports.
@@ -130,8 +130,9 @@ A refused change is a `400` that names the airport and its distance from the tra
 
 ## Hand-Logging a Hop
 
-The "Log a hop" card ([Sidebar.tsx:91-103](../../../src/client/components/Sidebar.tsx#L91-L103))
-holds a create-mode `HopForm`; the same form edits an existing hop inline in the aircraft card.
+The **Log a hop** drawer, opened from the page's menu (app-shell), holds a create-mode `HopForm`
+([App.tsx:396-411](../../../src/client/App.tsx#L396-L411)); the same form edits an existing hop
+inline in the aircraft card.
 
 **Create-mode defaults** ([HopForm.tsx:34-41](../../../src/client/components/HopForm.tsx#L34-L41)):
 
@@ -142,14 +143,15 @@ holds a create-mode `HopForm`; the same form edits an existing hop inline in the
   ([51-55](../../../src/client/components/HopForm.tsx#L51-L55)).
 - If the chosen aircraft is deleted, the form falls back to the first aircraft
   ([69-73](../../../src/client/components/HopForm.tsx#L69-L73)).
-- With no aircraft at all, the card shows "Add an aircraft to the fleet first, then log hops
+- With no aircraft at all, the drawer shows "Add an aircraft to the fleet first, then log hops
   here." instead of the form ([121-123](../../../src/client/components/HopForm.tsx#L121-L123)).
 
 **Planner hand-off.** When the planner's **Use** picks a destination, it sends a preset
 `{key, aircraftId, dest}`. On each new key the form switches to that aircraft, sets the origin to
-its parked position and the destination to the picked airport, clears messages, and scrolls itself
-into view ([57-67](../../../src/client/components/HopForm.tsx#L57-L67)). After a hop is saved from
-the card the app clears both the plan and the preset ([App.tsx:333-336](../../../src/client/App.tsx#L333-L336)).
+its parked position and the destination to the picked airport, and clears messages
+([57-67](../../../src/client/components/HopForm.tsx#L57-L67)); the page opens the Log a hop drawer
+and scrolls it to this form (app-shell). After a hop is saved from the drawer the app clears both
+the plan and the preset ([App.tsx:404-408](../../../src/client/App.tsx#L404-L408)).
 
 **Validation, in order** ([79-86](../../../src/client/components/HopForm.tsx#L79-L86)): an
 aircraft is chosen; origin present; destination present; arrival not before departure when both
@@ -164,28 +166,28 @@ while a save is in flight.
 
 ## The Hop List in an Aircraft Card
 
-Expanding an aircraft card (`▸ n`) lists its hops in sequence
-([Sidebar.tsx:298-365](../../../src/client/components/Sidebar.tsx#L298-L365)).
+Expanding an aircraft card (the chevron with its hop count) lists its hops in sequence
+([Fleet.tsx:201-260](../../../src/client/components/Fleet.tsx#L201-L260)).
 
 - **Summary line.** "n hop(s) · total logged", where the total is the sum of each hop's duration
   (stored or derived), missing ones counting 0, shown only when above zero
-  ([205](../../../src/client/components/Sidebar.tsx#L205), [300-306](../../../src/client/components/Sidebar.tsx#L300-L306)).
+  ([107](../../../src/client/components/Fleet.tsx#L107), [203-209](../../../src/client/components/Fleet.tsx#L203-L209)).
   With no hops: "No hops logged for this aircraft."
 - **Row.** Sequence number, `ORIG → DEST`, the final landing's compact badge when the hop has
   landings, departure and arrival times, the duration, "no times" when none of those exist, and
-  the notes ([323-345](../../../src/client/components/Sidebar.tsx#L323-L345)).
+  the notes ([226-248](../../../src/client/components/Fleet.tsx#L226-L248)).
 - **Row click** opens the hop: the flight panel shows it and the map zooms to it
-  ([App.tsx:267-272](../../../src/client/App.tsx#L267-L272)).
-- **↑ / ↓** swap the hop with its neighbour and send the full new order; ↑ is disabled on the first
-  hop and ↓ on the last ([212-225](../../../src/client/components/Sidebar.tsx#L212-L225),
-  [347-352](../../../src/client/components/Sidebar.tsx#L347-L352)).
-- **✎** replaces the row with an inline edit form that lists every aircraft, so a hop can be moved
-  to another aircraft ([309-321](../../../src/client/components/Sidebar.tsx#L309-L321)).
-- **✕** asks "Delete hop ORIG → DEST?" and deletes on confirmation
-  ([227-236](../../../src/client/components/Sidebar.tsx#L227-L236)).
+  ([App.tsx:261-266](../../../src/client/App.tsx#L261-L266)).
+- **Move earlier / Move later** (arrow icons) swap the hop with its neighbour and send the full
+  new order; Move earlier is disabled on the first hop and Move later on the last ([Fleet.tsx:114-127](../../../src/client/components/Fleet.tsx#L114-L127),
+  [250-251](../../../src/client/components/Fleet.tsx#L250-L251)).
+- **Edit hop** (pencil) replaces the row with an inline edit form that lists every aircraft, so a hop can be moved
+  to another aircraft ([212-224](../../../src/client/components/Fleet.tsx#L212-L224)).
+- **Delete hop** (trash can) asks "Delete hop ORIG → DEST?" and deletes on confirmation
+  ([129-138](../../../src/client/components/Fleet.tsx#L129-L138)).
 - While a reorder or delete is in flight, every hop action on that card is disabled. A failed
   reorder or delete is meant to show its error on the card; today the failure is silent
-  ([Sidebar.tsx:212-236](../../../src/client/components/Sidebar.tsx#L212-L236)).
+  ([Fleet.tsx:114-138](../../../src/client/components/Fleet.tsx#L114-L138)).
 
 ## API
 
@@ -240,19 +242,17 @@ Handlers are at [routes.ts:368-443](../../../src/server/routes.ts#L368-L443); er
 4. **One parked-position rule, many evaluations.** The rule is re-derived in the aircraft card, the
    hop form, the planner, the map, `/plan` and the tracker, each relying on hops arriving sorted. A
    shared helper would keep them aligned.
-5. **↑/↓ enablement** compares `seq` to 1 and the hop count
-   ([Sidebar.tsx:347-350](../../../src/client/components/Sidebar.tsx#L347-L350)), correct only while
-   the sequence is contiguous.
-6. **Planner hand-off scroll** targets the first `.hop-form` in the page
-   ([HopForm.tsx:65](../../../src/client/components/HopForm.tsx#L65)), which is the "Log a hop"
-   card only because it precedes any inline edit form.
+5. **Move earlier / Move later enablement** compares `seq` to 1 and the hop count
+   ([Fleet.tsx:250-251](../../../src/client/components/Fleet.tsx#L250-L251)), correct only
+   while the sequence is contiguous.
 
 ## References
 
 - Code: [src/server/routes.ts](../../../src/server/routes.ts) (hops section 313-443, `/state` 797-811),
   [src/server/db.ts](../../../src/server/db.ts) (hops table),
   [src/client/components/HopForm.tsx](../../../src/client/components/HopForm.tsx),
-  [src/client/components/Sidebar.tsx](../../../src/client/components/Sidebar.tsx) (`AircraftCard` hop list),
+  [src/client/components/Fleet.tsx](../../../src/client/components/Fleet.tsx) (`AircraftCard` hop list),
+  [src/client/App.tsx](../../../src/client/App.tsx) (the Log a hop drawer, the planner hand-off `pickCandidate`),
   [src/client/format.ts](../../../src/client/format.ts) (`hopDurationMin`, datetime conversion)
 - Writes from other segments: live-tracking `insertHop` ([tracker.ts:306-325](../../../src/server/tracker.ts#L306-L325)),
   which is also to capture sim-clock times; simbrief `POST /hops/:id/briefing`

@@ -22,17 +22,23 @@ This segment owns:
 - API conventions: error responses, ids, the status endpoint, the browser's request helper
   ([routes.ts:28-62](../../../src/server/routes.ts#L28-L62), [818-828](../../../src/server/routes.ts#L818-L828),
   [api.ts](../../../src/client/api.ts));
-- the page: sidebar and map area, card order, loading and error states, error boundaries, theme
-  ([App.tsx](../../../src/client/App.tsx), [Sidebar.tsx](../../../src/client/components/Sidebar.tsx),
-  [ErrorBoundary.tsx](../../../src/client/components/ErrorBoundary.tsx), [styles.css](../../../src/client/styles.css),
-  [index.html](../../../src/client/index.html));
+- the page: the full-window map with panels floating over it, the sidebar, the menu and its
+  drawers, which part of the map the panels cover, loading and error states, error boundaries
+  ([App.tsx](../../../src/client/App.tsx), [layout.ts](../../../src/client/layout.ts),
+  [Sidebar.tsx](../../../src/client/components/Sidebar.tsx),
+  [Menu.tsx](../../../src/client/components/Menu.tsx), [Drawer.tsx](../../../src/client/components/Drawer.tsx),
+  [ErrorBoundary.tsx](../../../src/client/components/ErrorBoundary.tsx), [index.html](../../../src/client/index.html));
+- the look: glass panels, colors, typefaces, icons, focus and motion
+  ([styles.css](../../../src/client/styles.css), [Icon.tsx](../../../src/client/components/Icon.tsx),
+  [main.tsx](../../../src/client/main.tsx));
 - shared formatting of durations, distances, heights, dates and aircraft names ([format.ts](../../../src/client/format.ts));
 - npm scripts, the Windows launcher, the desktop shortcut and the icon tool
   ([package.json](../../../package.json), [start.cmd](../../../start.cmd), [scripts/](../../../scripts/)).
 
 The cards, layers and endpoints themselves belong to their segments: the live card and tracker
 (live-tracking), the hop form and hop lists (logbook), the planner card (planner), the fleet list
-(fleet), the map and its toolbar controls (tour-map), the flight panel (flight-panel).
+(fleet), the map, its toolbar and the Layers menu (tour-map), the flight panel (flight-panel). The
+shell decides where they sit and how they look.
 
 ## Server
 
@@ -91,27 +97,162 @@ with it, and a reimport on a copy reads the lists beside it (downloading them wh
 
 ## The Page
 
-**Layout** ([App.tsx:315-450](../../../src/client/App.tsx#L315-L450)): the sidebar on the left and the
-map area on the right, with the flight panel across the bottom of the map area when open. The map
-toolbar's **◀ / ▶** hides and shows the sidebar.
+**Layout** ([App.tsx](../../../src/client/App.tsx)). The map fills the window, and everything else
+floats over it, so the map stays the main view and shows around and through the panels:
 
-**Sidebar** ([Sidebar.tsx:60-170](../../../src/client/components/Sidebar.tsx#L60-L170)): the title
-"Career Map" with the app's airplane mark and a count line — "N aircraft · N hops · N airports · N
-runways" — then, in order, **Live from the sim**, **Log a hop**, **Plan next hop** and **Fleet**. The
-order follows a session: see what the sim is doing, log what was flown, plan what is next, manage
-the aircraft.
+| Where | What |
+|---|---|
+| Top left | The **menu button** — the app's airplane mark and "Career Map" — with the **sidebar toggle** beside it |
+| Left, under the top bar | The **left column**: the **sidebar** (**Live from the sim** above **Plan next hop**), or the open **drawer** in its place |
+| Top right | The map toolbar (tour-map): **Layers**, the hazard count while any hazard toggle is on, **Fit all**, and **Clear highlight** / **Clear plan** while they apply |
+| Bottom | The flight panel (flight-panel) while a flight is open, from the left column's right edge — the window's edge when the column is hidden — to the right edge, 40% of the window's height and at least 260 px |
 
-**Loading and errors.** Until the map state loads, the map area reads "Loading…". If it fails, a
+The top bar is the row holding the menu button and the toolbar. Panels keep a 12 px gutter from the
+window's edges and from each other. The layout is designed for windows from 800 × 600 px up.
+
+**The sidebar** ([Sidebar.tsx](../../../src/client/components/Sidebar.tsx)) holds what a session uses
+again and again: what the sim is doing, then where to go next, both in view at once. It is 400 px
+wide (340 px in a window narrower than 960 px) and runs from under the top bar to the bottom of the
+window.
+
+Each card collapses to its header and opens again. Collapsing hides a card's body without
+discarding it, so typed values, a SimBrief preview or a half-filled pending leg are still there when
+it opens. The page remembers in the browser whether each card was left open or collapsed; on a
+first visit both are open.
+
+The live card takes the height it needs, up to half the sidebar, and scrolls inside beyond
+that; the planner card takes the rest and scrolls inside, its candidate list included, so there is
+never a scroller inside a scroller. When the sidebar is too short to give the planner card 240 px,
+the whole sidebar scrolls instead. The gaps between the cards and the space below them let clicks
+through to the map.
+
+**Menu and drawers** ([Menu.tsx](../../../src/client/components/Menu.tsx),
+[Drawer.tsx](../../../src/client/components/Drawer.tsx)). What a session needs only now and then sits
+behind the menu button. The menu shows the count line — "N aircraft · N hops · N airports · N
+runways" — and two entries, **Log a hop** and **Fleet**. The menu button and the sidebar toggle
+show from the start; until the map state has loaded, the menu leaves out the count line and its
+entries are disabled.
+
+- The menu closes when an entry is chosen, when its button is clicked again, on Esc, and when the
+  pointer goes down anywhere outside it — that click still does whatever it lands on. The menu and
+  the Layers menu close each other.
+- Choosing an entry opens it as a **drawer**: a panel headed by its title and a close button,
+  shown in the left column instead of the sidebar. A drawer has the sidebar's width, so the left
+  column keeps one right edge and the flight panel beside it never shifts. It is as tall as what
+  it holds, up to the column's full height, and scrolls inside beyond that, so a short form does
+  not hide a column of map.
+- One drawer is open at a time; choosing the other replaces it, and choosing the open one leaves it
+  open. Closing the drawer shows the sidebar again.
+- Opening a drawer moves the keyboard focus into it — to the field a hand-off fills, else to its
+  close button. Closing it returns the focus to the control that opened it.
+- The drawer stays open after a hop is logged or an aircraft saved from it, so the form's own
+  confirmation shows and the next one can follow.
+
+**The left column** shows the open drawer, else the sidebar, unless it is hidden. The sidebar toggle
+hides and shows the column, whichever it shows; hiding it closes an open drawer. Opening a drawer,
+from the menu or a hand-off, shows the column. Whether the column is hidden is not remembered
+between visits.
+
+**Hand-offs.** Other parts of the page open a drawer when they hand work to it:
+
+| From | Opens | At |
+|---|---|---|
+| The planner's **Use** on a candidate (LOG-FORM-004) | Log a hop | The hop form, with the planned aircraft, its parked airport and the picked destination |
+| The live card's **+ New** (FLEET-SIM-003) | Fleet | A new-aircraft form prefilled from the sim aircraft |
+| The planner's **Edit aircraft** (PLAN-FORM-003) | Fleet | That aircraft's edit form |
+
+The drawer scrolls to its own form once it is showing. A hand-off wins over what the drawer held:
+**Use** replaces the aircraft, From and To of a half-filled hop and keeps its times and notes;
+**+ New** and **Edit aircraft** replace an open aircraft form. Highlighting an aircraft switches the
+Log a hop form to it whether or not the drawer is showing (LOG-FORM-003).
+
+**Kept while hidden.** The sidebar mounts with the page and each drawer the first time it opens;
+after that, all of them stay mounted while hidden. A half-filled hop, an expanded aircraft card, a
+planner form or the live card's SimBrief preview is as the user left it when its panel shows again
+(unless a hand-off has changed it). A hidden panel is inert: out of the tab order, not read out,
+and none of its fields can take the focus.
+
+**The covered part of the map.** The panels hide part of the map, so the page works out which part
+is clear: right of the left column (or of the window's edge gutter when the column is hidden),
+below the top bar, and above the flight panel. It works this out from which panels are open and
+their set sizes, at the moment of each zoom — so a hop opened together with the flight panel is
+fitted above the panel that opens with it.
+
+- Every zoom keeps to the clear part (MAP-ZOOM-007): fitting points, flying to a single point, the
+  live card's **Zoom** and the `?view=` option all centre in it, and fitting keeps its 60 px padding
+  inside it. When the clear part is smaller than 240 × 160 px, a zoom uses the whole window.
+- Map popups pan the map to open inside the clear part.
+- The map's attribution sits just above the flight panel.
+- Opening or closing a panel never moves the map; it only changes where the next zoom lands.
+
+**Stacking**, from the bottom: the map with its popups and tooltips; the "Nothing on the map yet"
+card; the left column and the flight panel; the top bar; the menu and the Layers menu; the toast;
+the error banner. The toast, the error banner and the empty-map card are centred across the clear
+part, the toast and banner just above the flight panel while it is open.
+
+**Loading and errors.** Until the map state loads, the window reads "Loading…". If it fails, a
 banner reads "Server error: message" with **Retry**. A part of the page that fails to render — the
-live card, the flight panel, the planned routes — shows "<part> failed: message" with **Retry** in
-its place, and the rest of the page keeps working.
-
-**Theme.** One dark theme, its colors defined once as variables. Hints and warnings under form
-fields are meant to look the same everywhere; today the hint style only applies inside the airport
-input, so the planner's cruise-altitude warning shows unstyled
-([styles.css:307-320](../../../src/client/styles.css#L307-L320), [Planner.tsx:200](../../../src/client/components/Planner.tsx#L200)).
+live card, the flight panel, the planned routes, the live aircraft — shows "<part> failed: message"
+with **Retry** in its place, and the rest of the page keeps working. A failed flight panel keeps its
+place and its close button; a failed map layer (planned routes, live aircraft) shows its message
+as a notice at the top of the clear part.
 
 **Page title and icon**: "MSFS Career Map", with an orange airplane icon.
+
+## The Look
+
+A glass cockpit at night: dark, translucent instrument panels over a moving map, with one warm
+accent. The map is the picture; the panels are the instruments laid over it.
+
+**Glass panels.** Every panel over the map — the menu button, sidebar cards, drawers, toolbar,
+menus, flight panel, map popups and tooltips, toast and banner — is frosted glass: a dark tint over
+a blur of the map behind it, a hairline light edge and a soft shadow. The tint is set so text keeps
+its contrast on any basemap: thicker in the drawers, whose forms are dense, and thicker on every
+panel while the Light basemap is shown, since a light tint over white tiles turns grey. Fields
+inside a panel are a shade darker than the panel. Nothing inside a panel is glass again: what pops
+up within one — airport suggestions, the profile chart's readout — is solid.
+
+The page shares the GPU with the sim, and the panels are recomposited on every pan, zoom and live
+redraw, so the blur is capped at 12 px. While the browser asks for reduced transparency, the panels
+are solid: the same tint, fully opaque, with no blur.
+
+**Colors**, defined once as variables in `:root` ([styles.css](../../../src/client/styles.css)):
+
+| Role | Value | Used for |
+|---|---|---|
+| Accent | `#ff6b35` orange | The app mark, primary buttons, the chosen option in a group, focus rings |
+| Text | `#e8edf2` | Body text |
+| Muted | `#93a1b3` | Labels and secondary lines |
+| Ok | `#3bceac` green | Connected, on the ground, a logged hop |
+| Caution | `#fbbf24` amber | Paused, in menus, a leg waiting to be logged |
+| Airborne | `#7cc4ff` blue | Airborne, landed, live |
+| Danger | `#ff5c5c` red | Errors and destructive actions |
+
+Status colors follow the cockpit convention — green normal, amber caution, red warning — and the
+accent never stands for a status. Each aircraft's own color (fleet) and the flight-category and
+hazard colors (planner, tour-map) are data, not theme.
+
+**Type.** B612, the typeface Airbus drew for cockpit displays, sets the interface; B612 Mono sets
+airport codes, times and numeric readouts, so figures line up. Both are packaged with the app
+(`@fontsource/b612`, `@fontsource/b612-mono`), so the page loads no font from the internet. Body
+text is 13 px; secondary lines 11.5 px; card and drawer titles 13 px bold in sentence case; the
+"Career Map" wordmark 15 px bold.
+
+**Icons** ([Icon.tsx](../../../src/client/components/Icon.tsx)). One set of line icons, drawn as
+inline SVG in the text color at 16 px: menu, close, sidebar toggle, layers, fit, chevrons, eye and
+eye-off, pencil, trash can, link, arrow up and down, moon. Every button that shows only an icon has an
+accessible name, the same words as its tooltip. Arrows inside text ("KBOS → KPVD") are content and
+stay text; the landing-rating icons belong to flight-panel.
+
+**Shape.** Panels have 14 px corners, fields and buttons 8 px, pills and chips are fully round.
+
+**Hints and warnings** under form fields share one style wherever they appear — muted for a hint,
+red for a warning — including the planner's cruise-altitude warning.
+
+**Focus and motion.** Any control reached by keyboard shows an accent focus ring. A drawer slides in
+from the left; the menu and the Layers menu fade in; the toast rises. While the browser asks for
+reduced motion, nothing on the page animates: the live marker does not pulse, and the map jumps to
+a zoom's view instead of flying there (MAP-ZOOM-007).
 
 ## Shared Formatting
 
@@ -247,9 +388,22 @@ since the server may still hold it open when the run ends.
 | Running TypeScript | `tsx` at runtime, no server build step | Compile the server to JS | One less build; the server starts straight from source. |
 | Schema changes | Create-if-missing plus additive column upgrades in place | Versioned migration files | Older databases keep working with no migration step; changes so far have all been additive. |
 | Error shape | `{"error": message}` with a meaningful status | Error codes; HTML errors | The page shows the message as is. |
-| Card order | Live, Log a hop, Plan, Fleet | Fleet first | Follows a session from the sim to the next plan. |
+| Page layout | The map fills the window; panels float over it | A sidebar docked beside a smaller map; an icon rail opening one panel at a time | The map is the main view and stays whole behind the panels. A rail would keep the live card and the planner from being open together, which a session between flights wants. |
+| What the sidebar holds | Live from the sim above Plan next hop; Log a hop and Fleet behind the menu | Every card in one scrolling sidebar; Fleet first | The sim logs flights and the fleet changes rarely, so the hand-logging form and the fleet list are occasional; keeping them in the sidebar pushed the planner below the fold and the fleet to the bottom. |
+| Where a drawer opens | Over the sidebar, in its place | From the right edge; a modal dialog | It opens where the menu is, and the map stays visible beside it — the fleet list highlights aircraft and opens hops on the map, which a modal would hide. |
+| Hidden panels and collapsed cards | Stay mounted, hidden | Unmount when closed or collapsed | A half-typed hop, a pending leg being filled in, an expanded aircraft card or a planner form survives switching panels or collapsing a card. |
+| Card open or collapsed | Remembered in the browser per card; open on a first visit | Always open on load; always collapsed | The live card's status strip lets a pilot keep it small for good, and reopening it on every load would undo that. |
+| Column width | One width for the sidebar and the drawers, 400 px | A slimmer sidebar and wider drawers | With one width the flight panel's left edge and the clear part of the map stay put when a drawer opens or closes; 400 px fits the hop form's two date-time fields side by side. |
+| Panels over the map | The map keeps its full size; zooms fit into the part the panels leave clear | Shrink the map to the uncovered area | The glass needs the map behind it, and a map that resized whenever a panel opened would jump under the user. |
+| Working out the clear part | From which panels are open and their set sizes, at zoom time | Measuring the panels' boxes after layout | Opening a hop opens the flight panel and asks for the zoom in one update; a measurement taken then would miss the panel that is opening and fit the hop under it. |
+| Left column | One column showing the open drawer, else the sidebar; the toggle hides whichever it shows | A drawer layered over a visible sidebar; separate toggles | Glass over glass would blur the sidebar's cards through the drawer, and one column gives the clear part one left edge. |
+| Glass tint | Thicker in drawers and over the Light basemap | One tint everywhere | Text has to stay legible over white tiles and in dense forms; the dark and satellite basemaps allow a lighter tint. |
+| Blur | Capped at 12 px; none while reduced transparency is asked for | A stronger blur; blur always | The page shares the GPU with the sim, and the panels are recomposited on every pan and live redraw. |
+| Typeface | B612 and B612 Mono, packaged with the app | The system font; Barlow with B612 Mono; fonts from a font service | Drawn for legibility on cockpit displays, which suits a flight-sim instrument panel; packaging them keeps the app keyless, local and working offline and in tests. |
+| Icons | One inline SVG set | Emoji and unicode glyphs; an icon library | Glyphs render differently by font and platform and mix styles; a dozen icons do not need a dependency. |
+| Keyboard | Esc closes the menu and the Layers menu; no shortcuts that open panels | Single-key shortcuts for each panel; Esc closing drawers and the flight panel | Esc on an open menu is what menus do. Single-key shortcuts would have to be kept out of every field where airport codes are typed, and the panels close with their own buttons. |
 | Contained failures | Error boundaries around the live card, flight panel and planned routes | One for the whole page | A bad record or plan should not blank the map. |
-| Theme | Dark only | Light and dark | [inferred] Map-first and used beside a sim, often at night; the dark basemap is the default. |
+| Theme | Dark only | Light and dark | Map-first and used beside a sim, often at night; the dark basemap is the default, and the glass panels are tuned dark over every basemap. |
 | Launcher | A `.cmd` that installs, builds, starts and opens the browser | Manual commands; an installer | Double-click start on Windows for a hobby tool. |
 | Launcher after an update | Rebuild a stale build; refuse to reuse a server of another version, telling the user to close it | Rebuild by hand; stop the old server automatically | Updating should need no extra steps, and a page from one version against a server from another misbehaves. Stopping a process another window owns is left to the user. |
 | Data beside the database | Icons and OurAirports lists in the database's folder | Fixed `data/` paths; a separate setting per path | One variable moves everything, so a copy or a test database never changes the real logbook's files; the default database keeps the `data/` layout. |
@@ -272,11 +426,10 @@ since the server may still hold it open when the run ends.
 ### Deferred
 
 1. **Version in five places** — "0.8.0" hard-coded in `/api/status` and "0.6" in four User-Agents.
-2. **Hint style scoped to the airport input** ([styles.css:307-320](../../../src/client/styles.css#L307-L320)).
-3. **Stale build after an update** — the launcher builds only when no build exists and reuses a
+2. **Stale build after an update** — the launcher builds only when no build exists and reuses a
    running server whatever its version.
-4. **Two duration styles** — the page's "1h 05m" and the tracker's "1 h 05 min".
-5. **The README restates behaviour** — its API table and tracking rules will drift as gaps close
+3. **Two duration styles** — the page's "1h 05m" and the tracker's "1 h 05 min".
+4. **The README restates behaviour** — its API table and tracking rules will drift as gaps close
    (it already says closing the sim mid-flight drops the leg, which LIVE-LEG-008 changes).
 
 ## References
@@ -285,11 +438,19 @@ since the server may still hold it open when the run ends.
   (`createApp`), [src/server/locations.ts](../../../src/server/locations.ts) (data locations),
   [src/server/db.ts](../../../src/server/db.ts) (pragmas, `addColumnIfMissing`), [src/server/routes.ts](../../../src/server/routes.ts)
   (helpers 28-62, `/status` 813-815, error handlers 818-828), [src/client/api.ts](../../../src/client/api.ts)
-  (`req`), [src/client/App.tsx](../../../src/client/App.tsx) (layout, sidebar toggle, loading, error
-  banner), [src/client/components/Sidebar.tsx](../../../src/client/components/Sidebar.tsx) (header,
-  card order), [src/client/components/ErrorBoundary.tsx](../../../src/client/components/ErrorBoundary.tsx),
+  (`req`), [src/client/App.tsx](../../../src/client/App.tsx) (layout, hand-offs to the drawers
+  (`openDrawer`), loading, error banner), [src/client/layout.ts](../../../src/client/layout.ts) (panel
+  sizes, covered part of the map (`clearInsets`), the left column's reducer),
+  [src/client/prefs.ts](../../../src/client/prefs.ts) (`readPref`, `writePref`, `prefersReducedMotion`),
+  [src/client/components/Sidebar.tsx](../../../src/client/components/Sidebar.tsx) (the
+  sidebar's cards), [src/client/components/Menu.tsx](../../../src/client/components/Menu.tsx) (menu
+  button, count line, sidebar toggle), [src/client/components/Drawer.tsx](../../../src/client/components/Drawer.tsx)
+  (`LeftColumn` and the drawers), [src/client/components/useDismiss.ts](../../../src/client/components/useDismiss.ts)
+  (closing the menus), [src/client/components/Icon.tsx](../../../src/client/components/Icon.tsx) (icon set,
+  `IconButton`), [src/client/components/MapView.tsx](../../../src/client/components/MapView.tsx)
+  (`PopupPadding`), [src/client/components/ErrorBoundary.tsx](../../../src/client/components/ErrorBoundary.tsx),
   [src/client/format.ts](../../../src/client/format.ts) (shared formatters), [src/client/styles.css](../../../src/client/styles.css)
-  (theme, layout), [src/client/index.html](../../../src/client/index.html), [src/client/main.tsx](../../../src/client/main.tsx),
+  (the look, layout), [src/client/index.html](../../../src/client/index.html), [src/client/main.tsx](../../../src/client/main.tsx) (font imports),
   [package.json](../../../package.json), [vite.config.ts](../../../vite.config.ts), `tsconfig*.json`,
   [start.cmd](../../../start.cmd), [scripts/install-shortcut.ps1](../../../scripts/install-shortcut.ps1),
   [scripts/make-ico.mjs](../../../scripts/make-ico.mjs), [README.md](../../../README.md)

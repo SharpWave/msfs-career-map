@@ -13,16 +13,17 @@ test.describe("browser-test servers", () => {
     expect(await res.json()).toMatchObject({ ok: true, airports: fixtureCounts().airports, runways: fixtureCounts().runways });
   });
 
-  // @spec APP-RUN-012, APP-UI-001
-  test("the page loads on an empty logbook, with the sidebar's cards in order", async ({ page }) => {
+  // @spec APP-RUN-012, APP-UI-001, APP-UI-012
+  test("the page loads with the top bar over the map, the sidebar's cards in order, and the counts in the menu", async ({ page }) => {
     await page.goto("/");
-    const head = page.locator(".sidebar-head");
-    await expect(head.locator("h1")).toHaveText("Career Map");
+    const bar = page.locator(".top-bar");
+    await expect(bar.getByRole("button", { name: "Career Map" })).toBeVisible();
+    await expect(bar.getByRole("button", { name: "Layers" })).toBeVisible();
+    await expect(page.locator(".left-column .sidebar").getByRole("heading", { level: 2 })).toHaveText(["Live from the sim", "Plan next hop"]);
+    await bar.getByRole("button", { name: "Career Map" }).click();
     const { airports, runways } = fixtureCounts();
-    await expect(head).toContainText(`0 aircraft · 0 hops · ${airports} airports · ${runways} runways`);
-    // With no aircraft, the only second-level headings in the sidebar are the cards' titles.
-    const titles = page.locator(".sidebar").getByRole("heading", { level: 2 });
-    await expect(titles).toHaveText(["Live from the sim", "Log a hop", "Plan next hop", "Fleet"]);
+    await expect(page.getByRole("menu")).toContainText(new RegExp(`\\d+ aircraft · \\d+ hops · ${airports} airports · ${runways} runways`));
+    await expect(page.getByRole("menuitem")).toHaveText(["Log a hop", "Fleet"]);
   });
 
   // @spec APP-RUN-012

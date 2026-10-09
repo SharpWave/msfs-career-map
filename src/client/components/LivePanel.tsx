@@ -4,6 +4,7 @@ import { aircraftLabel, fmtDuration, fmtTimeShort } from "../format";
 import type { LiveState } from "../tracker";
 import type { Aircraft, BriefingSummary, PendingLeg, Settings, SimAircraft, TrackerStatus } from "../types";
 import { AirportInput } from "./AirportInput";
+import { IconButton } from "./Icon";
 import { LandingBadge } from "./LandingBadge";
 
 interface Props {
@@ -16,6 +17,9 @@ interface Props {
   onSelect: (id: number) => void;
   /** Open the new-aircraft form prefilled from what the sim reports. */
   onNewFromSim: (sim: SimAircraft) => void;
+  /** Open, or collapsed to the one-line status strip. */
+  open: boolean;
+  onToggle: () => void;
 }
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -146,10 +150,11 @@ function SimbriefControls({ status, busy, run }: { status: TrackerStatus; busy: 
 /**
  * Sidebar card for the live tracker: connection state, the sim aircraft and which fleet row it is
  * bound to, the leg in progress, and any finished leg waiting for details before it is logged.
+ * Collapsed, it is a one-line status strip; its body stays mounted, so nothing typed is lost.
  */
-export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onSelect, onNewFromSim }: Props) {
+// @spec LIVE-CARD-001, LIVE-CARD-011
+export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onSelect, onNewFromSim, open, onToggle }: Props) {
   const { status: s, online } = live;
-  const [open, setOpen] = useState(true);
   const [bindId, setBindId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -179,146 +184,156 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
   else pill = { cls: "on", text: "connected" };
 
   const p = s?.position;
+  // As in the open card, the position is shown only while the sim is connected.
+  const readout =
+    p && s?.connected ? `${(p.alt_ft ?? 0).toLocaleString()} ft · ${p.gs_kts ?? 0} kt · ${String(p.hdg_deg ?? 0).padStart(3, "0")}°` : null;
 
   return (
     <>
-      <div className="live-head">
-        <h2>Live from the sim</h2>
-        <span className={`pill ${pill.cls}`}>{pill.text}</span>
-        <button type="button" className="icon" onClick={() => setOpen((o) => !o)} title={open ? "Collapse" : "Expand"}>
-          {open ? "▾" : "▸"}
-        </button>
-      </div>
-
-      {open && (
-        <>
-          {s && s.connected && s.sim && (
-            <dl className="live-grid">
-              <dt>Sim aircraft</dt>
-              <dd>
-                {s.sim.title || <span className="muted">(no title yet)</span>}
-                {s.sim.livery && (
-                  <>
-                    {" "}
-                    · <span className="code">{s.sim.livery}</span>
-                  </>
-                )}
-                {s.sim.atc_id && (
-                  <>
-                    {" "}
-                    · <span className="code">{s.sim.atc_id}</span>
-                  </>
-                )}
-              </dd>
-
-              <dt>Fleet</dt>
-              <dd>
-                {bound ? (
-                  <button type="button" className="small" onClick={() => onSelect(bound.id)} title="Highlight on the map">
-                    {aircraftLabel(bound)}
-                  </button>
-                ) : (
-                  <div className="live-bind">
-                    <select value={bindId} onChange={(e) => setBindId(e.target.value)} disabled={busy}>
-                      <option value="">Bind to…</option>
-                      {aircraft.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {aircraftLabel(a)}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      className="small"
-                      disabled={!bindId || busy}
-                      onClick={() => run(() => api.trackerBind(Number(bindId)).then(reload))}
-                      title="Remember this sim aircraft + livery as that fleet aircraft"
-                    >
-                      Bind
-                    </button>
-                    <button type="button" className="small" onClick={() => onNewFromSim(s.sim!)} title="Add a fleet aircraft from what the sim reports">
-                      + New
-                    </button>
-                  </div>
-                )}
-              </dd>
-
-              {p && (
-                <>
-                  <dt>Position</dt>
-                  <dd>
-                    {(p.alt_ft ?? 0).toLocaleString()} ft · {p.gs_kts ?? 0} kt · {String(p.hdg_deg ?? 0).padStart(3, "0")}°{" "}
-                    <button type="button" className="small" onClick={onFocusLive} title="Zoom the map to the aircraft">
-                      Zoom
-                    </button>
-                  </dd>
-                </>
-              )}
-
-              {s.leg && (
-                <>
-                  <dt>Leg</dt>
-                  <dd>
-                    from <b className="code">{s.leg.origin ?? "?"}</b> · off {fmtTimeShort(s.leg.departed_at)} · {s.leg.points} points
-                    {(s.leg.landings?.length ?? 0) > 0 && (
-                      <>
-                        {" "}
-                        <LandingBadge landing={s.leg.landings[s.leg.landings.length - 1]} compact />
-                      </>
-                    )}{" "}
-                    <button type="button" className="small" onClick={onOpenLive} title="Open the live profile in the flight panel">
-                      Profile
-                    </button>{" "}
-                    {s.phase === "landed" && (
-                      <>
-                        <button
-                          type="button"
-                          className="small"
-                          disabled={busy}
-                          title="Log the leg where the aircraft is now, without waiting for it to sit still for 30 s"
-                          onClick={() => void run(() => api.trackerCompleteLeg())}
-                        >
-                          Log now
-                        </button>{" "}
-                      </>
-                    )}
-                    <button
-                      type="button"
-                      className="small"
-                      disabled={busy}
-                      onClick={() => {
-                        if (window.confirm("Discard the leg being flown? It will not be logged.")) void run(() => api.trackerDiscardLeg());
-                      }}
-                    >
-                      Discard
-                    </button>
-                  </dd>
-                </>
-              )}
-            </dl>
-          )}
-
-          {s && s.connected && s.sim && <SimbriefControls status={s} busy={busy} run={run} />}
-
-          {s && s.connected && !s.sim && <p className="muted small">Connected to {s.sim_name ?? "the sim"}; waiting for the aircraft to load.</p>}
-          {s && !s.connected && (
-            <p className="muted small">
-              Start MSFS and the tracker connects by itself. Takeoffs and landings are logged as hops with the flown track.
-            </p>
-          )}
-          {!s && online && <p className="muted small">Waiting for the tracker…</p>}
-
-          {s?.message && (
-            <div className="live-msg">
-              {s.message}
-              {s.message_at && <> · {fmtTimeShort(s.message_at)}</>}
-            </div>
-          )}
-          {error && <div className="error">{error}</div>}
-
-          {s?.pending && <PendingForm key={s.pending.departed_at} p={s.pending} aircraft={aircraft} reload={reload} />}
-        </>
+      {open ? (
+        <div className="card-title live-head">
+          <h2>Live from the sim</h2>
+          <span className={`pill ${pill.cls}`}>{pill.text}</span>
+          <IconButton icon="chevron-down" label="Collapse Live from the sim" aria-expanded onClick={onToggle} />
+        </div>
+      ) : (
+        // The whole strip opens the card; its chevron is the keyboard's way in, and its click bubbles here.
+        <div className="live-strip" onClick={onToggle}>
+          <h2 className="sr-only">Live from the sim</h2>
+          <span className={`pill ${pill.cls}`}>{pill.text}</span>
+          {readout && <span className="readout code">{readout}</span>}
+          {s?.pending && <span className="caution">Leg waiting to be logged</span>}
+          <IconButton icon="chevron-right" label="Expand Live from the sim" aria-expanded={false} />
+        </div>
       )}
+
+      <div className="card-body live-body" hidden={!open}>
+        {s && s.connected && s.sim && (
+          <dl className="live-grid">
+            <dt>Sim aircraft</dt>
+            <dd>
+              {s.sim.title || <span className="muted">(no title yet)</span>}
+              {s.sim.livery && (
+                <>
+                  {" "}
+                  · <span className="code">{s.sim.livery}</span>
+                </>
+              )}
+              {s.sim.atc_id && (
+                <>
+                  {" "}
+                  · <span className="code">{s.sim.atc_id}</span>
+                </>
+              )}
+            </dd>
+
+            <dt>Fleet</dt>
+            <dd>
+              {bound ? (
+                <button type="button" className="small" onClick={() => onSelect(bound.id)} title="Highlight on the map">
+                  {aircraftLabel(bound)}
+                </button>
+              ) : (
+                <div className="live-bind">
+                  <select value={bindId} onChange={(e) => setBindId(e.target.value)} disabled={busy}>
+                    <option value="">Bind to…</option>
+                    {aircraft.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {aircraftLabel(a)}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="small"
+                    disabled={!bindId || busy}
+                    onClick={() => run(() => api.trackerBind(Number(bindId)).then(reload))}
+                    title="Remember this sim aircraft + livery as that fleet aircraft"
+                  >
+                    Bind
+                  </button>
+                  <button type="button" className="small" onClick={() => onNewFromSim(s.sim!)} title="Add a fleet aircraft from what the sim reports">
+                    + New
+                  </button>
+                </div>
+              )}
+            </dd>
+
+            {p && (
+              <>
+                <dt>Position</dt>
+                <dd>
+                  {(p.alt_ft ?? 0).toLocaleString()} ft · {p.gs_kts ?? 0} kt · {String(p.hdg_deg ?? 0).padStart(3, "0")}°{" "}
+                  <button type="button" className="small" onClick={onFocusLive} title="Zoom the map to the aircraft">
+                    Zoom
+                  </button>
+                </dd>
+              </>
+            )}
+
+            {s.leg && (
+              <>
+                <dt>Leg</dt>
+                <dd>
+                  from <b className="code">{s.leg.origin ?? "?"}</b> · off {fmtTimeShort(s.leg.departed_at)} · {s.leg.points} points
+                  {(s.leg.landings?.length ?? 0) > 0 && (
+                    <>
+                      {" "}
+                      <LandingBadge landing={s.leg.landings[s.leg.landings.length - 1]} compact />
+                    </>
+                  )}{" "}
+                  <button type="button" className="small" onClick={onOpenLive} title="Open the live profile in the flight panel">
+                    Profile
+                  </button>{" "}
+                  {s.phase === "landed" && (
+                    <>
+                      <button
+                        type="button"
+                        className="small"
+                        disabled={busy}
+                        title="Log the leg where the aircraft is now, without waiting for it to sit still for 30 s"
+                        onClick={() => void run(() => api.trackerCompleteLeg())}
+                      >
+                        Log now
+                      </button>{" "}
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    className="small"
+                    disabled={busy}
+                    onClick={() => {
+                      if (window.confirm("Discard the leg being flown? It will not be logged.")) void run(() => api.trackerDiscardLeg());
+                    }}
+                  >
+                    Discard
+                  </button>
+                </dd>
+              </>
+            )}
+          </dl>
+        )}
+
+        {s && s.connected && s.sim && <SimbriefControls status={s} busy={busy} run={run} />}
+
+        {s && s.connected && !s.sim && <p className="muted small">Connected to {s.sim_name ?? "the sim"}; waiting for the aircraft to load.</p>}
+        {s && !s.connected && (
+          <p className="muted small">
+            Start MSFS and the tracker connects by itself. Takeoffs and landings are logged as hops with the flown track.
+          </p>
+        )}
+        {!s && online && <p className="muted small">Waiting for the tracker…</p>}
+
+        {s?.message && (
+          <div className="live-msg">
+            {s.message}
+            {s.message_at && <> · {fmtTimeShort(s.message_at)}</>}
+          </div>
+        )}
+        {error && <div className="error">{error}</div>}
+
+        {s?.pending && <PendingForm key={s.pending.departed_at} p={s.pending} aircraft={aircraft} reload={reload} />}
+      </div>
     </>
   );
 }

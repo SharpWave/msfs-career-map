@@ -20,14 +20,16 @@ describes current behaviour plus confirmed intended changes; specs drafted, no t
 - docs/intent/fleet/fleet-specs.md (42 specs)
 
 ### Tests
-- none yet (they go in `tests/fleet/`; the harness is app-shell's)
+- tests/fleet/fleet-list.test.tsx — FLEET-CARD-002, FLEET-LOOK-010
+- tests/app-shell/page.test.tsx — FLEET-SIM-003
 
 ### Code
 - src/server/routes.ts — aircraft section (116-311)
 - src/server/db.ts — `aircraft` table (90-111, 163-176)
 - src/client/components/AircraftForm.tsx
 - src/client/icons.ts — built-in icons, badge HTML, palette, `nextColor`
-- src/client/components/Sidebar.tsx — fleet header (132-157), new-from-sim prefill (82-86), `AircraftCard` header (200-296)
+- src/client/components/Fleet.tsx — fleet list with the new-aircraft form (25-82), `AircraftCard` header (102-199)
+- src/client/App.tsx — new-from-sim prefill `newFromSim` (320-324), the Fleet drawer and its **+ Aircraft** (412-427)
 
 ## Architecture
 
@@ -72,7 +74,7 @@ icon), what the planner needs (speed, block-time inputs, limits), and what the t
 ### Should Fix
 1. Refuse a duplicate name + livery with 409 (FLEET-REC-003; routes.ts:233-284).
 2. Remove an aircraft's uploaded icon when the aircraft is deleted (FLEET-REC-017; routes.ts:286-291).
-3. Show an error when the visibility toggle fails (FLEET-LOOK-011; Sidebar.tsx:207-210).
+3. Show an error when the visibility toggle fails (FLEET-LOOK-011; Fleet.tsx:109-112).
 4. Delete the hops' SimBrief plans with the aircraft (FLEET-REC-016; with SB-HOP-003).
 
 ### Nice to Have

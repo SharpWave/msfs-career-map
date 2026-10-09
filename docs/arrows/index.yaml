@@ -109,5 +109,5 @@ arrows:
     blocks: []
     blockedBy: []
     detail: app-shell.md
-    next: "Launcher rebuild and version check (APP-RUN-006/008), one version from package.json (APP-API-005), shared hint style (APP-UI-007); tests for the 15 implemented APP specs that have none"
+    next: "Launcher rebuild and version check (APP-RUN-006/008), one version from package.json (APP-API-005); tests for the 15 implemented APP specs that have none"
     drift: null

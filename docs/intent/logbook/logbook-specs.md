@@ -44,13 +44,13 @@ Design: [logbook-design.md](logbook-design.md). Prefix `LOG`; facets `REC` (the 
 
 - [x] **LOG-FORM-001**: When the "Log a hop" form is shown, the system shall preselect the aircraft highlighted in the fleet or on the map, else the first fleet aircraft, and fill the origin with where that aircraft is parked.
 - [x] **LOG-FORM-002**: When the user chooses a different aircraft in the "Log a hop" form, the system shall fill the origin with where that aircraft is parked.
-- [x] **LOG-FORM-003**: When the user highlights a different aircraft in the fleet or on the map, the system shall switch the "Log a hop" form to that aircraft; clearing the highlight shall leave the form's aircraft unchanged.
-- [x] **LOG-FORM-004**: When the planner hands over a picked destination (its **Use** action on a candidate airport), the system shall switch the "Log a hop" form to the planned aircraft, fill the origin with where it is parked and the destination with the picked airport, and scroll the form into view.
+- [x] **LOG-FORM-003**: When the user highlights a different aircraft in the fleet or on the map, the system shall switch the "Log a hop" form to that aircraft, whether or not its drawer is showing; clearing the highlight shall leave the form's aircraft unchanged.
+- [x] **LOG-FORM-004**: When the planner hands over a picked destination (its **Use** action on a candidate airport), the system shall switch the "Log a hop" form to the planned aircraft, fill the origin with where it is parked and the destination with the picked airport, and open the Log a hop drawer scrolled to that form.
 - [x] **LOG-FORM-005**: When a hop is saved from the "Log a hop" form, the system shall fill the next origin with the destination just logged, clear the remaining fields, confirm "Logged ORIG → DEST", and clear the active planner search.
 - [x] **LOG-FORM-006**: If the user submits the hop form without an aircraft, an origin or a destination, then the system shall show which is missing and not save.
 - [x] **LOG-FORM-007**: If the user submits the hop form with a real-world arrival before the departure, or a flight time that is not a number of minutes ≥ 0, then the system shall show the problem and not save.
 - [x] **LOG-FORM-008**: If saving from the hop form fails, then the system shall show the server's error and keep the entered values.
-- [x] **LOG-FORM-009**: While the fleet has no aircraft, the "Log a hop" card shall show "Add an aircraft to the fleet first, then log hops here." in place of the form.
+- [x] **LOG-FORM-009**: While the fleet has no aircraft, the Log a hop drawer shall show "Add an aircraft to the fleet first, then log hops here." in place of the form.
 - [x] **LOG-FORM-010**: If the aircraft chosen in the "Log a hop" form is deleted, then the system shall switch the form to the first fleet aircraft.
 - [x] **LOG-FORM-011**: When the user edits a hop inline, the system shall offer every fleet aircraft in the form so the hop can be moved to another aircraft.
 - [x] **LOG-FORM-012**: The hop form shall enter and show real-world departure and arrival times in the browser's local time zone.
@@ -60,7 +60,7 @@ Design: [logbook-design.md](logbook-design.md). Prefix `LOG`; facets `REC` (the 
 - [x] **LOG-LIST-001**: When an aircraft card is expanded, the system shall list that aircraft's hops in sequence, each with its number, origin → destination, the final landing's badge when it has landings, its real-world departure and arrival times, its flight time, and its notes, or "no times" when it has none of those.
 - [x] **LOG-LIST-002**: When an aircraft card is expanded, the system shall show "n hop(s)" with the sum of its hops' flight times when that sum is above zero, or "No hops logged for this aircraft." when it has none.
 - [x] **LOG-LIST-003**: When the user clicks a hop row, the system shall open that hop in the flight panel and zoom the map to it.
-- [x] **LOG-LIST-004**: When the user clicks ↑ or ↓ on a hop row, the system shall swap the hop with its neighbour and save the new order; ↑ shall be disabled on the first hop and ↓ on the last.
-- [x] **LOG-LIST-005**: When the user clicks ✕ on a hop row and confirms "Delete hop ORIG → DEST?", the system shall delete the hop.
+- [x] **LOG-LIST-004**: When the user clicks **Move earlier** or **Move later** on a hop row, the system shall swap the hop with its neighbour and save the new order; **Move earlier** shall be disabled on the first hop and **Move later** on the last.
+- [x] **LOG-LIST-005**: When the user clicks **Delete hop** on a hop row and confirms "Delete hop ORIG → DEST?", the system shall delete the hop.
 - [x] **LOG-LIST-006**: While a reorder or delete from an aircraft card is in flight, the system shall disable that card's hop actions.
 - [ ] **LOG-LIST-007**: If a reorder or delete from an aircraft card fails, then the system shall show the error on that card.

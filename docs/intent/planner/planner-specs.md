@@ -56,7 +56,7 @@ along a leg), `FORM` (planner form), `LIST` (results in the planner card), `RUN`
 
 - [x] **PLAN-FORM-001**: While there are no aircraft, the planner card shall read "Add an aircraft with a cruise speed to plan its next hop."
 - [x] **PLAN-FORM-002**: The planner form shall list every aircraft with its cruise speed or "no cruise speed", start on the highlighted aircraft (else the first with a cruise speed, else the first), follow the highlight as it changes, and fall back the same way when its aircraft is deleted.
-- [x] **PLAN-FORM-003**: While the planner form's aircraft has no cruise speed, the form shall show "Set a cruise speed on this aircraft to unlock the planner." with an **Edit aircraft** link to that aircraft's edit form, and disable the search button.
+- [x] **PLAN-FORM-003**: While the planner form's aircraft has no cruise speed, the form shall show "Set a cruise speed on this aircraft to unlock the planner." with an **Edit aircraft** link that opens that aircraft's edit form in the Fleet drawer, and disable the search button.
 - [x] **PLAN-FORM-004**: The planner form shall offer a maximum flight time in minutes, 90 by default, with quick picks of 30 min, 1 h, 1 h 30, 2 h, 3 h and 4 h.
 - [x] **PLAN-FORM-005**: The planner form shall offer a From airport that defaults to where the aircraft is parked, shown as the field's placeholder.
 - [ ] **PLAN-FORM-006**: The planner form shall offer a cruise altitude labelled "for climb/descent time", filled with the aircraft's cruise altitude whenever the form's aircraft changes, with blank meaning the default.

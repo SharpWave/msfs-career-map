@@ -20,13 +20,15 @@ describes current behaviour plus confirmed intended changes; specs drafted, no t
 - docs/intent/logbook/logbook-specs.md (44 specs)
 
 ### Tests
-- none yet (they go in `tests/logbook/`; the harness is app-shell's)
+- tests/fleet/fleet-list.test.tsx — LOG-LIST-004, LOG-LIST-005
+- tests/app-shell/page.test.tsx — LOG-FORM-003, LOG-FORM-004, LOG-FORM-009
 
 ### Code
 - src/server/routes.ts — hops section (313-443), `/state` (797-811)
 - src/server/db.ts — `hops` table (113-126, 177-179)
 - src/client/components/HopForm.tsx
-- src/client/components/Sidebar.tsx — "Log a hop" card (91-103), `AircraftCard` hop list (200-368)
+- src/client/App.tsx — the "Log a hop" drawer (396-411), the planner hand-off `pickCandidate` (312-318)
+- src/client/components/Fleet.tsx — `AircraftCard` hop list (102-263)
 - src/client/format.ts — `hopDurationMin`, `isoToLocalInput`, `localInputToIso` (38-62)
 
 ## Architecture
@@ -57,7 +59,7 @@ hops by hand.
 
 1. **Two writers to `hops`** — hand-logged rows come from the hop routes; flown legs come from the
    tracker's `insertHop` (src/server/tracker.ts:306-325), which follows the same append rule.
-2. **Parked position is derived in six places** — Sidebar.tsx:204, HopForm.tsx:28-32,
+2. **Parked position is derived in six places** — Fleet.tsx:106, HopForm.tsx:28-32,
    Planner.tsx:86-89, paths.ts:137-140, routes.ts:709-714, and the tracker's takeoff tie-break
    (intended); all depend on hops arriving sorted.
 3. **Renumbering is not atomic** — routes.ts:407-410 and 417-418 run outside a transaction;
@@ -73,7 +75,7 @@ hops by hand.
 ### Should Fix
 1. Make move/delete + renumber atomic (LOG-SEQ-004; routes.ts:407-410, 417-418).
 2. Mirror the form's time and duration checks on the server (LOG-REC-009, LOG-REC-011).
-3. Show errors from reorder/delete on the card (LOG-LIST-007; Sidebar.tsx:212-236).
+3. Show errors from reorder/delete on the card (LOG-LIST-007; Fleet.tsx:114-138).
 
 ### New Behaviour
 4. Restrict airport changes on tracked hops to plausible corrections (LOG-EDIT-001, LOG-EDIT-002).

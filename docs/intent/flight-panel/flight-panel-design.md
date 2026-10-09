@@ -32,19 +32,25 @@ color from fleet. The panel hosts the SimBrief card, which is simbrief's.
 The panel opens for a hop when its path is clicked on the map (MAP-PATH-004) or its row in an
 aircraft card (LOG-LIST-003), for the live leg from the live card's **Profile** (LIVE-CARD-005),
 and for a pending leg from that leg's **Profile** in the live card (LIVE-CARD-010). One flight
-shows at a time; opening another replaces it ([App.tsx:172-212](../../../src/client/App.tsx#L172-L212)).
+shows at a time; opening another replaces it ([App.tsx:161-201](../../../src/client/App.tsx#L161-L201)).
 Pending legs cannot be opened today.
 
-- **✕** closes it.
+- Its close button closes it.
 - When its hop is deleted, or its pending leg discarded, it closes.
 - When the live leg or pending leg it shows is logged, it switches to the new hop, so the flight
   stays on screen as it moves into the logbook. (Today only the live leg does.)
-- It takes the bottom 40% of the map area and sits inside an error boundary, so a malformed record
-  cannot take the rest of the app down.
+- It floats over the bottom of the map as a glass sheet, from the left column's right edge (the
+  window's edge when the column is hidden) to the window's right edge, 40% of the window's height
+  and at least 260 px; the map keeps its size behind it and zooms land above it (app-shell). It
+  sits inside an error boundary that keeps the panel's place and close button, so a malformed
+  record cannot take the rest of the app down.
+- The chart sits left and the cards right; when the panel is narrower than 720 px, the cards
+  stack under the chart and the panel's body scrolls. The panel's own width decides this, not the
+  window's, since the left column takes a different share of the window as it opens and closes.
 
 ## Header
 
-([FlightPanel.tsx:67-78](../../../src/client/components/FlightPanel.tsx#L67-L78))
+([FlightPanel.tsx:70-79](../../../src/client/components/FlightPanel.tsx#L70-L79))
 
 - The aircraft's color dot and label; for an unbound live leg, the sim aircraft's title.
 - The route: `ORIG → DEST` for a hop; `ORIG → …` for the live leg (`?` when the departure is
@@ -57,7 +63,7 @@ Pending legs cannot be opened today.
 
 Once the live leg has touched down, the detail line is meant to say so — "off TIME · landed TIME ·
 N points". Today it keeps saying "airborne since" until the leg is logged
-([FlightPanel.tsx:47](../../../src/client/components/FlightPanel.tsx#L47)).
+([FlightPanel.tsx:50](../../../src/client/components/FlightPanel.tsx#L50)).
 
 ## Profile Chart
 
@@ -93,7 +99,7 @@ plot without a second axis; the real values live in the legend and the crosshair
 
 ## Landing Card
 
-([FlightPanel.tsx:103-180](../../../src/client/components/FlightPanel.tsx#L103-L180))
+([FlightPanel.tsx:107-184](../../../src/client/components/FlightPanel.tsx#L107-L184))
 
 The card shows the flight's final landing — its last touchdown, the one that ended the hop:
 
@@ -110,7 +116,7 @@ Without a landing it reads "No touchdown recorded."
 
 The scale's G note says "A peak G above 1.6 / 2.0 / 2.6 / 3.5 bumps the class up", but a G of
 exactly a threshold already counts (LIVE-LAND-003); it is meant to read "of 1.6 / 2.0 / 2.6 / 3.5
-or more" ([FlightPanel.tsx:175](../../../src/client/components/FlightPanel.tsx#L175)).
+or more" ([FlightPanel.tsx:179](../../../src/client/components/FlightPanel.tsx#L179)).
 
 ## How a Rating Looks
 
@@ -133,7 +139,7 @@ live card the compact one.
 
 ## Flight Card
 
-([FlightPanel.tsx:182-223](../../../src/client/components/FlightPanel.tsx#L182-L223))
+([FlightPanel.tsx:186-227](../../../src/client/components/FlightPanel.tsx#L186-L227))
 
 | Line | Shows |
 |---|---|
@@ -150,7 +156,7 @@ For the live leg the card is meant to show everything known so far: fuel at take
 used, weight at takeoff, highest altitude and ground speed, distance flown so far, and samples;
 the tracker's status carries those figures (LIVE-API-006). Today it carries only fuel used,
 current fuel and highest altitude, so the rest reads "—"
-([FlightPanel.tsx:51-62](../../../src/client/components/FlightPanel.tsx#L51-L62)).
+([FlightPanel.tsx:54-65](../../../src/client/components/FlightPanel.tsx#L54-L65)).
 
 For a pending leg the card shows the statistics recorded when the leg closed, and the direct
 distance once both airports are known; the leg is fetched in full, track included, when the panel
@@ -160,7 +166,7 @@ opens it (LIVE-API-007).
 
 | Decision | Chosen | Alternatives Considered | Rationale |
 |----------|--------|------------------------|-----------|
-| Where the panel sits | Across the bottom of the map, 40% of its height | A modal; a side drawer; a separate page | [inferred] The path on the map and its profile can be read together. |
+| Where the panel sits | A glass sheet across the bottom of the map, right of the left column, 40% of the window's height | A modal; a side drawer; a separate page; docked under a shrunken map | The path on the map and its profile can be read together; floating keeps the map whole behind it, and zooms land in the part it leaves clear. |
 | Many series in one chart | Each series scaled to its own range, real values in the legend and crosshair | Dual or multiple y-axes; one small chart per series | Dual axes invite false comparisons between unrelated scales; one plot keeps the moments of a flight lined up. |
 | Series colors | A fixed categorical order validated for the dark surface | Reassign colors to visible series | A series keeps its color when others are hidden, so the legend never shifts meaning. |
 | Rating colors | Always with icon and word | Color alone | Readable without color vision and at a glance. |
@@ -178,13 +184,13 @@ opens it (LIVE-API-007).
 
 ### Deferred
 
-1. **Live header after touchdown** says "airborne since" ([FlightPanel.tsx:47](../../../src/client/components/FlightPanel.tsx#L47)).
-2. **Live flight card** shows only fuel used, current fuel and highest altitude ([FlightPanel.tsx:51-62](../../../src/client/components/FlightPanel.tsx#L51-L62)).
-3. **Scale wording** says "above" for G thresholds that apply at the threshold ([FlightPanel.tsx:175](../../../src/client/components/FlightPanel.tsx#L175)).
+1. **Live header after touchdown** says "airborne since" ([FlightPanel.tsx:50](../../../src/client/components/FlightPanel.tsx#L50)).
+2. **Live flight card** shows only fuel used, current fuel and highest altitude ([FlightPanel.tsx:54-65](../../../src/client/components/FlightPanel.tsx#L54-L65)).
+3. **Scale wording** says "above" for G thresholds that apply at the threshold ([FlightPanel.tsx:179](../../../src/client/components/FlightPanel.tsx#L179)).
 4. **Rating bands restated** — the scale's fpm bands and G note repeat the server's thresholds
    ([landing.ts:17-23](../../../src/client/landing.ts#L17-L23), [tracker.ts:52-55](../../../src/server/tracker.ts#L52-L55)).
 5. **Another great-circle formula** — the direct distance is computed in the panel
-   ([FlightPanel.tsx:93-101](../../../src/client/components/FlightPanel.tsx#L93-L101)).
+   ([FlightPanel.tsx:97-105](../../../src/client/components/FlightPanel.tsx#L97-L105)).
 6. **"At landing" weight** is read where the aircraft stopped, after taxiing in.
 7. **Which clock the header shows** follows logbook's open question on showing two clocks.
 8. **Table size** — every sample is a row, so a long flight renders thousands

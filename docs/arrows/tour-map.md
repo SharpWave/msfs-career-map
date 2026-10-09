@@ -22,15 +22,20 @@ describes current behaviour with partly inferred rationale; specs drafted; first
 
 ### Tests
 - tests/tour-map/paths.test.ts — MAP-GEO-002, MAP-GEO-004, MAP-GEO-005
+- tests/tour-map/fit.test.ts — MAP-ZOOM-007, MAP-ZOOM-008, MAP-ZOOM-009, MAP-ZOOM-010
+- tests/tour-map/map-toolbar.test.tsx — MAP-VIEW-006, MAP-VIEW-007, MAP-HAZ-005, MAP-HAZ-008, MAP-HL-002
+- tests/e2e/layout.spec.ts — MAP-VIEW-005, MAP-ZOOM-007
 
 ### Code
 - src/client/paths.ts
 - src/client/geo.ts
-- src/client/components/MapView.tsx — all except `CandidateLayer`, the plan ring and the candidate popup (planner)
+- src/client/components/MapView.tsx — all except `CandidateLayer`, the plan ring and the candidate popup (planner) and `PopupPadding` (app-shell)
+- src/client/fit.ts — `applyFocus`
+- src/client/components/MapToolbar.tsx — toolbar and Layers menu, `HAZARD_TOGGLES`
 - src/client/sun.ts, src/client/components/NightLayer.tsx
 - src/client/components/HazardLayer.tsx, src/server/hazards.ts
 - src/client/icons.ts — `shade`, `hopStroke` (93-112)
-- src/client/App.tsx — selection, zoom requests, basemap and overlay preferences, URL view options, toolbar
+- src/client/App.tsx — selection, zoom requests (`requestFocus`), basemap and overlay preferences, URL view options
 - src/server/routes.ts — `/state` (797-811), `/hazards` (771)
 
 ## Architecture
@@ -40,10 +45,11 @@ parked and when airports were visited, and overlay daylight and weather hazards.
 
 **Key Components:**
 1. `buildRenderData` (`paths.ts`) — chains, unwrapping, paths, airport dots, parked positions
-2. `MapView` — layers, tooltips, highlight dimming, zoom controller
+2. `MapView` — layers, tooltips, highlight dimming, zoom controller (`applyFocus` in `fit.ts`)
 3. `NightLayer` + `sun.ts` — day/night shading
 4. `HazardLayer` + `hazards.ts` — G-AIRMET/SIGMET fetch, normalise, display
-5. `App` view state — highlight, zoom requests, preferences, toolbar
+5. `App` view state — highlight, zoom requests, preferences
+6. `MapToolbar` — toolbar and Layers menu
 
 ## Spec Coverage
 
@@ -64,9 +70,9 @@ parked and when airports were visited, and overlay daylight and weather hazards.
 ## Key Findings
 
 1. **Hazards are drawn on one world copy** — HazardLayer.tsx:78-80, unlike NightLayer's three.
-2. **Partial hazard outages are invisible** — App.tsx:397-401 ignores the set's `errors`.
-3. **Planner candidates across 180° from the origin land a world away** — MapView.tsx:402 and
-   App.tsx:284 apply only the plan's shift.
+2. **Partial hazard outages are invisible** — MapToolbar.tsx:60-64 ignores the set's `errors`.
+3. **Planner candidates across 180° from the origin land a world away** — MapView.tsx:411 and
+   App.tsx:278 apply only the plan's shift.
 
 ## Work Required
 

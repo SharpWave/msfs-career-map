@@ -57,8 +57,10 @@ markers), `HL` (highlighting), `ZOOM` (zoom requests), `VIEW` (basemaps and view
 - [x] **MAP-ZOOM-004**: When a hop is opened, from its path or its hop row, the system shall fit the view to that hop.
 - [x] **MAP-ZOOM-005**: When a new planner result arrives, the system shall fit the view to the plan's range ring on the plan's world copy.
 - [x] **MAP-ZOOM-006**: When the user focuses a planner candidate, the system shall zoom to that candidate on the plan's world copy.
-- [x] **MAP-ZOOM-007**: When a zoom request's points all lie at one place, the system shall fly there at zoom 9 or the current zoom if closer; otherwise it shall fly to the points' bounds with 60 px padding, no closer than zoom 11, over 0.6 s.
+- [x] **MAP-ZOOM-007**: When a zoom request's points all lie at one place, the system shall fly there at zoom 9 or the current zoom if closer; otherwise it shall fly to the points' bounds with 60 px padding, no closer than zoom 11, over 0.6 s; either way it shall centre the view in the clear part of the map the page supplies (APP-UI-020), or in the whole window when that part is smaller than 240 × 160 px.
 - [x] **MAP-ZOOM-008**: When a zoom request has no points, the system shall ignore it; when an identical request is repeated, the system shall zoom again.
+- [x] **MAP-ZOOM-009**: When a zoom request names its zoom (the live card's **Zoom**, the `?view=` option), the system shall show its point at that zoom, centred in the clear part of the map (APP-UI-020), or in the whole window when that part is smaller than 240 × 160 px.
+- [x] **MAP-ZOOM-010**: While the browser asks for reduced motion, the system shall jump to a zoom request's view instead of flying there.
 
 ## Basemaps and View Preferences
 
@@ -66,7 +68,9 @@ markers), `HL` (highlighting), `ZOOM` (zoom requests), `VIEW` (basemaps and view
 - [x] **MAP-VIEW-002**: The system shall remember in the browser the chosen basemap (default Dark), whether night shading is on (default on), and which hazard toggles are on (default none).
 - [x] **MAP-VIEW-003**: When the page is opened with `?view=lat,lon,zoom`, `?wx=1` or `?wx=A,B`, or `?night=1` (any other value: off), the system shall apply them once after the first load without changing the remembered preferences.
 - [x] **MAP-VIEW-004**: The system shall open the map over the continental US at zoom 4 until the first fit, allow zooming out to level 2, and continue onto the next world copy when the user pans past the antimeridian.
-- [x] **MAP-VIEW-005**: When the map's area changes size, such as when the sidebar opens or closes, the system shall resize the map to fill it.
+- [x] **MAP-VIEW-005**: When the window changes size, the system shall resize the map to fill it; panels opening or closing over the map shall not move it.
+- [x] **MAP-VIEW-006**: The map toolbar shall offer **Layers**, which opens a menu holding the basemap choice (Dark, Light or Satellite), night shading on or off, and the four hazard toggles with what each covers and their source; a choice shall apply at once and leave the menu open.
+- [x] **MAP-VIEW-007**: While night shading or any hazard toggle is on, the **Layers** button shall mark it: a moon for night shading, and a dot in its hazard color for each hazard toggle that is on.
 
 ## Night Shading
 
@@ -79,7 +83,7 @@ markers), `HL` (highlighting), `ZOOM` (zoom requests), `VIEW` (basemaps and view
 - [x] **MAP-HAZ-002**: When hazard reports are normalised, the system shall classify each by label as icing, turbulence, IFR, mountain obscuration, convective, volcanic ash or tropical cyclone, and drop reports of any other kind, G-AIRMETs that are not areas, SIGMET outlooks, and polygons with fewer than three points.
 - [x] **MAP-HAZ-003**: When G-AIRMET altitudes are normalised, the system shall read them as hundreds of feet, with "SFC" as 0.
 - [x] **MAP-HAZ-004**: If some hazard sources fail, then the system shall serve the others with the failed sources listed; if all three fail and an earlier set exists, then the system shall serve the earlier set.
-- [x] **MAP-HAZ-005**: The map toolbar shall offer four hazard toggles — Ice (icing), Turb (turbulence), IFR (IFR and mountain obscuration), Storms (convective, volcanic ash, tropical cyclones) — each shown in its hazard color while on.
+- [x] **MAP-HAZ-005**: The Layers menu shall offer four hazard toggles — Ice (icing), Turb (turbulence), IFR (IFR and mountain obscuration), Storms (convective, volcanic ash, tropical cyclones) — each shown in its hazard color while on.
 - [x] **MAP-HAZ-006**: While any hazard toggle is on, the system shall fetch hazard areas and refresh them every 10 minutes, keep the G-AIRMET forecast snapshot whose valid time is nearest now and every SIGMET, and draw the enabled kinds as shaded polygons, outlined solid for G-AIRMETs and dashed for SIGMETs.
 - [x] **MAP-HAZ-007**: When the user hovers a hazard area, the system shall show its kind and severity, label and FIR, altitude band ("SFC" or "above" for open ends, or "altitudes not given"), validity with "G-AIRMET +Nh" for forecast snapshots, and up to 220 characters of the raw report.
 - [x] **MAP-HAZ-008**: While any hazard toggle is on, the map toolbar shall show the number of areas drawn, or "hazards unavailable" when fetching failed, with the fetch time on hover.

@@ -9,10 +9,12 @@ interface Props {
   onChange: (code: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
+  /** Marks the field a hand-off to its drawer fills, so the drawer focuses it. */
+  handoffFocus?: boolean;
 }
 
 /** Text box that accepts an ICAO/IATA/local code and offers search-as-you-type results. */
-export function AirportInput({ id, value, onChange, placeholder, autoFocus }: Props) {
+export function AirportInput({ id, value, onChange, placeholder, autoFocus, handoffFocus }: Props) {
   const [text, setText] = useState(value);
   const [results, setResults] = useState<Airport[]>([]);
   const [open, setOpen] = useState(false);
@@ -124,6 +126,7 @@ export function AirportInput({ id, value, onChange, placeholder, autoFocus }: Pr
         autoComplete="off"
         spellCheck={false}
         autoFocus={autoFocus}
+        data-handoff-focus={handoffFocus ? "" : undefined}
         onChange={(e) => {
           typing.current = true;
           setText(e.target.value);

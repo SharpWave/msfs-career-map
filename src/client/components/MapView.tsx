@@ -17,6 +17,9 @@ import type { LiveState } from "../tracker";
 import type { Hop, OfpFix } from "../types";
 import type { HazardKind } from "../types";
 import { headMarkerHtml, hopStroke } from "../icons";
+import { applyFocus, type FitMap } from "../fit";
+import type { Insets } from "../layout";
+import { prefersReducedMotion } from "../prefs";
 import { planLonShift, type AirportNode, type RenderData, type RenderHop } from "../paths";
 import type { Aircraft, PlanCandidate, PlanResult } from "../types";
 import { RunwayInfo } from "./RunwayInfo";
@@ -95,6 +98,8 @@ export interface Focus {
   points: LatLng[];
   /** When set, centre on the first point at this zoom instead of fitting the points. */
   zoom?: number;
+  /** The part of the map the page's panels left clear when the request was made. */
+  clear?: Insets;
 }
 
 interface Props {
@@ -118,6 +123,8 @@ interface Props {
   onOpenHop?: (hop: Hop) => void;
   /** SimBrief routes to draw under the paths. */
   routes?: { fixes: OfpFix[]; color: string }[];
+  /** The part of the map the page's panels leave clear now; popups open inside it. */
+  clear: Insets;
 }
 
 export function MapView({
@@ -139,6 +146,7 @@ export function MapView({
   live,
   onOpenHop,
   routes,
+  clear,
 }: Props) {
   const { hops, nodes, heads } = data;
   const tiles = TILES[basemap];
@@ -161,6 +169,7 @@ export function MapView({
       <TileLayer key={basemap} url={tiles.url} attribution={tiles.attribution} maxNativeZoom={tiles.maxZoom} maxZoom={19} />
       {tiles.labels && <TileLayer key={`${basemap}-labels`} url={tiles.labels} maxNativeZoom={tiles.maxZoom} maxZoom={19} zIndex={2} />}
       <FitController focus={focus} />
+      <PopupPadding clear={clear} />
       <Resizer />
 
       {/* weather hazard areas and day/night shading sit under everything */}
@@ -206,7 +215,7 @@ export function MapView({
       )}
 
       {/* 0b. SimBrief planned routes, dashed, under the flown paths */}
-      <ErrorBoundary label="Planned route">{routes?.map((r, i) => <BriefingLayer key={`route-${i}`} fixes={r.fixes} color={r.color} />)}</ErrorBoundary>
+      <ErrorBoundary label="Planned route" className="map-notice">{routes?.map((r, i) => <BriefingLayer key={`route-${i}`} fixes={r.fixes} color={r.color} />)}</ErrorBoundary>
 
       {/* 1. dark casing under every path so colors pop on any basemap */}
       {hops.map((r) => (
@@ -223,7 +232,7 @@ export function MapView({
         <Polyline
           key={`hop-${r.hop.id}`}
           positions={r.pts}
-          pathOptions={{ color: hopStroke(r.aircraft.color, r.hop.seq), weight: 5, opacity: isDim(r.aircraft, selectedId) ? DIM.path : 0.95, lineCap: "round", lineJoin: "round" }}
+          pathOptions={{ className: `hop-path hop-${r.hop.id}`, color: hopStroke(r.aircraft.color, r.hop.seq), weight: 5, opacity: isDim(r.aircraft, selectedId) ? DIM.path : 0.95, lineCap: "round", lineJoin: "round" }}
           eventHandlers={{ click: () => (onOpenHop ? onOpenHop(r.hop) : onSelect(r.aircraft.id)) }}
         >
           <Tooltip sticky className="tip" opacity={1}>
@@ -261,7 +270,7 @@ export function MapView({
             key={`ap-${n.key}`}
             center={n.pos}
             radius={6}
-            pathOptions={{ color: "#05080c", weight: 2, fillColor: single?.color ?? "#ffffff", fillOpacity: dim ? DIM.airport : 1, opacity: dim ? DIM.airport : 1 }}
+            pathOptions={{ className: `airport-dot ap-${n.airport.ident}`, color: "#05080c", weight: 2, fillColor: single?.color ?? "#ffffff", fillOpacity: dim ? DIM.airport : 1, opacity: dim ? DIM.airport : 1 }}
           >
             <Tooltip direction="top" offset={[0, -8]} className="tip" opacity={1}>
               <AirportTip node={n} />
@@ -301,7 +310,7 @@ export function MapView({
 
       {/* 6. the aircraft being flown right now, with its track so far */}
       {live && (
-        <ErrorBoundary label="Live aircraft">
+        <ErrorBoundary label="Live aircraft" className="map-notice">
           <LiveLayer live={live} aircraft={aircraft} data={data} />
         </ErrorBoundary>
       )}
@@ -502,27 +511,32 @@ function AirportTip({ node }: { node: AirportNode }) {
   );
 }
 
-/** Zoom the map whenever a new focus request arrives. */
+/** Zoom the map whenever a new focus request arrives, into the part the panels leave clear. */
 function FitController({ focus }: { focus: Focus | null }) {
   const map = useMap();
   useEffect(() => {
-    if (!focus || focus.points.length === 0) return;
-    if (focus.zoom != null) {
-      map.setView(focus.points[0], focus.zoom);
-      return;
-    }
-    const bounds = L.latLngBounds(focus.points);
-    if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
-      map.flyTo(focus.points[0], Math.max(map.getZoom(), 9), { duration: 0.6 });
-    } else {
-      map.flyToBounds(bounds, { padding: [60, 60], maxZoom: 11, duration: 0.6 });
-    }
+    if (focus) applyFocus(map as unknown as FitMap, focus, prefersReducedMotion());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus?.key]);
   return null;
 }
 
-/** Keep Leaflet's size in sync when the sidebar opens/closes. */
+/**
+ * Keep popups clear of the panels. Leaflet reads a popup's pan padding when it opens, and a popup
+ * that sets none inherits it from the defaults, so keeping the defaults current covers every popup,
+ * including those created before a panel opened.
+ */
+// @spec APP-UI-021
+function PopupPadding({ clear }: { clear: Insets }) {
+  useEffect(() => {
+    const o = L.Popup.prototype.options as L.PopupOptions;
+    o.autoPanPaddingTopLeft = L.point(clear.left + 12, clear.top + 12);
+    o.autoPanPaddingBottomRight = L.point(clear.right + 12, clear.bottom + 12);
+  }, [clear.left, clear.top, clear.right, clear.bottom]);
+  return null;
+}
+
+/** Keep Leaflet's size in sync with the window. */
 function Resizer() {
   const map = useMap();
   useEffect(() => {

@@ -115,7 +115,7 @@ field ([AirportInput.tsx](../../../src/client/components/AirportInput.tsx)):
 
 - Typing two or more characters searches 120 ms after the last keystroke (10 results), shown as a
   dropdown of ident, name and "city, country". Only results for the latest text are meant to show;
-  today a slow earlier response can replace newer results ([AirportInput.tsx:62-71](../../../src/client/components/AirportInput.tsx#L62-L71)).
+  today a slow earlier response can replace newer results ([AirportInput.tsx:64-73](../../../src/client/components/AirportInput.tsx#L64-L73)).
 - ↑/↓ move through the results with wrap-around, Enter picks, Escape closes; a mouse pick works
   before the box loses focus.
 - Leaving the box or pressing Enter with no dropdown commits the text trimmed and upper-cased.

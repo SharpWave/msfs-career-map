@@ -24,6 +24,7 @@ describes current behaviour with partly inferred rationale; specs drafted; first
 ### Tests
 - tests/live-tracking/sim-link.test.ts — LIVE-LEG-012, LIVE-LINK-005, LIVE-LINK-009 (the link driven through `fake-sim.ts`, a stand-in node-simconnect)
 - tests/live-tracking/restored-leg.test.ts — LIVE-LEG-012 (a checkpointed leg survives a restart and reconnect)
+- tests/live-tracking/live-card.test.tsx — LIVE-CARD-001, LIVE-CARD-011
 
 ### Code
 - src/server/simconnect.ts

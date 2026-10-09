@@ -198,7 +198,7 @@ export function AircraftForm({ initial, prefill, usedColors, onSaved, onCancel, 
         <div className="grow">
           <label>
             <span>Aircraft</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="A2A Aerostar 600" autoFocus />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="A2A Aerostar 600" autoFocus data-handoff-focus="" />
           </label>
           <label>
             <span>Livery / registration</span>

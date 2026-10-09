@@ -37,7 +37,7 @@ binding fields and SimBrief type), `FORM` (the aircraft form), `CARD` (the aircr
 - [x] **FLEET-LOOK-007**: If an uploaded icon is not a base64 PNG, JPEG, WebP, GIF or SVG data URL, then the system shall reject it with HTTP 400; if it decodes to more than 4 MB, then the system shall reject it with HTTP 413.
 - [x] **FLEET-LOOK-008**: When the user enters an image URL in the aircraft form and leaves the field, the system shall use that URL as the icon.
 - [x] **FLEET-LOOK-009**: The system shall show a fleet aircraft's badge as its icon inside a circle ringed in its path color, in the aircraft card, the form preview and the parked-aircraft marker on the map.
-- [x] **FLEET-LOOK-010**: When the user clicks the visibility (eye) button on an aircraft card, the system shall toggle whether that aircraft is drawn on the map and dim the card while it is hidden.
+- [x] **FLEET-LOOK-010**: When the user clicks the visibility (eye) button on an aircraft card, the system shall toggle whether that aircraft is drawn on the map and dim the card while it is hidden, the button showing a crossed-out eye while it is.
 - [ ] **FLEET-LOOK-011**: If toggling an aircraft's visibility fails, then the system shall show the error on its card.
 
 ## Performance and Limit Fields
@@ -50,7 +50,7 @@ binding fields and SimBrief type), `FORM` (the aircraft form), `CARD` (the aircr
 
 - [x] **FLEET-SIM-001**: The system shall store with each fleet aircraft an optional sim title and sim livery, where a blank sim livery stands for every livery of that title.
 - [x] **FLEET-SIM-002**: The aircraft form shall let the user view and edit the sim title and sim livery.
-- [x] **FLEET-SIM-003**: When the user asks to create a fleet aircraft from the sim aircraft (**+ New** in the live card), the system shall open the new-aircraft form prefilled with the sim title as name, the sim's ATC ID (else its livery name) as livery, and the sim title and livery as the binding, and scroll it into view.
+- [x] **FLEET-SIM-003**: When the user asks to create a fleet aircraft from the sim aircraft (**+ New** in the live card), the system shall open the new-aircraft form prefilled with the sim title as name, the sim's ATC ID (else its livery name) as livery, and the sim title and livery as the binding, in the Fleet drawer scrolled to that form.
 - [x] **FLEET-SIM-004**: When the user types a SimBrief type in the aircraft form, the system shall upper-case it, suggest designators from SimBrief's type list, and show the matching type's name, or "Not in SimBrief's list (it may still accept it)" when none matches.
 
 ## The Aircraft Form
@@ -64,4 +64,4 @@ binding fields and SimBrief type), `FORM` (the aircraft form), `CARD` (the aircr
 ## The Aircraft Card Header
 
 - [x] **FLEET-CARD-001**: When the user clicks an aircraft card's badge or name, the system shall highlight that aircraft on the map, or clear the highlight if that aircraft is already highlighted.
-- [x] **FLEET-CARD-002**: The aircraft card shall show the livery; "parked at IDENT", or "no hops yet" when it has no hops; the cruise speed when set; the service ceiling in thousands of feet when set; "VFR only" when not IFR capable; and "🔗 sim", with the bound sim title and livery on hover, when bound.
+- [x] **FLEET-CARD-002**: The aircraft card shall show the livery; "parked at IDENT", or "no hops yet" when it has no hops; the cruise speed when set; the service ceiling in thousands of feet when set; "VFR only" when not IFR capable; and a link icon with "sim", with the bound sim title and livery on hover, when bound — wrapping between these items, never inside one.

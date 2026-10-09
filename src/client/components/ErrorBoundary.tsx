@@ -3,6 +3,8 @@ import { Component, type ReactNode } from "react";
 interface Props {
   /** Short name of the piece, shown when it fails. */
   label: string;
+  /** Extra class for the failure message, e.g. to place a map layer's notice over the map. */
+  className?: string;
   children: ReactNode;
 }
 
@@ -28,7 +30,7 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <div className="error">
+        <div className={this.props.className ? `error ${this.props.className}` : "error"}>
           {this.props.label} failed: {this.state.error.message}{" "}
           <button type="button" className="small" onClick={() => this.setState({ error: null })}>
             Retry

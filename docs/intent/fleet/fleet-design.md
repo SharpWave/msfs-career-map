@@ -94,8 +94,8 @@ the aircraft's color ([icons.ts:74-84](../../../src/client/icons.ts#L74-L84)); t
 marks the parked aircraft on the map and the preview in the form.
 
 **Visibility.** The eye button on the card toggles `visible`; a hidden aircraft is not drawn on
-the map and its card is dimmed ([Sidebar.tsx:207-210](../../../src/client/components/Sidebar.tsx#L207-L210),
-[268-270](../../../src/client/components/Sidebar.tsx#L268-L270)).
+the map and its card is dimmed ([Fleet.tsx:109-112](../../../src/client/components/Fleet.tsx#L109-L112),
+[174](../../../src/client/components/Fleet.tsx#L174)).
 
 ## Performance and Limits
 
@@ -132,9 +132,9 @@ How the tracker matches a flying sim aircraft to a row is specified in live-trac
 
 **Create from the sim.** The live panel's **+ New** opens the new-aircraft form prefilled from the
 sim aircraft: name = sim title, livery = the sim's ATC ID (else its livery name), sim title and sim
-livery as reported; the fleet list scrolls to the form
-([Sidebar.tsx:82-86](../../../src/client/components/Sidebar.tsx#L82-L86)). A different sim
-aircraft remounts the form with fresh values ([Sidebar.tsx:140-153](../../../src/client/components/Sidebar.tsx#L140-L153)).
+livery as reported; the page opens the Fleet drawer scrolled to the form (app-shell)
+([App.tsx:321-324](../../../src/client/App.tsx#L321-L324)). A different sim
+aircraft remounts the form with fresh values ([Fleet.tsx:42-55](../../../src/client/components/Fleet.tsx#L42-L55)).
 
 **SimBrief type.** An optional ICAO designator, upper-cased as typed, with suggestions from
 SimBrief's type list and a hint naming the type or saying "Not in SimBrief's list (it may still
@@ -144,7 +144,7 @@ The list and the links it feeds belong to simbrief.
 ## The Aircraft Form
 
 One form creates and edits ([AircraftForm.tsx](../../../src/client/components/AircraftForm.tsx));
-only one aircraft form is open at a time ([Sidebar.tsx:40](../../../src/client/components/Sidebar.tsx#L40)).
+only one aircraft form is open at a time ([Fleet.tsx:13](../../../src/client/components/Fleet.tsx#L13)).
 
 - **Validation, in order** ([127-147](../../../src/client/components/AircraftForm.tsx#L127-L147)):
   name present; cruise speed > 0 if given; min runway ≥ 0; SimBrief type a 2–6 character
@@ -157,18 +157,23 @@ only one aircraft form is open at a time ([Sidebar.tsx:40](../../../src/client/c
   confirmation ([177-188](../../../src/client/components/AircraftForm.tsx#L177-L188)).
 - **Fleet header.** **+ Aircraft** toggles the new-aircraft form; with no aircraft and no form open
   the list reads "No aircraft yet. Add the plane and livery you fly, then log its first hop."
-  ([Sidebar.tsx:132-157](../../../src/client/components/Sidebar.tsx#L132-L157)).
+  ([App.tsx:415-422](../../../src/client/App.tsx#L415-L422), [Fleet.tsx:42-59](../../../src/client/components/Fleet.tsx#L42-L59)).
 
 ## The Aircraft Card Header
 
-Each fleet row renders as a card ([Sidebar.tsx:238-278](../../../src/client/components/Sidebar.tsx#L238-L278)):
+Each fleet row renders as a card ([Fleet.tsx:142-181](../../../src/client/components/Fleet.tsx#L142-L181)):
 
 - Badge and name; clicking either highlights the aircraft on the map, or clears the highlight if
   it is already highlighted.
 - Meta line: livery; "parked at IDENT" or "no hops yet"; cruise speed; ceiling in thousands of
-  feet; "VFR only" when not IFR capable; "🔗 sim" with the bound title/livery on hover when bound.
-- Actions: visibility eye, ✎ edit (opens this aircraft's form in the card), and `▸ n` to expand
-  the hop list (the list itself belongs to logbook).
+  feet; "VFR only" when not IFR capable; a link icon with "sim", and the bound title/livery on
+  hover, when bound. The items wrap as whole items, never mid-item.
+- Actions: visibility (an eye, or a crossed-out eye while hidden), **Edit aircraft** (pencil; opens
+  this aircraft's form in the card), and a chevron with the hop count to expand the hop list (the
+  list itself belongs to logbook).
+
+The fleet list lives in the **Fleet** drawer, opened from the page's menu (app-shell); the drawer's
+header holds **+ Aircraft**.
 
 ## API
 
@@ -219,7 +224,7 @@ Handlers: [routes.ts:231-311](../../../src/server/routes.ts#L231-L311).
    `"false"` becomes 1 ([routes.ts:196](../../../src/server/routes.ts#L196)). The form sends real
    booleans.
 5. **Silent visibility failure.** The eye button does not catch errors
-   ([Sidebar.tsx:207-210](../../../src/client/components/Sidebar.tsx#L207-L210)).
+   ([Fleet.tsx:109-112](../../../src/client/components/Fleet.tsx#L109-L112)).
 6. **Icon field quirks.** Clearing the URL field does not revert the icon, and the file input keeps
    showing a chosen file after a built-in is picked ([AircraftForm.tsx:119-125](../../../src/client/components/AircraftForm.tsx#L119-L125)).
 7. **Deleting a bound aircraft mid-flight.** The tracker keeps the deleted id and, on landing,
@@ -231,7 +236,8 @@ Handlers: [routes.ts:231-311](../../../src/server/routes.ts#L231-L311).
   [src/server/db.ts](../../../src/server/db.ts) (aircraft table),
   [src/client/components/AircraftForm.tsx](../../../src/client/components/AircraftForm.tsx),
   [src/client/icons.ts](../../../src/client/icons.ts) (built-ins, badge HTML, palette, `nextColor`),
-  [src/client/components/Sidebar.tsx](../../../src/client/components/Sidebar.tsx) (fleet header, `AircraftCard` header, new-from-sim prefill)
+  [src/client/components/Fleet.tsx](../../../src/client/components/Fleet.tsx) (fleet list, `AircraftCard` header),
+  [src/client/App.tsx](../../../src/client/App.tsx) (the Fleet drawer and its **+ Aircraft**, new-from-sim prefill `newFromSim`)
 - Consumers: planner (performance and limit fields), live-tracking (sim binding fields), simbrief
   (`simbrief_type`, registration from the livery), tour-map (color, icon, visibility), logbook
   (aircraft ids)

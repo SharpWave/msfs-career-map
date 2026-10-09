@@ -239,10 +239,17 @@ full state again ([client tracker.ts](../../../src/client/tracker.ts)).
 ## The Live Card
 
 The sidebar's **Live from the sim** card ([LivePanel.tsx](../../../src/client/components/LivePanel.tsx)),
-collapsible and open by default:
+collapsible; open on a first visit, then as the user left it (app-shell).
+
+**Collapsed**, the card is a one-line status strip, so it can stay in view without taking room
+from the planner: the status pill; the live aircraft's altitude, ground speed and heading while the
+sim is connected and its position is known; and "Leg waiting to be logged" in amber while a leg
+waits. Clicking the strip
+opens the card. **Open**, it shows:
 
 - **Status pill**: "no connection to the app server", "sim not running", "paused", "in menus",
-  "airborne", "landed", "on the ground" or "connected".
+  "airborne", "landed", "on the ground" or "connected", colored by state — green for connected
+  and on the ground, blue for airborne and landed, amber for paused and in menus, plain otherwise.
 - **Sim aircraft**: title ("(no title yet)" while blank), livery and ATC id.
 - **Fleet**: the bound aircraft, which highlights it on the map when clicked; or **Bind to…** with
   **Bind**, and **+ New** to create a fleet aircraft from what the sim reports (fleet).
@@ -259,7 +266,7 @@ collapsible and open by default:
   **Discard** (confirmed: "Its recorded track will be lost.").
 
 When a leg is logged, the map and lists reload, planner results and any planner hand-off clear, and
-a toast "Logged ORIG → DEST · time" shows for 8 s ([App.tsx:169-188](../../../src/client/App.tsx#L169-L188)).
+a toast "Logged ORIG → DEST · time" shows for 8 s ([App.tsx:158-177](../../../src/client/App.tsx#L158-L177)).
 
 ## On the Map
 

@@ -46,11 +46,19 @@ install in the sim); see **Live tracking** below.
 
 ## Using it
 
-- **Fleet**: click **+ Aircraft**, give it a name and livery/registration (that pairing is the unit
+The map fills the window; everything else floats over it on frosted-glass panels. The **sidebar**
+on the left holds what a session uses again and again: **Live from the sim** above **Plan next
+hop**. Either card collapses to its header (the live card to a one-line status strip) and stays
+that way next time. **Career Map** at the top left opens the menu: the logbook's counts, **Log a
+hop** and **Fleet**, each of which opens as a drawer in the sidebar's place (close it to get the
+sidebar back). The button beside it hides the sidebar for a clear map. At the top right, **Layers**
+picks the basemap, night shading and weather hazards; **Fit all** zooms to every path.
+
+- **Fleet** (in the menu): click **+ Aircraft**, give it a name and livery/registration (that pairing is the unit
   of persistence for add-ons like A2A that track wear per livery), pick a path color, and choose an
   icon. Icons can be a built-in silhouette, an uploaded image (stored in `data/images/`), or an
   image URL.
-- **Log a hop**: pick the aircraft, origin, destination, and optionally departure/arrival times,
+- **Log a hop** (in the menu): pick the aircraft, origin, destination, and optionally departure/arrival times,
   flight time and notes. The origin defaults to wherever that aircraft last parked, and after you
   add a hop the form rolls forward so the next hop starts at the destination you just entered.
 - **Live tracking**: the **Live from the sim** card shows whether the app is talking to MSFS,
@@ -78,8 +86,8 @@ install in the sim); see **Live tracking** below.
   3.5 bumping the class up. The rating shows as a badge in the hop list, on the hop's hover, and
   in the flight panel with a line about how the passengers took it. A touch-and-go keeps every
   touchdown; the last one is the hop's rating.
-- **Flight panel**: click a hop (its line on the map or its row in the aircraft card) and a panel
-  opens across the bottom 40% of the map. The chart plots altitude, ground speed, vertical speed,
+- **Flight panel**: click a hop (its line on the map or its row in an aircraft card in Fleet) and
+  a panel floats up across the bottom of the map, and the map zooms the hop into the space above it. The chart plots altitude, ground speed, vertical speed,
   indicated airspeed and fuel against elapsed time, each indexed to its own range so they share
   one plot; the legend shows each series' real min–max, the crosshair shows real values, series
   can be toggled, and a table view lists every sample. Beside it: the landing card, flight stats
@@ -101,9 +109,10 @@ install in the sim); see **Live tracking** below.
   the end of each path is where that plane is parked now; while you fly, a pulsing marker shows
   the aircraft itself. Hover an airport dot to see every arrival and departure logged there,
   hover a line for that hop's details, click a line for its flight panel. Click an aircraft (in
-  the sidebar or on the map) to highlight it and zoom to its path.
-- **Edit**: expand an aircraft card (the `▸ n` button) to see its hops. Each hop can be edited,
-  reordered, or deleted. Edit the aircraft itself with the pencil, hide it from the map with the eye.
+  Fleet or on the map) to highlight it and zoom to its path.
+- **Edit**: in Fleet, expand an aircraft card (the chevron with its hop count) to see its hops.
+  Each hop can be moved earlier or later, edited, or deleted. Edit the aircraft itself with the
+  pencil, hide it from the map with the eye.
 - **Runways**: every airport tooltip lists its class (large/medium/small, seaplane base, heliport),
   elevation, and open runways with length, width, surface and lighting, so you can tell at a glance
   whether a field suits the plane you're in. Surfaces are grouped into paved, grass, gravel, dirt,
@@ -134,7 +143,8 @@ install in the sim); see **Live tracking** below.
   kept. The click popup also samples **terrain along the leg** (Copernicus DEM via Open-Meteo),
   shows the highest point and a minimum en-route altitude (1,000 ft clearance, 2,000 ft over high
   terrain), and warns when that altitude exceeds the ceiling or needs oxygen.
-- **Overlays**: **Night** shades the half of the world past sunset and, darker, past civil
+- **Overlays** (in **Layers**; the button shows a moon and hazard-colored dots for what is on):
+  **Night shading** shades the half of the world past sunset and, darker, past civil
   twilight, refreshed every minute. **Ice / Turb / IFR / Storms** shade the current G-AIRMET
   (CONUS) and SIGMET (worldwide) hazard areas from aviationweather.gov, the same areas SimBrief
   puts in its briefing, with base/top altitudes and validity on hover; refreshed every ten
@@ -148,7 +158,12 @@ install in the sim); see **Live tracking** below.
   Wikipedia lead image and blurb, the live METAR with flight category (via aviationweather.gov),
   runways, and links to Wikipedia, the official site, SkyVector and the decoded METAR/TAF page.
   Wikipedia summaries are cached in the database for a month; METARs for five minutes.
-- **Basemaps**: Dark (Esri), Light (OpenStreetMap), Satellite (Esri imagery). All keyless.
+- **Basemaps** (in **Layers**): Dark (Esri), Light (OpenStreetMap), Satellite (Esri imagery). All
+  keyless; the panels darken over the Light map so they stay readable.
+- **Look**: the interface is set in B612, the typeface Airbus drew for cockpit displays (bundled
+  with the app, so nothing is fetched from a font service). Status colors follow the cockpit
+  convention: green normal, amber caution, red warning; orange marks actions. When the browser
+  asks for reduced motion or reduced transparency, panels stop animating or turn solid.
 
 Airport codes accept ICAO idents (`KBOS`), GPS codes, IATA (`BOS`) and US local codes; type a name
 or city to search.
