@@ -269,6 +269,19 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
                     <button type="button" className="small" onClick={onOpenLive} title="Open the live profile in the flight panel">
                       Profile
                     </button>{" "}
+                    {s.phase === "landed" && (
+                      <>
+                        <button
+                          type="button"
+                          className="small"
+                          disabled={busy}
+                          title="Log the leg where the aircraft is now, without waiting for it to sit still for 30 s"
+                          onClick={() => void run(() => api.trackerCompleteLeg())}
+                        >
+                          Log now
+                        </button>{" "}
+                      </>
+                    )}
                     <button
                       type="button"
                       className="small"

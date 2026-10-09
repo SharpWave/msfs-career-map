@@ -501,6 +501,16 @@ api.delete("/tracker/pending", wrap((_req, res) => {
   res.json(tracker.status());
 }));
 
+/** Log the landed leg right away instead of waiting for the stop timer (frozen or quit sim). */
+api.post("/tracker/complete", wrap((_req, res) => {
+  try {
+    tracker.completeNow();
+  } catch (e) {
+    throw new HttpError(409, e instanceof Error ? e.message : String(e));
+  }
+  res.json(tracker.status());
+}));
+
 api.delete("/tracker/leg", wrap((_req, res) => {
   tracker.discardLeg("discarded from the app");
   res.json(tracker.status());

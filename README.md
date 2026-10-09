@@ -61,7 +61,8 @@ install in the sim); see **Live tracking** below.
   five seconds; the origin is the nearest airport to where the wheels left), the map shows the
   plane moving with its track growing behind it, and thirty seconds after it stops rolling after a
   landing the leg is logged as a hop: departure and touchdown times, airborne minutes, and the
-  track sampled every five seconds. A touch-and-go stays inside the one leg. Legs the tracker
+  track sampled every five seconds (a **Log now** button on the card skips the wait, for a sim that
+  froze or was quit after touchdown). A touch-and-go stays inside the one leg. Legs the tracker
   cannot finish by itself (unbound aircraft, tracking started in the air, stopped away from any
   airport) wait in the card for you to fill in and log, or discard. Loading a new flight, changing
   aircraft, slewing far away or closing the sim mid-flight drops the leg being flown; an app
@@ -190,6 +191,7 @@ All JSON, under `/api`:
 | POST | `/tracker/bind` | Bind the sim aircraft being flown to a fleet row: `{ aircraft_id }` |
 | POST | `/tracker/pending` | Log the pending leg, supplying any of `{ aircraft_id, origin, dest }` it lacked |
 | DELETE | `/tracker/pending` | Discard the pending leg |
+| POST | `/tracker/complete` | Log the landed leg now, without waiting for the 30 s stop timer (frozen or quit sim) |
 | DELETE | `/tracker/leg` | Discard the leg being flown |
 | POST | `/tracker/sample` | Feed one synthetic position sample (only with `TRACKER_FAKE=1`) |
 | POST/DELETE | `/tracker/briefing` | Attach your latest SimBrief OFP to the flight being flown (or the next one) / detach it |

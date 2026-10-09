@@ -61,6 +61,7 @@ export const api = {
     req<Hop>("POST", "/api/tracker/pending", o),
   trackerDiscardPending: () => req<TrackerStatus>("DELETE", "/api/tracker/pending"),
   trackerDiscardLeg: () => req<TrackerStatus>("DELETE", "/api/tracker/leg"),
+  trackerCompleteLeg: () => req<TrackerStatus>("POST", "/api/tracker/complete"),
   trackerBriefing: () => req<TrackerStatus>("POST", "/api/tracker/briefing"),
   trackerDropBriefing: () => req<TrackerStatus>("DELETE", "/api/tracker/briefing"),
 

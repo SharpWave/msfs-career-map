@@ -465,6 +465,17 @@ export class Tracker extends EventEmitter {
     this.emitStatus();
   }
 
+  /**
+   * Close the landed leg now instead of waiting for the stop timer: for when the sim freezes or
+   * is quit after touchdown. Only a leg whose wheels are down can be logged this way.
+   */
+  completeNow(): void {
+    const st = this.s;
+    if (!st.leg) throw new Error("no leg is being flown");
+    if (st.phase !== "landed" || !st.last) throw new Error("the aircraft has not landed yet");
+    this.complete(st.last);
+  }
+
   /** Log the pending leg as a hop, filling in whatever the tracker could not work out. */
   savePending(o: { aircraft_id?: number | null; origin?: string | null; dest?: string | null }): LoggedHop {
     const p = this.s.pending;
