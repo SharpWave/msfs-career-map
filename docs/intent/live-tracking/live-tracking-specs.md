@@ -18,6 +18,7 @@ legs), `SAVE` (checkpointing), `API` (tracker API and event stream), `CARD` (liv
 - [x] **LIVE-LINK-006**: When the wheels touch down, the system shall take from the per-frame data the descent rate and airspeed of the last airborne frame and the peak G over the following second, and pass them, with the sim's touchdown velocity as fpm, pitch and bank, on the next once-a-second sample.
 - [x] **LIVE-LINK-007**: When the sim reports a pause change, the sim starting or stopping (menus and loading), a flight loaded, or the connection ending, the system shall pass the event to the tracker.
 - [ ] **LIVE-LINK-008**: While connected to the sim, the system shall read the sim's zulu date and time with each once-a-second sample.
+- [x] **LIVE-LINK-009**: If the livery has been neither read nor rejected 5 s after the first sample held on a new sim connection, then the system shall pass the held samples, and those that follow until the livery is read, to the tracker with a blank livery.
 
 ## Leg Detection
 
@@ -29,10 +30,10 @@ legs), `SAVE` (checkpointing), `API` (tracker API and event stream), `CARD` (liv
 - [x] **LIVE-LEG-006**: When a landed aircraft has stayed below 5 kt ground speed for 30 s, the tracker shall close the leg at that sample.
 - [x] **LIVE-LEG-007**: When the user asks to log a landed leg now (**Log now**, `POST /api/tracker/complete`), the tracker shall close it at the latest sample, and refuse with HTTP 409 when no leg is landed.
 - [ ] **LIVE-LEG-008**: When the sim disconnects while a leg is airborne, the tracker shall keep the leg as a pending leg ending at the last sample, with no destination and the reason "the sim disconnected in flight".
-- [x] **LIVE-LEG-009**: When the sim disconnects, or the sim aircraft's title or livery changes (except as LIVE-LEG-012 allows), while a leg is landed, the tracker shall close the leg at the last sample.
-- [x] **LIVE-LEG-010**: When the sim aircraft's title or livery changes (except as LIVE-LEG-012 allows), a new flight is loaded, or the position jumps more than 50 nm plus 700 kt × the time since the last sample while a leg is airborne, the tracker shall discard the leg.
+- [x] **LIVE-LEG-009**: When the sim disconnects, or the sim aircraft's title or livery changes, while a leg is landed, the tracker shall close the leg at the last sample.
+- [x] **LIVE-LEG-010**: When the sim aircraft's title or livery changes, a new flight is loaded, or the position jumps more than 50 nm plus 700 kt × the time since the last sample while a leg is airborne, the tracker shall discard the leg.
 - [ ] **LIVE-LEG-011**: When a new flight is loaded, or the position jumps more than 50 nm plus 700 kt × the time since the last sample, while a leg is landed, the tracker shall close the leg at the last sample before the event.
-- [ ] **LIVE-LEG-012**: When the sim link has connected and not yet read the livery, the tracker shall not treat the blank livery as a change of sim aircraft.
+- [x] **LIVE-LEG-012**: When the sim link connects, the system shall hold the samples it reads until it has read the livery or the sim has rejected the livery variable, then pass them to the tracker in order with that livery, so a livery not yet read never counts as a change of sim aircraft.
 - [ ] **LIVE-LEG-013**: When a closed leg's flight time is under one minute, the tracker shall drop it without logging and leave the current SimBrief briefing for the next leg.
 - [ ] **LIVE-LEG-014**: The tracker shall not count time the sim is paused toward the 5 s takeoff confirmation or the 30 s stop.
 - [x] **LIVE-LEG-015**: When the user discards the leg being flown, the tracker shall drop it without logging.
@@ -60,7 +61,7 @@ legs), `SAVE` (checkpointing), `API` (tracker API and event stream), `CARD` (liv
 
 ## Binding a Sim Aircraft
 
-- [x] **LIVE-BIND-001**: When the sim aircraft's title or livery changes (except as LIVE-LEG-012 allows), the tracker shall bind it to the fleet aircraft whose sim title matches and whose sim livery matches or is blank, preferring an exact livery and then the oldest aircraft, or to none.
+- [x] **LIVE-BIND-001**: When the sim aircraft's title or livery changes, the tracker shall bind it to the fleet aircraft whose sim title matches and whose sim livery matches or is blank, preferring an exact livery and then the oldest aircraft, or to none.
 - [x] **LIVE-BIND-002**: When the user binds the sim aircraft to a fleet aircraft, the system shall store the sim title and livery on that aircraft and bind it, refusing with HTTP 400 while there is no sim aircraft and HTTP 404 for an unknown aircraft.
 - [ ] **LIVE-BIND-003**: When the user binds the sim aircraft to a fleet aircraft, the system shall set that aircraft on every pending leg flown in the same sim title and livery that has no aircraft.
 

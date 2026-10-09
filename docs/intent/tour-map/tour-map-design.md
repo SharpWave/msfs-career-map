@@ -49,10 +49,9 @@ Any other hop is drawn as a great circle: points about every 25 nm (2–96 segme
 pair under 1 nm ([geo.ts:29-55](../../../src/client/geo.ts#L29-L55)). Each hop also carries its
 direct airport-to-airport distance and, when tracked, the length flown along the drawn path.
 
-The great circle is meant to start and end exactly at the hop's unwrapped airport positions.
-Today it is unwrapped only relative to its own first point, so once a chain has crossed the
-antimeridian every later hand-logged hop is drawn one world copy (360°) away from its airport dots,
-chevron and zoom points (verified: PHNL → NFFN → NZAA).
+The great circle starts and ends exactly at the hop's unwrapped airport positions: it is unwrapped
+from the origin's longitude as given, so a hop after an antimeridian crossing is drawn on the same
+world copy as its airport dots, chevron and zoom points.
 
 **Airport dots.** One dot per airport per world copy: the same airport reached by chains on two
 world copies gets two dots. Each dot collects a "departed" event per hop leaving it and an
@@ -212,27 +211,25 @@ missing from the copy in view; the intent is that, like night shading, they appe
 
 ### Deferred
 
-1. **Great circles after an antimeridian crossing** are drawn a world copy away from their airports
-   ([geo.ts:47-53](../../../src/client/geo.ts#L47-L53) with [paths.ts:122](../../../src/client/paths.ts#L122)).
-2. **Hazards on one world copy** — polygons are not repeated on adjacent copies, nor unwrapped when
+1. **Hazards on one world copy** — polygons are not repeated on adjacent copies, nor unwrapped when
    they straddle the antimeridian ([HazardLayer.tsx:78-80](../../../src/client/components/HazardLayer.tsx#L78-L80)).
-3. **Zoom to a long great circle** uses only its endpoints, so a poleward arc can be clipped
+2. **Zoom to a long great circle** uses only its endpoints, so a poleward arc can be clipped
    ([paths.ts:192](../../../src/client/paths.ts#L192)).
-4. **Partial hazard outages are not shown** — the toolbar says "N areas" even when one or two of the
+3. **Partial hazard outages are not shown** — the toolbar says "N areas" even when one or two of the
    three sources failed; only a failed fetch shows "hazards unavailable"
    ([App.tsx:397-401](../../../src/client/App.tsx#L397-L401)).
-5. **Which clock tooltips show** — hop and airport tooltips show real-world times; how sim-clock
+4. **Which clock tooltips show** — hop and airport tooltips show real-world times; how sim-clock
    times appear is the logbook's open question.
-6. **Fan-out repeats** after six aircraft at one airport ([paths.ts:143](../../../src/client/paths.ts#L143)).
-7. **Chevron position** is the middle sample of the path, not its middle distance, so on a tracked
+5. **Fan-out repeats** after six aircraft at one airport ([paths.ts:143](../../../src/client/paths.ts#L143)).
+6. **Chevron position** is the middle sample of the path, not its middle distance, so on a tracked
    hop it sits wherever half the samples fall ([MapView.tsx:238](../../../src/client/components/MapView.tsx#L238)).
-8. **Dusk uses 0° sun elevation**, not the −0.833° of published sunset, so shading starts a few
+7. **Dusk uses 0° sun elevation**, not the −0.833° of published sunset, so shading starts a few
    minutes late ([NightLayer.tsx:12](../../../src/client/components/NightLayer.tsx#L12)).
-9. **Markers are rebuilt every render** — chevron and parked-marker icons are recreated on each
+8. **Markers are rebuilt every render** — chevron and parked-marker icons are recreated on each
    live-tracker update ([MapView.tsx:245-250](../../../src/client/components/MapView.tsx#L245-L250), [283-288](../../../src/client/components/MapView.tsx#L283-L288)).
-10. **Planner candidates across the 180° meridian from the origin** are placed a world copy away
-    from the ring ([MapView.tsx:402](../../../src/client/components/MapView.tsx#L402),
-    [App.tsx:284](../../../src/client/App.tsx#L284)).
+9. **Planner candidates across the 180° meridian from the origin** are placed a world copy away
+   from the ring ([MapView.tsx:402](../../../src/client/components/MapView.tsx#L402),
+   [App.tsx:284](../../../src/client/App.tsx#L284)).
 
 ## References
 

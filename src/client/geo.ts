@@ -23,9 +23,11 @@ export function bearing(a: LatLng, b: LatLng): number {
 }
 
 /**
- * Points along the great circle from a to b. Longitudes are unwrapped so the
- * line never jumps across the antimeridian on a Mercator map.
+ * Points along the great circle from a to b, starting and ending exactly at a and b. Longitudes
+ * are unwrapped from a's own longitude, which may lie on another world copy (b within 180° of
+ * it), so the line never jumps across the antimeridian and stays on the copy it was given.
  */
+// @spec MAP-GEO-004, MAP-GEO-005
 export function greatCircle(a: LatLng, b: LatLng): LatLng[] {
   const nm = distanceNm(a, b);
   if (nm < 1) return [a, b];
@@ -46,10 +48,13 @@ export function greatCircle(a: LatLng, b: LatLng): LatLng[] {
     const z = A * Math.sin(lat1) + B * Math.sin(lat2);
     pts.push([toDeg(Math.atan2(z, Math.sqrt(x * x + y * y))), toDeg(Math.atan2(y, x))]);
   }
-  // Unwrap longitudes so consecutive points stay within 180° of each other.
+  // The trigonometry returns longitudes in -180..180; start from a as given and unwrap so
+  // consecutive points stay within 180° of each other, then pin the far end to b.
+  pts[0] = [a[0], a[1]];
   for (let i = 1; i < pts.length; i++) {
     while (pts[i][1] - pts[i - 1][1] > 180) pts[i][1] -= 360;
     while (pts[i][1] - pts[i - 1][1] < -180) pts[i][1] += 360;
   }
+  pts[pts.length - 1] = [b[0], b[1]];
   return pts;
 }

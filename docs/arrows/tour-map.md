@@ -7,7 +7,7 @@ the night and weather-hazard overlays.
 ## Status
 
 **MAPPED** — mapped 2026-10-09 from `b408604`; not yet audited. Brownfield skeleton: the LLD
-describes current behaviour with partly inferred rationale; specs drafted, no tests yet.
+describes current behaviour with partly inferred rationale; specs drafted; first tests in place.
 
 ## References
 
@@ -21,7 +21,7 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
 - docs/intent/tour-map/tour-map-specs.md (52 specs)
 
 ### Tests
-- none yet (they go in `tests/tour-map/`; the harness is app-shell's)
+- tests/tour-map/paths.test.ts — MAP-GEO-002, MAP-GEO-004, MAP-GEO-005
 
 ### Code
 - src/client/paths.ts
@@ -49,7 +49,7 @@ parked and when airports were visited, and overlay daylight and weather hazards.
 
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
-| Map geometry | MAP-GEO-001 to 013 | 10 | 0 | 3 |
+| Map geometry | MAP-GEO-001 to 013 | 11 | 0 | 2 |
 | Hop paths and layers | MAP-PATH-001 to 006 | 6 | 0 | 0 |
 | Visited-airport dots | MAP-DOT-001 to 003 | 3 | 0 | 0 |
 | Parked markers | MAP-PARK-001 to 002 | 2 | 0 | 0 |
@@ -59,29 +59,23 @@ parked and when airports were visited, and overlay daylight and weather hazards.
 | Night shading | MAP-NIGHT-001 to 002 | 2 | 0 | 0 |
 | Weather hazards | MAP-HAZ-001 to 010 | 8 | 0 | 2 |
 
-**Summary:** 47 of 52 specs implemented; 5 gaps; none deferred. No spec has a test.
+**Summary:** 48 of 52 specs implemented; 4 gaps; none deferred. 3 specs have tests.
 
 ## Key Findings
 
-1. **Great circles land on the wrong world copy after an antimeridian crossing** — geo.ts:47-53
-   unwraps relative to its own first point, not the unwrapped origin passed in by paths.ts:122
-   (verified with PHNL → NFFN → NZAA).
-2. **Hazards are drawn on one world copy** — HazardLayer.tsx:78-80, unlike NightLayer's three.
-3. **Partial hazard outages are invisible** — App.tsx:397-401 ignores the set's `errors`.
-4. **Planner candidates across 180° from the origin land a world away** — MapView.tsx:402 and
+1. **Hazards are drawn on one world copy** — HazardLayer.tsx:78-80, unlike NightLayer's three.
+2. **Partial hazard outages are invisible** — App.tsx:397-401 ignores the set's `errors`.
+3. **Planner candidates across 180° from the origin land a world away** — MapView.tsx:402 and
    App.tsx:284 apply only the plan's shift.
 
 ## Work Required
 
-### Must Fix
-1. Anchor great-circle paths to their unwrapped airport positions (MAP-GEO-005; geo.ts:47-53).
-
 ### Should Fix
-2. Draw hazard polygons on every world copy (MAP-HAZ-010).
-3. Include great-circle arc points in zoom-to-fit (MAP-GEO-012; paths.ts:192).
-4. Place planner candidates within 180° of the drawn origin (MAP-GEO-013; a `paths.ts` helper used by
+1. Draw hazard polygons on every world copy (MAP-HAZ-010).
+2. Include great-circle arc points in zoom-to-fit (MAP-GEO-012; paths.ts:192).
+3. Place planner candidates within 180° of the drawn origin (MAP-GEO-013; a `paths.ts` helper used by
    `CandidateLayer`, the candidate popup and candidate zoom).
 
 ### Nice to Have
-5. Show partial hazard outages in the toolbar (MAP-HAZ-009).
-6. Reuse marker icons across live-tracker re-renders.
+4. Show partial hazard outages in the toolbar (MAP-HAZ-009).
+5. Reuse marker icons across live-tracker re-renders.

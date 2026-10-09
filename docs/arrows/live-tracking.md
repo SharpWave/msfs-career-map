@@ -8,7 +8,7 @@ map layer, and the `sim-fake` / `sim-probe` tools.
 ## Status
 
 **MAPPED** — mapped 2026-10-09 from `b408604`; not yet audited. Brownfield skeleton: the LLD
-describes current behaviour with partly inferred rationale; specs drafted, no tests yet.
+describes current behaviour with partly inferred rationale; specs drafted; first tests in place.
 
 ## References
 
@@ -19,10 +19,11 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
 - docs/intent/live-tracking/live-tracking-design.md
 
 ### EARS
-- docs/intent/live-tracking/live-tracking-specs.md (71 specs)
+- docs/intent/live-tracking/live-tracking-specs.md (72 specs)
 
 ### Tests
-- none yet (they go in `tests/live-tracking/`; the harness is app-shell's)
+- tests/live-tracking/sim-link.test.ts — LIVE-LEG-012, LIVE-LINK-005, LIVE-LINK-009 (the link driven through `fake-sim.ts`, a stand-in node-simconnect)
+- tests/live-tracking/restored-leg.test.ts — LIVE-LEG-012 (a checkpointed leg survives a restart and reconnect)
 
 ### Code
 - src/server/simconnect.ts
@@ -52,8 +53,8 @@ without the user typing anything when the tracker can work it out.
 
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
-| Sim link | LIVE-LINK-001 to 008 | 7 | 0 | 1 |
-| Leg detection | LIVE-LEG-001 to 015 | 10 | 0 | 5 |
+| Sim link | LIVE-LINK-001 to 009 | 8 | 0 | 1 |
+| Leg detection | LIVE-LEG-001 to 015 | 11 | 0 | 4 |
 | Naming the airports | LIVE-NAME-001 to 003 | 2 | 0 | 1 |
 | Landings and rating | LIVE-LAND-001 to 004 | 4 | 0 | 0 |
 | What a leg records | LIVE-REC-001 to 005 | 3 | 0 | 2 |
@@ -65,35 +66,29 @@ without the user typing anything when the tracker can work it out.
 | Live aircraft on the map | LIVE-LAYER-001 to 003 | 3 | 0 | 0 |
 | Test tools | LIVE-TOOL-001 to 004 | 3 | 0 | 1 |
 
-**Summary:** 54 of 71 specs implemented; 17 gaps; none deferred. No spec has a test.
+**Summary:** 56 of 72 specs implemented; 16 gaps; none deferred. 3 specs have tests.
 
 ## Key Findings
 
-1. **A leg restored after a server restart is discarded** — the first samples after connecting carry
-   a blank livery, read as an aircraft change (simconnect.ts:119, tracker.ts:528).
-2. **A landed leg can be lost or misnamed** when a new flight loads or the position jumps before the
+1. **A landed leg can be lost or misnamed** when a new flight loads or the position jumps before the
    stop timer runs (tracker.ts:425-427, 545-556).
-3. **A second pending leg replaces the first** and orphans its briefing (tracker.ts:776).
-4. **Legs of 30–59 s are kept** despite the one-minute minimum (tracker.ts:729-730).
-5. **`sim-fake` misreads arguments** when options come first (sim-fake.ts:20).
+2. **A second pending leg replaces the first** and orphans its briefing (tracker.ts:776).
+3. **Legs of 30–59 s are kept** despite the one-minute minimum (tracker.ts:729-730).
+4. **`sim-fake` misreads arguments** when options come first (sim-fake.ts:20).
 
 ## Work Required
 
-### Must Fix
-1. Ignore the blank livery read right after connecting, so a restored leg survives a server
-   restart (LIVE-LEG-012; simconnect.ts:119, tracker.ts:528).
-
 ### Should Fix
-2. Keep pending legs in a list, addressed by id, each with its own card block; binding fills in
+1. Keep pending legs in a list, addressed by id, each with its own card block; binding fills in
    matching legs (LIVE-HOP-003, LIVE-API-003, LIVE-CARD-008, LIVE-BIND-003).
-3. Keep an airborne leg as pending when the sim disconnects (LIVE-LEG-008).
-4. Close a landed leg when a new flight loads or the position jumps (LIVE-LEG-011).
-5. Leave paused time out of flight time and the takeoff and stop timers (LIVE-REC-003, LIVE-LEG-014).
-6. Prefer the parked airport on a near-tie at takeoff (LIVE-NAME-002).
-7. Read and record sim-clock times (LIVE-LINK-008, LIVE-REC-004; with LOG-REC-002).
-8. Send the live leg's statistics so far and serve a pending leg in full, with a **Profile** button
+2. Keep an airborne leg as pending when the sim disconnects (LIVE-LEG-008).
+3. Close a landed leg when a new flight loads or the position jumps (LIVE-LEG-011).
+4. Leave paused time out of flight time and the takeoff and stop timers (LIVE-REC-003, LIVE-LEG-014).
+5. Prefer the parked airport on a near-tie at takeoff (LIVE-NAME-002).
+6. Read and record sim-clock times (LIVE-LINK-008, LIVE-REC-004; with LOG-REC-002).
+7. Send the live leg's statistics so far and serve a pending leg in full, with a **Profile** button
    per pending leg, for the flight panel (LIVE-API-006, LIVE-API-007, LIVE-CARD-010).
 
 ### Nice to Have
-9. Drop legs under a full minute (LIVE-LEG-013).
-10. Fix `sim-fake` argument parsing (LIVE-TOOL-003).
+8. Drop legs under a full minute (LIVE-LEG-013).
+9. Fix `sim-fake` argument parsing (LIVE-TOOL-003).

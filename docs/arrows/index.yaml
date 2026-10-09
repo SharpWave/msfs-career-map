@@ -48,7 +48,7 @@ arrows:
     blocks: [planner, live-tracking, simbrief]
     blockedBy: [logbook, fleet, airports]
     detail: tour-map.md
-    next: "Fix the great-circle world-copy bug (MAP-GEO-005) with a test first, then add tests for the 47 implemented MAP specs and close the other 4 gaps (arc zoom, hazards on every copy, partial outages, planner candidates across 180°)"
+    next: "Close the 4 gaps (hazards on every copy, arc zoom, planner candidates across 180°, partial outages) test-first, and add tests for the 45 implemented MAP specs that have none"
     drift: null
 
   planner:
@@ -72,7 +72,7 @@ arrows:
     blocks: [planner, flight-panel, simbrief]
     blockedBy: [logbook, fleet, airports, tour-map]
     detail: live-tracking.md
-    next: "Fix the restart-loses-the-leg livery bug (LIVE-LEG-012) with a test first, then add tests for the 54 implemented LIVE specs and close the other 16 gaps (pending-leg list, keep legs on disconnect, landed-leg interruptions, paused time, parked-airport tie-break, sim-clock times, live statistics and pending-leg profiles for the flight panel)"
+    next: "Close the 16 gaps test-first (pending-leg list, keep legs on disconnect, landed-leg interruptions, paused time, parked-airport tie-break, sim-clock times, live statistics and pending-leg profiles for the flight panel), and add tests for the 53 implemented LIVE specs that have none"
     drift: null
 
   flight-panel:

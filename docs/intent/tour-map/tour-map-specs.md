@@ -13,7 +13,7 @@ markers), `HL` (highlighting), `ZOOM` (zoom requests), `VIEW` (basemaps and view
 - [x] **MAP-GEO-002**: When building an aircraft's chain, the system shall shift each hop's origin longitude by whole turns of 360° to within 180° of the previous hop's shifted destination, and the hop's destination to within 180° of its shifted origin.
 - [x] **MAP-GEO-003**: When a hop has a recorded track of at least two samples, the system shall draw its path through the track's samples — each longitude shifted to within 180° of the previous point, starting from the origin — with the shifted origin and destination positions as its first and last points.
 - [x] **MAP-GEO-004**: When a hop has no usable recorded track, the system shall draw its path as a great circle with a point about every 25 nm (2 to 96 segments), or as a straight segment when its airports are less than 1 nm apart.
-- [ ] **MAP-GEO-005**: The system shall start and end each great-circle hop path exactly at the hop's shifted origin and destination positions, including after the aircraft's chain has crossed the antimeridian.
+- [x] **MAP-GEO-005**: The system shall start and end each great-circle hop path exactly at the hop's shifted origin and destination positions, including after the aircraft's chain has crossed the antimeridian.
 - [x] **MAP-GEO-006**: If a hop's origin or destination is missing from the map state, then the system shall skip that hop and continue the aircraft's chain from its previous drawn hop.
 - [x] **MAP-GEO-007**: The system shall place one airport dot per airport per world copy on which a chain reaches that airport.
 - [x] **MAP-GEO-008**: When an aircraft has drawn hops, the system shall place its parked marker at its last drawn hop's shifted destination.

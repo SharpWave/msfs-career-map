@@ -46,12 +46,19 @@ samples from `POST /api/tracker/sample`; with `TRACKER=0` tracking is off
 **Once a second** it reads the user aircraft's latitude, longitude, altitude, on-ground flag,
 ground speed, true heading, vertical speed, indicated airspeed, G, total fuel and weight, the
 sim's touchdown velocity, pitch and bank, `TITLE` and `ATC ID`
-([simconnect.ts:130-157](../../../src/server/simconnect.ts#L130-L157)). `LIVERY NAME` is read
+([simconnect.ts:145-172](../../../src/server/simconnect.ts#L145-L172)). `LIVERY NAME` is read
 separately, so a sim without it (MSFS 2020) loses only the livery, which then reads as blank. A
 sample is stamped with the wall-clock time it arrived.
 
+**Livery first.** Because the livery arrives in its own request, on each new connection the link
+holds the samples it reads until the first livery reading arrives, or the sim rejects the
+variable, and then passes them on in order with that livery. A sample's livery is therefore the
+sim's actual livery, never a placeholder for one not yet read. If neither has happened 5 s after
+the first held sample, the link passes the held samples on with a blank livery rather than stop
+tracking.
+
 **Every frame** it watches the on-ground flag, vertical speed, G and airspeed to catch the
-touchdown ([simconnect.ts:162-196](../../../src/server/simconnect.ts#L162-L196)). On the frame the
+touchdown ([simconnect.ts:177-212](../../../src/server/simconnect.ts#L177-L212)). On the frame the
 wheels touch it takes the descent rate and airspeed of the last airborne frame, then the peak G
 over the next second. The result rides on the next once-a-second sample, together with the sim's
 own touchdown velocity (as fpm), pitch and bank.
@@ -115,10 +122,9 @@ finish or discard rather than thrown away. Changing aircraft, loading a new flig
 away are the user's own doing, and the airborne leg is discarded.
 
 **Changing aircraft.** When the sim's title or livery changes, the tracker looks up the binding
-for the new pair. The livery arrives in its own request, so the first samples after the link
-connects carry a blank livery. That is meant not to count as a change; today it does, so a leg
-restored after a server restart is discarded as "the aircraft changed" a second after the sim
-reconnects ([simconnect.ts:119](../../../src/server/simconnect.ts#L119), [tracker.ts:528](../../../src/server/tracker.ts#L528)).
+for the new pair. Since the link passes on no sample before it has read the livery (Livery first,
+above), the first sample after a connection carries the real livery, so neither a leg restored
+after a server restart nor one started in the air is mistaken for an aircraft change.
 
 **Too short.** A leg is meant to be dropped when its flight time (below) is under a minute. Today
 the check uses the rounded duration, so legs of 30–59 s are kept
@@ -284,6 +290,7 @@ ground", and the leg's origin and point count.
 |----------|--------|------------------------|-----------|
 | Sim link vs logic | A thin SimConnect adapter feeding a sim-independent state machine | Logic inside the SimConnect handlers | The whole pipeline can be tested with a synthetic feed and no sim. |
 | SimConnect library | node-simconnect, pure TypeScript | The SDK's native DLL | No native modules or SDK install; works with a sim on another PC. |
+| Livery not yet read after connecting | The link holds samples until the livery is read or rejected, at most 5 s, then passes them on with it | The tracker ignores a blank livery for a while after connecting; samples marked "livery unknown"; drop samples until the livery arrives | The blank is the link's artifact, so the link hides it and the tracker keeps one rule: a sample's livery is the livery. Holding loses no sample; the 5 s limit keeps a sim that never answers from stopping tracking. |
 | Takeoff | On-ground flag off for 5 s | The first airborne sample | Bounces on the takeoff roll do not start legs. |
 | End of a leg | Below 5 kt for 30 s after landing | At touchdown; at engine shutdown | A touch-and-go stays inside one hop, and the destination is where the aircraft actually stopped. |
 | Naming airports | Nearest within 5 nm of the last ground point and of the stop point, with a class handicap | Ask every time; the SimBrief plan's airports | Correct almost always without input; a miss becomes a pending leg or a correction (logbook). |
@@ -309,20 +316,18 @@ ground", and the leg's origin and point count.
 
 1. **Near-tie at takeoff** — the nearest airport always wins ([tracker.ts:580-582](../../../src/server/tracker.ts#L580-L582)).
 2. **Sim-clock times** are not read or stored (LOG-REC-002).
-3. **Blank livery right after connecting** counts as an aircraft change and discards a restored
-   leg ([simconnect.ts:119](../../../src/server/simconnect.ts#L119), [tracker.ts:528](../../../src/server/tracker.ts#L528)).
-4. **Interrupting a landed leg** — a new flight or a position jump after landing discards the leg
+3. **Interrupting a landed leg** — a new flight or a position jump after landing discards the leg
    or closes it at the wrong airport ([tracker.ts:425-427](../../../src/server/tracker.ts#L425-L427), [545-556](../../../src/server/tracker.ts#L545-L556)).
-5. **Legs of 30–59 s are kept** ([tracker.ts:729-730](../../../src/server/tracker.ts#L729-L730)).
-6. **One pending leg** — a second replaces the first and orphans its briefing ([tracker.ts:776](../../../src/server/tracker.ts#L776)).
-7. **Paused time** counts toward flight time and the takeoff and stop timers.
-8. **A disconnect in flight** discards the leg and its track ([tracker.ts:402-405](../../../src/server/tracker.ts#L402-L405)).
-9. **`sim-fake` arguments** — option values read as airports when options come first ([sim-fake.ts:20](../../../scripts/sim-fake.ts#L20)).
-10. **Two fleet rows with the same title and livery** — the older wins silently; binding one does
-    not unbind the other.
-11. **Wall-clock stamps** — samples are stamped on arrival, so a stalled link compresses or stretches
+4. **Legs of 30–59 s are kept** ([tracker.ts:729-730](../../../src/server/tracker.ts#L729-L730)).
+5. **One pending leg** — a second replaces the first and orphans its briefing ([tracker.ts:776](../../../src/server/tracker.ts#L776)).
+6. **Paused time** counts toward flight time and the takeoff and stop timers.
+7. **A disconnect in flight** discards the leg and its track ([tracker.ts:402-405](../../../src/server/tracker.ts#L402-L405)).
+8. **`sim-fake` arguments** — option values read as airports when options come first ([sim-fake.ts:20](../../../scripts/sim-fake.ts#L20)).
+9. **Two fleet rows with the same title and livery** — the older wins silently; binding one does
+   not unbind the other.
+10. **Wall-clock stamps** — samples are stamped on arrival, so a stalled link compresses or stretches
     the recorded timing; the sim's own time would not.
-12. **A restored airborne leg whose sim is gone** — after a server restart the leg waits in the
+11. **A restored airborne leg whose sim is gone** — after a server restart the leg waits in the
     air until the sim reports again; a new flight then discards it as an aircraft change, new
     flight or position jump, even if the sim had crashed in the meantime.
 

@@ -92,6 +92,8 @@ const EV_FLIGHT_LOADED = 3;
 
 /** How long after the wheels touch to keep looking for the peak G. */
 const G_WINDOW_MS = 1000;
+/** How long a new connection holds samples waiting for the first livery reading. */
+const LIVERY_WAIT_MS = 5000;
 
 /** Start the link. It keeps reconnecting until `stop()` is called. */
 export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop(): void; connected(): boolean } {
@@ -118,6 +120,19 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
         attempts = 0;
         let livery = "";
         let closed = false;
+
+        // @spec LIVE-LEG-012, LIVE-LINK-009
+        // The livery comes in its own request, so the first samples of a connection can arrive
+        // before it. Hold them until it is read (or refused), so the tracker never takes a livery
+        // not yet read for a change of aircraft; give up waiting after LIVERY_WAIT_MS.
+        let liveryKnown = false;
+        let held: Omit<SimSample, "livery">[] = [];
+        const release = () => {
+          liveryKnown = true;
+          const out = held;
+          held = [];
+          for (const s of out) h.onSample({ ...s, livery });
+        };
 
         // sendId → datum name, so a rejected variable can be named in the log.
         const datumBySend = new Map<number, string>();
@@ -169,6 +184,7 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
         hd.on("simObjectData", (d) => {
           if (d.requestID === REQ_LIVERY) {
             livery = d.data.readString128().trim();
+            if (!liveryKnown) release();
             return;
           }
           if (d.requestID === REQ_FRAME) {
@@ -212,7 +228,7 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
           const title = d.data.readString128().trim();
           const atc_id = d.data.readString32().trim();
           if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(alt_ft)) return;
-          const sample: SimSample = {
+          const sample: Omit<SimSample, "livery"> = {
             t: Date.now(),
             lat,
             lon,
@@ -226,7 +242,6 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
             fuel_lb,
             weight_lb,
             title,
-            livery,
             atc_id,
           };
           if (pending) {
@@ -238,7 +253,15 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
             };
             pending = null;
           }
-          h.onSample(sample);
+          if (liveryKnown) {
+            h.onSample({ ...sample, livery });
+            return;
+          }
+          held.push(sample);
+          if (sample.t - held[0].t >= LIVERY_WAIT_MS) {
+            log(`no livery reported ${LIVERY_WAIT_MS / 1000} s after connecting; tracking with a blank livery`);
+            release();
+          }
         });
 
         hd.on("event", (e) => {
@@ -249,8 +272,10 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
           if (e.clientEventId === EV_FLIGHT_LOADED) h.onFlightLoaded?.(e.fileName);
         });
         hd.on("exception", (ex) => {
-          if (ex.sendId === liverySendId) h.onLiveryUnsupported?.();
-          else {
+          if (ex.sendId === liverySendId) {
+            h.onLiveryUnsupported?.();
+            if (!liveryKnown) release();
+          } else {
             const datum = datumBySend.get(ex.sendId);
             log(`SimConnect exception ${ex.exceptionName ?? ex.exception}${datum ? ` on "${datum}"` : ` (send ${ex.sendId}, index ${ex.index})`}`);
           }
