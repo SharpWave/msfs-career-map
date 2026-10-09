@@ -32,14 +32,23 @@ description, API table and roadmap.
 
 ## Commands
 
-- `npm run dev` — server on :3080 (tsx watch) + Vite on :5173 with `/api` proxied.
+- `npm run dev` — server on `PORT` (default :3080, tsx watch) + Vite on :5173 with `/api/` and
+  `/images/` proxied to it.
 - `npm run build` then `npm start` — production-style single server on :3080.
-- `npm run typecheck` — both client and server tsconfigs.
+- `npm run typecheck` — client, server and test tsconfigs.
+- `npm test` — Vitest: Node tests (`tests/<segment>/*.test.ts`, each file on its own temp data
+  folder with the fixture airports) and component tests (`*.test.tsx`, jsdom). Outside requests
+  fail the test unless answered with `answerFetch()` (`tests/support/fetch-guard.ts`).
+- `npm run test:e2e` — Playwright on its own servers (:3180 app with `TRACKER_FAKE=1`, :5183 page)
+  and a temp data folder; first run needs `npx playwright install chromium`. Browser tests run one
+  at a time and import `test` from `tests/e2e/fixtures.ts`.
 - `npm run import-airports [-- --fresh]` — re-import (optionally re-download) airports.
 - `npm run sim-probe` — print what a running sim reports, without touching the database.
 - `TRACKER_FAKE=1 npm run dev` then `npm run sim-fake -- KBOS KPVD [--touch-and-go]
   [--start-airborne] [--fpm 320 --g 2.1]` — drive the tracker with a synthetic flight; test
   against a copy of the database (`CAREER_DB=...`) so fake hops never land in the real logbook.
+  Put the copy in a folder of its own: icons and airport lists live beside whichever database is
+  in use, so a copy inside `data/` shares the real ones (copy `images/` along to see the icons).
   Copy `career.db` with `-wal`/`-shm` or after a checkpoint, or recent rows are missing.
 
 ## Conventions
@@ -56,6 +65,10 @@ description, API table and roadmap.
   tracker matches on both, with a blank `sim_livery` meaning any livery.
 - Map geometry (great circles, antimeridian unwrapping, parked-aircraft positions) is computed in
   `src/client/paths.ts` and shared by the map and the zoom-to-fit logic. Keep those in sync.
+- Data locations come from `dataLocations()` in `src/server/locations.ts`: the database
+  (`CAREER_DB` or `data/career.db`) with `images/`, `airports.csv` and `runways.csv` beside it.
+  The app itself is built by `createApp()` in `src/server/app.ts`, which starts nothing; tests
+  must not import `src/server/index.ts` (it listens and connects to the sim).
 - Writing files with bash heredocs failed in this environment; use the Write tool for new files.
 
 ## LID

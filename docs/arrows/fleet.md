@@ -20,7 +20,7 @@ describes current behaviour plus confirmed intended changes; specs drafted, no t
 - docs/intent/fleet/fleet-specs.md (42 specs)
 
 ### Tests
-- none (the project has no test suite yet)
+- none yet (they go in `tests/fleet/`; the harness is app-shell's)
 
 ### Code
 - src/server/routes.ts — aircraft section (116-311)
@@ -60,7 +60,7 @@ icon), what the planner needs (speed, block-time inputs, limits), and what the t
    (routes.ts:172-211), and the planner reads null as "no limit" or "default".
 2. **Two copies of the block-time defaults** — AircraftForm.tsx:10-25 and performance.ts:27.
 3. **Icon files outlive their aircraft** — delete (routes.ts:286-291) does not remove
-   `data/images/aircraft-<id>.*`.
+   `images/aircraft-<id>.*`.
 4. **Duplicate name + livery accepted** — no check in POST/PUT (routes.ts:233-284), though the
    pairing is the unit of persistence.
 

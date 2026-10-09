@@ -5,3 +5,5 @@ data/*.db-*
 data/*.csv
 data/images/
 .env
+test-results/
+playwright-report/

@@ -21,7 +21,7 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
 - docs/intent/planner/planner-specs.md (64 specs)
 
 ### Tests
-- none (the project has no test suite yet)
+- none yet (they go in `tests/planner/`; the harness is app-shell's)
 
 ### Code
 - src/server/performance.ts

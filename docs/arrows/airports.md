@@ -21,7 +21,7 @@ describes current behaviour plus confirmed intended changes; specs drafted, no t
 - docs/intent/airports/airports-specs.md (50 specs)
 
 ### Tests
-- none (the project has no test suite yet)
+- none yet (they go in `tests/airports/`; the harness is app-shell's)
 
 ### Code
 - src/server/airports.ts — all except `planCandidates` (planner)

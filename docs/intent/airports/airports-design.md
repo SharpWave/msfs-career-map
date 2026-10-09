@@ -33,8 +33,8 @@ runways and Wikipedia links, which suits an open, keyless local tool.
 ### Import
 
 The airport and runway lists come from OurAirports' CSV mirror
-([airports.ts:4-6](../../../src/server/airports.ts#L4-L6)) and are stored as `data/airports.csv`
-and `data/runways.csv`.
+([airports.ts:4-6](../../../src/server/airports.ts#L4-L6)) and are stored as `airports.csv`
+and `runways.csv` in the database's folder (`data/` for the default database; see app-shell).
 
 - **Startup.** When the airports table is empty, the server downloads `airports.csv` if it is
   missing and imports it. When the runways table is empty, or no runway has a heading (a database

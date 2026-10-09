@@ -21,7 +21,7 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
 - docs/intent/tour-map/tour-map-specs.md (52 specs)
 
 ### Tests
-- none (the project has no test suite yet)
+- none yet (they go in `tests/tour-map/`; the harness is app-shell's)
 
 ### Code
 - src/client/paths.ts

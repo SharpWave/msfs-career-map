@@ -65,7 +65,7 @@ is refused with `409` naming the existing aircraft. Today duplicates are accepte
 each hop's SimBrief plan goes with its hop (simbrief, SB-HOP-003); a plan not on any hop, such as
 the tracker's current plan, stays with its aircraft link cleared. Today every plan stays, with its
 hop and aircraft links cleared ([db.ts:115](../../../src/server/db.ts#L115), [144-145](../../../src/server/db.ts#L144-L145)).
-Its uploaded icon file is meant to be removed as well; today the file is left in `data/images`
+Its uploaded icon file is meant to be removed as well; today the file is left in the icons folder
 ([routes.ts:286-291](../../../src/server/routes.ts#L286-L291)).
 
 ## Appearance
@@ -84,7 +84,7 @@ derives a lighter shade from this color, which is one reason only `#rrggbb` is a
   ([icons.ts:7-64](../../../src/client/icons.ts#L7-L64)). An unknown key falls back to twin piston.
 - **Upload** — a PNG, JPEG, WebP, GIF or SVG under 4 MB. The form holds it as a pending image
   until the aircraft is saved, then uploads it; the server replaces any previous upload for that
-  aircraft, writes `data/images/aircraft-<id>.<ext>`, and stores the path with a version stamp so
+  aircraft, writes `aircraft-<id>.<ext>` to the icons folder (`images/` beside the database, app-shell), and stores the path with a version stamp so
   browsers refetch it ([routes.ts:293-311](../../../src/server/routes.ts#L293-L311)). Over 4 MB is
   `413`; anything that is not a base64 image data URL of those types is `400`.
 - **URL** — an image URL, applied when the field loses focus.
@@ -191,7 +191,7 @@ Handlers: [routes.ts:231-311](../../../src/server/routes.ts#L231-L311).
 | Optional numbers | Blank or zero stored as null, meaning "no limit" or "use the default" | Store zero; require values | [inferred] Lets a user leave anything unknown blank and still use the planner with defaults; zero is never a meaningful runway, ceiling or rate. |
 | Color format | `#rrggbb` only | Any CSS color | [inferred] The map's alternating hop shade is computed from the hex value; a fixed format keeps that and the palette matching working. |
 | Default color | First palette color unused by the fleet | Fixed default; random | [inferred] Each new aircraft's tour stands apart on the map without the user choosing. |
-| Uploaded icons | Stored as files in `data/images`, one per aircraft, version-stamped path; removed with the aircraft | Store in the database; keep every upload | [inferred] Served statically with long caching; the version stamp forces a refresh after replacement. |
+| Uploaded icons | Stored as files in the icons folder, one per aircraft, version-stamped path; removed with the aircraft | Store in the database; keep every upload | [inferred] Served statically with long caching; the version stamp forces a refresh after replacement. |
 | SVG uploads | Accepted alongside PNG, JPEG, WebP and GIF | Raster images only | Vector silhouettes are a natural icon format, and the app serves only its local user, so the script risk of a self-uploaded SVG is accepted. |
 | Block-time defaults and presets | Blank fields fall back to light-piston defaults; the form offers six class presets | Require every field | [inferred] Most users know their cruise speed but not climb and descent figures; presets give plausible numbers in one click. |
 | Sim binding fields | Stored on the fleet row; set by Bind or typed | A separate binding table | [inferred] One sim aircraft maps to one fleet row; the row is the natural home. A blank sim livery binds every livery of the title. |

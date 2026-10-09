@@ -11,11 +11,12 @@ layout, failures, theme), `FMT` (shared formatting), `RUN` (scripts, launcher, s
 - [x] **APP-SRV-001**: When the server starts, the system shall make sure the airport and runway data are loaded, start live tracking unless it is disabled or faked, and listen on `PORT` (default 3080), logging the address and the database in use.
 - [x] **APP-SRV-002**: The server shall serve the API under `/api`, accepting JSON bodies up to 8 MB, and uploaded aircraft icons under `/images` with a one-year immutable cache.
 - [x] **APP-SRV-003**: When a client build exists in `dist/`, the server shall serve it and answer any other non-API path with its `index.html`; otherwise it shall answer `/` with a plain-text note that the API is running and how to get the page (`npm run dev`, or build and restart).
+- [x] **APP-SRV-004**: The server shall build the app it serves — the API with its JSON limit and error handlers, `/images`, and the page — with one function, `createApp`, that neither listens, connects to the sim nor loads data when called, and that startup and the API tests both use.
 
 ## Data and Database
 
 - [x] **APP-DATA-001**: The system shall keep its database at `CAREER_DB` when set, else at `data/career.db`, creating the data folders it needs, with write-ahead logging and foreign keys enforced.
-- [ ] **APP-DATA-002**: The system shall keep uploaded aircraft icons in an `images` folder beside the database in use, so a database copy named by `CAREER_DB` never reads or changes the real database's icons.
+- [x] **APP-DATA-002**: The system shall keep uploaded aircraft icons in an `images` folder, and the OurAirports lists as `airports.csv` and `runways.csv`, in the folder of the database in use, so a database named by `CAREER_DB` in another folder never reads or changes the real database's icons or lists.
 - [x] **APP-DATA-003**: When the server opens a database, the system shall create any missing table and add any missing column to an existing table in place, keeping the data already there.
 
 ## API Conventions
@@ -46,9 +47,9 @@ layout, failures, theme), `FMT` (shared formatting), `RUN` (scripts, launcher, s
 
 ## Scripts and Launcher
 
-- [x] **APP-RUN-001**: When `npm run dev` runs, the system shall start the server on port 3080, restarting on change, and the page on port 5173, passing `/api` and `/images` to the server.
+- [x] **APP-RUN-001**: When `npm run dev` runs, the system shall start the server on `PORT` (default 3080), restarting on change, and the page on port 5173, passing `/api` and `/images` to the server on `PORT`.
 - [x] **APP-RUN-002**: When `npm run build` runs, the system shall build the page into `dist/`; when `npm start` runs, the system shall start the server, which serves that build.
-- [x] **APP-RUN-003**: When `npm run typecheck` runs, the system shall check the page, and the server with its scripts, against their TypeScript settings.
+- [x] **APP-RUN-003**: When `npm run typecheck` runs, the system shall check the page, the server with its scripts, and the tests against their TypeScript settings.
 - [x] **APP-RUN-004**: The project shall require Node 22.13 or later.
 - [x] **APP-RUN-005**: When `start.cmd` runs without Node on the path, it shall say so and stop; when dependencies are missing, it shall install them first.
 - [ ] **APP-RUN-006**: When `start.cmd` runs and there is no build, or any page source or build setting is newer than the build, it shall build the page before going on.
@@ -56,5 +57,11 @@ layout, failures, theme), `FMT` (shared formatting), `RUN` (scripts, launcher, s
 - [ ] **APP-RUN-008**: When `start.cmd` finds a server answering `/api/status`, it shall open the browser on it if it reports the code's version, and otherwise say that an older server is still running and its window must be closed first, without opening the browser.
 - [x] **APP-RUN-009**: When `scripts/install-shortcut.ps1` runs, it shall create or refresh a desktop shortcut "MSFS Career Map" that runs `start.cmd` minimised with the app icon.
 - [x] **APP-RUN-010**: When `node scripts/make-ico.mjs out.ico a.png …` runs, it shall pack the PNG files into one `.ico`.
-- [ ] **APP-RUN-011**: When `npm test` runs, the system shall run the Vitest suites — logic, the API against a temporary database, and component tests — without opening the real logbook.
-- [ ] **APP-RUN-012**: When `npm run test:e2e` runs, the system shall run the Playwright browser tests against a server on a temporary database fed by the synthetic sim feed, without opening the real logbook.
+- [x] **APP-RUN-011**: When `npm test` runs, the system shall run the Vitest tests under `tests/` — logic and API tests in Node, component tests in jsdom — giving each Node test file its own data folder, inside a temporary folder for the run, with a new database and a copy of the fixture airport lists.
+- [x] **APP-RUN-012**: When `npm run test:e2e` runs, the system shall start the app server on port 3180, on a new temporary data folder with the fixture airport lists and with the synthetic sim feed enabled, and the page's dev server on port 5183 passing `/api` and `/images` to it, then run the Playwright tests in Chromium one at a time and stop both servers.
+- [x] **APP-RUN-013**: If `CAREER_DB` does not name a database in a Node test file's own temporary data folder when that file starts, then the system shall fail the file before any app module is loaded.
+- [x] **APP-RUN-014**: When a Vitest test makes a request to any address other than the test server it started (component tests start none), the system shall fail the test unless the test has supplied the answer to that request.
+- [x] **APP-RUN-015**: When `npm test` finishes, the system shall delete the run's temporary folder; when either test command starts, the system shall delete leftover test folders more than a day old.
+- [x] **APP-RUN-016**: If port 3180 or 5183 is already in use when `npm run test:e2e` starts, then the system shall fail the run without running any test.
+- [x] **APP-RUN-017**: Before the first browser test of an `npm run test:e2e` run, the system shall check that `/api/status`, requested through port 5183, reports the fixture lists' airport count, and fail the run if it does not.
+- [x] **APP-RUN-018**: While `npm run test:e2e` runs, the app server shall answer the outside requests the browser tests rely on from fixtures and refuse every other outside request, and the browser shall block the page's requests to any address other than the two test servers.

@@ -21,7 +21,7 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
 - docs/intent/simbrief/simbrief-specs.md (39 specs)
 
 ### Tests
-- none (the project has no test suite yet)
+- none yet (they go in `tests/simbrief/`; the harness is app-shell's)
 
 ### Code
 - src/client/simbrief.ts

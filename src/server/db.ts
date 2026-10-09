@@ -1,15 +1,15 @@
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { dataLocations } from "./locations.ts";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-export const ROOT = path.resolve(here, "..", "..");
-export const DATA_DIR = path.join(ROOT, "data");
-export const IMAGES_DIR = path.join(DATA_DIR, "images");
-export const DB_PATH = process.env.CAREER_DB ?? path.join(DATA_DIR, "career.db");
-export const AIRPORTS_CSV = path.join(DATA_DIR, "airports.csv");
-export const RUNWAYS_CSV = path.join(DATA_DIR, "runways.csv");
+export { ROOT } from "./locations.ts";
+
+const loc = dataLocations(process.env.CAREER_DB);
+export const DATA_DIR = loc.dir;
+export const IMAGES_DIR = loc.imagesDir;
+export const DB_PATH = loc.dbPath;
+export const AIRPORTS_CSV = loc.airportsCsv;
+export const RUNWAYS_CSV = loc.runwaysCsv;
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(IMAGES_DIR, { recursive: true });

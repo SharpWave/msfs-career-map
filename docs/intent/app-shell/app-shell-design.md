@@ -40,7 +40,9 @@ The cards, layers and endpoints themselves belong to their segments: the live ca
 tables are filled (airports), start live tracking unless disabled or faked (live-tracking), then
 listen on `PORT` (default 3080), logging the address and the database in use.
 
-**Serving.**
+**Serving.** One function, `createApp` ([app.ts](../../../src/server/app.ts)), builds what the server
+serves, and building it starts nothing (no listening, no sim link, no data loading). Startup and the
+API tests both use it.
 
 - `/api` — the API, accepting JSON bodies up to 8 MB (icon uploads arrive as data URLs).
 - `/images` — uploaded aircraft icons, cached by the browser for a year (each upload's address
@@ -51,23 +53,23 @@ listen on `PORT` (default 3080), logging the address and the database in use.
 
 ## Data and Database
 
-([db.ts:1-19](../../../src/server/db.ts#L1-L19))
+([locations.ts](../../../src/server/locations.ts), [db.ts:1-19](../../../src/server/db.ts#L1-L19))
 
 | What | Where |
 |---|---|
 | Database | `CAREER_DB` when set, else `data/career.db` |
-| Uploaded icons | `data/images/` |
-| OurAirports lists | `data/airports.csv`, `data/runways.csv` |
+| Uploaded icons | `images/` in the database's folder |
+| OurAirports lists | `airports.csv` and `runways.csv` in the database's folder |
 
 The database uses write-ahead logging and enforces foreign keys. Every table is created if missing
 at startup, and a column added in a later version is added to an existing table in place
 (`addColumnIfMissing`), so an older database upgrades without losing anything.
 
-`CAREER_DB` exists so a copy of the database can be tested against (for example with `sim-fake`).
-Uploaded icons are meant to live beside whichever database is in use, so a test copy cannot touch
-the real one's icons. Today they always go to `data/images/`, and since a copy has the same aircraft
-ids, uploading an icon while testing overwrites the real aircraft's icon
-([db.ts:9](../../../src/server/db.ts#L9)).
+`CAREER_DB` exists so a copy of the database can be tested against (for example with `sim-fake`), and
+the test suites run on databases of their own. Everything the app keeps lives in the database's
+folder (`data/` for the default database), so a copy elsewhere has its own icons and lists and never
+reads or changes the real ones. A copy shows no uploaded icons unless its `images/` folder is copied
+with it, and a reimport on a copy reads the lists beside it (downloading them when missing).
 
 ## API Conventions
 
@@ -130,10 +132,12 @@ are airports'. The tracker's own messages write durations as "1 h 05 min".
 
 | Command | Does |
 |---|---|
-| `npm run dev` | Server on :3080 restarting on change, and the page on :5173 with `/api` and `/images` passed to the server |
+| `npm run dev` | Server on :3080 restarting on change, and the page on :5173 with `/api/` and `/images/` passed to the server on `PORT` (default 3080); the trailing slash keeps the page's own `/api.ts` module on the page server |
 | `npm run build` | Builds the page into `dist/` |
 | `npm start` | Runs the server, which serves the build |
-| `npm run typecheck` | Checks the page and the server (with the scripts) against their TypeScript settings |
+| `npm run typecheck` | Checks the page and the server (with the scripts and tests) against their TypeScript settings |
+| `npm test` | Runs the Vitest suites once (see Tests) |
+| `npm run test:e2e` | Runs the Playwright browser tests (see Tests) |
 
 Node 22.13 or later is required, for its built-in SQLite.
 
@@ -157,10 +161,82 @@ must rebuild by hand, and a server still running the old version is reused.
 Career Map" on the desktop, running the launcher minimised with the app icon. **Icon tool** —
 `node scripts/make-ico.mjs out.ico a.png …` packs PNGs into one `.ico`.
 
-**Tests** (the approach is the HLD's). `npm test` runs the Vitest suites — logic, the API against a
-temporary database, and component tests — and `npm run test:e2e` runs the Playwright browser tests
-against a server on a temporary database fed by the synthetic sim feed. Neither ever opens the real
-logbook. Today there is no test suite and neither command exists.
+## Tests
+
+The approach is the HLD's: Vitest for the logic and for the API against a temporary database,
+Testing Library component tests for the page, and a few Playwright browser tests for the main
+flows. Every test runs against data made for it. No test opens the real logbook, changes anything
+in its folder, or reaches a service on the internet.
+
+**Layout.**
+
+| Folder | Holds |
+|---|---|
+| `tests/<segment>/` | Vitest tests for that arrow segment: `*.test.ts` run in Node, `*.test.tsx` are component tests run in a simulated browser (jsdom) |
+| `tests/e2e/` | Playwright browser tests (`*.spec.ts`) |
+| `tests/fixtures/` | A small set of real OurAirports rows in the lists' own CSV format, and canned answers from outside services |
+| `tests/support/` | The setup every Vitest file shares, the browser-test server's startup, and helpers that build aircraft, hops and sim samples |
+
+Each test names the specs it verifies with an `@spec` comment. Vitest has its own config at the
+project root, leaving the page's Vite config as it is. Tests are type-checked under their own
+settings, which accept both the page's and the server's import styles.
+
+**A data folder per test file.** A run makes one folder in the system's temp directory. For each
+Node test file, the shared setup makes a folder inside it with a copy of the fixture lists and
+points `CAREER_DB` at a new database there, so the file's icons and lists sit beside its database as
+they do for any database (see Data and Database). The setup does this before any app module loads,
+because `db.ts` opens the database, and upgrades its tables, the moment it is first imported. So the
+setup and the Vitest config import nothing from `src/server` statically, and the setup checks that
+`CAREER_DB` names this file's own folder before its first import of app code. It then loads the
+fixture lists with the same step that fills a new logbook at startup. Each test file runs in a fresh
+process, so no module or open database carries over from one file to the next.
+
+Tests inside one file share their database and any module state that outlives a test, such as the
+tracker or the METAR, hazard and terrain caches. A test that depends on such state builds its own
+instance or gets its own file. The run's folder is deleted when the run ends. Leftovers that a
+crashed run or a locked file left behind are deleted by a later run once they are a day old, so two
+runs at the same time never delete each other's data.
+
+**Fixture airports.** The fixture lists are real OurAirports rows for southern New England — towered
+and untowered fields, grass strips, a seaplane base, a heliport and a closed airport, with runway
+headings — and grow as tests need more. They are fixed, so a test's expected result does not change
+when the user refreshes their own airport lists, and a fresh checkout runs the tests without
+downloading anything.
+
+**API tests** run the app built by the same function the server uses at startup (`createApp`: the
+API with its JSON limit and error handlers, `/images`, and the page when built) on a free local
+port, and call it over HTTP. Building the app starts nothing else: no listening, no sim link, no
+reference-data step. Closing a test server first closes its open connections, such as the live
+event stream, which would otherwise hold it open.
+
+**Outside services.** The shared setup replaces `fetch` so that any request except to the test's
+own server fails the test, unless the test has supplied the answer. Another local port is no
+exception, since the user's own server may be running there. Tests of OurAirports downloads, METARs,
+terrain, hazards, Wikipedia and SimBrief give their answers from fixtures, which also lets them
+cover failures and odd shapes the live services rarely produce.
+
+**Component tests** render one part of the page with Testing Library. They open no database: each
+test supplies the answers to the page's `/api` calls and a stand-in for the live event stream.
+
+**Browser tests.** `npm run test:e2e` starts two servers and stops them after the run:
+
+1. The app server on port 3180, started by a script in `tests/support/`. The script makes a data
+   folder for the run as the Vitest setup does, and refuses outside requests except those it answers
+   from fixtures. Only then does it start the app as `npm start` would, with `TRACKER_FAKE=1` so
+   the synthetic sim feed (`POST /api/tracker/sample`, the feed `sim-fake` uses) drives the tracker.
+2. The page's dev server on port 5183, with `PORT=3180`, so it passes `/api` and `/images` to the
+   test server.
+
+Neither server falls back to another port. If one is taken, the run fails. Before any test, the run
+checks that `/api/status`, asked through port 5183, reports the fixture lists' airport count. That
+proves the page reaches the test server and not one holding real data.
+
+The tests run one at a time, since they share one server and one tracker. Each starts by discarding
+any live and pending leg, works with aircraft it creates under its own names, and asserts nothing
+that depends on what earlier tests left. They run in Chromium. The page's own requests to the
+internet (map tiles and outside links) are blocked, so the map draws without a basemap. A first run
+needs `npx playwright install chromium`. The run's data folder is left for a later run to delete,
+since the server may still hold it open when the run ends.
 
 ## Decisions & Alternatives
 
@@ -176,7 +252,16 @@ logbook. Today there is no test suite and neither command exists.
 | Theme | Dark only | Light and dark | [inferred] Map-first and used beside a sim, often at night; the dark basemap is the default. |
 | Launcher | A `.cmd` that installs, builds, starts and opens the browser | Manual commands; an installer | Double-click start on Windows for a hobby tool. |
 | Launcher after an update | Rebuild a stale build; refuse to reuse a server of another version, telling the user to close it | Rebuild by hand; stop the old server automatically | Updating should need no extra steps, and a page from one version against a server from another misbehaves. Stopping a process another window owns is left to the user. |
-| Images beside the database | A test copy gets its own image folder | One shared folder | A copy made for testing must not change the real logbook in any way. |
+| Data beside the database | Icons and OurAirports lists in the database's folder | Fixed `data/` paths; a separate setting per path | One variable moves everything, so a copy or a test database never changes the real logbook's files; the default database keeps the `data/` layout. |
+| Building the app | One function builds the Express app, used by startup and by the API tests | Tests assemble their own app from the router | API tests meet the same JSON limit, static paths and error handlers as the page, and importing the app starts nothing. |
+| Test layout | `tests/<segment>/`, with `tests/e2e/`, `tests/fixtures/` and `tests/support/` | Beside the source (`tracker.test.ts` next to `tracker.ts`) | Groups tests the way the arrow groups specs, so a segment's tests are one folder; the source folders stay as they are. |
+| Test databases | A data folder per test file, in a temp folder for the run | One shared test database; in-memory databases | Files cannot leak data into each other; a folder keeps a database's icons and lists beside it and can be opened after a failure; the browser-test server needs a file it can be started on. |
+| Browser tests in sequence | One at a time against one server | Parallel workers with a server each | They share one tracker; the suite is a few flows, so one server keeps the run simple. |
+| Reference data in tests | A fixed subset of real OurAirports rows | The full lists in `data/` | Expected results do not move when the lists are refreshed; a fresh checkout needs no download. |
+| Outside services in tests | Refused unless the test supplies the answer; the browser-test server answers from fixtures | Call the live services | Tests pass offline and give the same result every run; failure cases can be tested; free services are not loaded by test runs. |
+| Page in browser tests | The Vite dev server on its own port, passing the API to the test server | Build into `dist/` and let the test server serve it | Leaves the build the launcher serves alone and skips a build per run. |
+| Browser-test ports | Fixed (3180 and 5183), failing when taken | Any free port; reuse a server already running | The runner waits on a known address; refusing a taken port means a test can never reach a server holding real data. |
+| Browser | Chromium as installed by Playwright | The installed Edge | The browser's version moves with Playwright's, not with Windows updates. |
 
 ## Open Questions & Future Decisions
 
@@ -186,20 +271,19 @@ logbook. Today there is no test suite and neither command exists.
 
 ### Deferred
 
-1. **Images ignore `CAREER_DB`** — a test copy writes over the real aircraft's icons ([db.ts:9](../../../src/server/db.ts#L9)).
-2. **Version in five places** — "0.8.0" hard-coded in `/api/status` and "0.6" in four User-Agents.
-3. **Hint style scoped to the airport input** ([styles.css:307-320](../../../src/client/styles.css#L307-L320)).
-4. **Stale build after an update** — the launcher builds only when no build exists and reuses a
+1. **Version in five places** — "0.8.0" hard-coded in `/api/status` and "0.6" in four User-Agents.
+2. **Hint style scoped to the airport input** ([styles.css:307-320](../../../src/client/styles.css#L307-L320)).
+3. **Stale build after an update** — the launcher builds only when no build exists and reuses a
    running server whatever its version.
-5. **No test suite** — no runner, no `npm test` or `npm run test:e2e`.
-6. **Two duration styles** — the page's "1h 05m" and the tracker's "1 h 05 min".
-7. **The README restates behaviour** — its API table and tracking rules will drift as gaps close
+4. **Two duration styles** — the page's "1h 05m" and the tracker's "1 h 05 min".
+5. **The README restates behaviour** — its API table and tracking rules will drift as gaps close
    (it already says closing the sim mid-flight drops the leg, which LIVE-LEG-008 changes).
 
 ## References
 
-- Code: [src/server/index.ts](../../../src/server/index.ts), [src/server/db.ts](../../../src/server/db.ts)
-  (paths, pragmas, `addColumnIfMissing`), [src/server/routes.ts](../../../src/server/routes.ts)
+- Code: [src/server/index.ts](../../../src/server/index.ts), [src/server/app.ts](../../../src/server/app.ts)
+  (`createApp`), [src/server/locations.ts](../../../src/server/locations.ts) (data locations),
+  [src/server/db.ts](../../../src/server/db.ts) (pragmas, `addColumnIfMissing`), [src/server/routes.ts](../../../src/server/routes.ts)
   (helpers 28-62, `/status` 813-815, error handlers 818-828), [src/client/api.ts](../../../src/client/api.ts)
   (`req`), [src/client/App.tsx](../../../src/client/App.tsx) (layout, sidebar toggle, loading, error
   banner), [src/client/components/Sidebar.tsx](../../../src/client/components/Sidebar.tsx) (header,
@@ -209,3 +293,7 @@ logbook. Today there is no test suite and neither command exists.
   [package.json](../../../package.json), [vite.config.ts](../../../vite.config.ts), `tsconfig*.json`,
   [start.cmd](../../../start.cmd), [scripts/install-shortcut.ps1](../../../scripts/install-shortcut.ps1),
   [scripts/make-ico.mjs](../../../scripts/make-ico.mjs), [README.md](../../../README.md)
+- Tests: [vitest.config.ts](../../../vitest.config.ts), [playwright.config.ts](../../../playwright.config.ts),
+  [tsconfig.test.json](../../../tsconfig.test.json), [tests/support/](../../../tests/support/) (shared setup,
+  fetch guard, data folders, test servers), [tests/fixtures/](../../../tests/fixtures/),
+  [tests/app-shell/](../../../tests/app-shell/), [tests/e2e/](../../../tests/e2e/)

@@ -22,7 +22,7 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
 - docs/intent/live-tracking/live-tracking-specs.md (71 specs)
 
 ### Tests
-- none (the project has no test suite yet)
+- none yet (they go in `tests/live-tracking/`; the harness is app-shell's)
 
 ### Code
 - src/server/simconnect.ts

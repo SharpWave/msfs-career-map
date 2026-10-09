@@ -20,7 +20,7 @@ describes current behaviour plus confirmed intended changes; specs drafted, no t
 - docs/intent/logbook/logbook-specs.md (44 specs)
 
 ### Tests
-- none (the project has no test suite yet)
+- none yet (they go in `tests/logbook/`; the harness is app-shell's)
 
 ### Code
 - src/server/routes.ts — hops section (313-443), `/state` (797-811)

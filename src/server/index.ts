@@ -1,9 +1,6 @@
-import express from "express";
-import fs from "node:fs";
-import path from "node:path";
-import { ROOT, IMAGES_DIR, DB_PATH } from "./db.ts";
+import { DB_PATH } from "./db.ts";
 import { ensureReferenceData } from "./airports.ts";
-import { api } from "./routes.ts";
+import { createApp } from "./app.ts";
 import { tracker } from "./tracker.ts";
 import { startSimLink } from "./simconnect.ts";
 
@@ -43,30 +40,12 @@ function startTracking() {
   );
 }
 
+// @spec APP-SRV-001
 async function main() {
   await ensureReferenceData();
   startTracking();
 
-  const app = express();
-  app.use(express.json({ limit: "8mb" }));
-  app.use("/api", api);
-  app.use("/images", express.static(IMAGES_DIR, { maxAge: "1y", immutable: true }));
-
-  const dist = path.join(ROOT, "dist");
-  if (fs.existsSync(path.join(dist, "index.html"))) {
-    app.use(express.static(dist));
-    app.get("*", (_req, res) => res.sendFile(path.join(dist, "index.html")));
-  } else {
-    app.get("/", (_req, res) =>
-      res.type("text").send(
-        "MSFS Career Map API is running.\n" +
-          "No client build found: run `npm run dev` for the dev UI on http://localhost:5173, " +
-          "or `npm run build` then restart to serve it from here.\n",
-      ),
-    );
-  }
-
-  app.listen(PORT, () => {
+  createApp().listen(PORT, () => {
     console.log(`[server] listening on http://localhost:${PORT}  (db: ${DB_PATH})`);
   });
 }

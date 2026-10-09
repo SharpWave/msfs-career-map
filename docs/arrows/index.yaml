@@ -109,5 +109,5 @@ arrows:
     blocks: []
     blockedBy: []
     detail: app-shell.md
-    next: "Add npm test and test:e2e first (APP-RUN-011/012; every other gap is closed test-first), then tests for the 28 implemented APP specs, then the other 5 gaps (icons beside the database, launcher rebuild and version check, one version, shared hint style)"
+    next: "Launcher rebuild and version check (APP-RUN-006/008), one version from package.json (APP-API-005), shared hint style (APP-UI-007); tests for the 15 implemented APP specs that have none"
     drift: null

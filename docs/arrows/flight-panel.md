@@ -20,7 +20,7 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
 - docs/intent/flight-panel/flight-panel-specs.md (33 specs)
 
 ### Tests
-- none (the project has no test suite yet)
+- none yet (they go in `tests/flight-panel/`; the harness is app-shell's)
 
 ### Code
 - src/client/components/FlightPanel.tsx — all but `BriefingCard` (simbrief)

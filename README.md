@@ -155,7 +155,7 @@ or city to search.
 
 ## Where the data lives
 
-Everything is in `data/` (git-ignored):
+Everything is in `data/` (git-ignored), or beside the database named by `CAREER_DB`:
 
 | File | Contents |
 | --- | --- |
@@ -164,11 +164,24 @@ Everything is in `data/` (git-ignored):
 | `data/images/` | Uploaded aircraft icons |
 
 Back up `career.db` and `images/` and you have everything. Set `CAREER_DB` to use a different
-database path, `PORT` to change the server port (default 3080).
+database path, `PORT` to change the server port (default 3080). The icons and airport lists live
+in the same folder as the database in use, so a copy for testing belongs in a folder of its own
+(copy `images/` along with it to see the icons).
 
 Live tracking: `TRACKER=0` turns it off. `SIMCONNECT_HOST` and `SIMCONNECT_PORT` reach a sim on
 another PC (enable TCP in that PC's `SimConnect.xml`). `TRACKER_FAKE=1` replaces the sim with
 `npm run sim-fake -- KBOS KPVD`, a synthetic flight for trying the feature without MSFS.
+
+## Tests
+
+```powershell
+npm test                        # logic, API and component tests (Vitest)
+npx playwright install chromium # once, for the browser tests
+npm run test:e2e                # browser tests (Playwright) on servers of their own, ports 3180 and 5183
+```
+
+Tests run on temporary databases with a small fixed set of New England airports, never on
+`data/`, and never reach the internet.
 
 ## API
 
@@ -229,6 +242,7 @@ src/client/   Vite + React + Leaflet UI
   landing.ts  how landing ratings are shown
   components/FlightPanel.tsx, ProfileChart.tsx   the bottom panel and its chart
 scripts/      import-airports.ts, sim-probe.ts (print what the sim reports), sim-fake.ts (synthetic flight)
+tests/        tests by segment, e2e/ browser tests, fixtures/ airport lists, support/ shared setup
 data/         runtime data (ignored by git)
 ```
 
