@@ -1,0 +1,113 @@
+schema_version: 2
+last_updated: 2026-10-09
+
+# Flat depth-2 mapping: every segment sits directly under docs/high-level-design.md.
+arrows:
+  logbook:
+    status: MAPPED
+    parent: null
+    sampled: 2026-10-09
+    audited: null
+    audited_sha: null
+    blocks: [tour-map, planner, live-tracking, flight-panel]
+    blockedBy: [fleet, airports]
+    detail: logbook.md
+    next: "Add tests for the 37 implemented LOG specs, then close the 7 gaps (atomic renumber, server-side time checks, tracked-hop corrections, sim-clock times, card errors)"
+    drift: null
+
+  fleet:
+    status: MAPPED
+    parent: null
+    sampled: 2026-10-09
+    audited: null
+    audited_sha: null
+    blocks: [logbook, tour-map, planner, live-tracking, flight-panel, simbrief]
+    blockedBy: []
+    detail: fleet.md
+    next: "Add tests for the 38 implemented FLEET specs, then close the 4 gaps (unique name + livery, icon file and SimBrief plans removed on delete, visibility-toggle errors)"
+    drift: null
+
+  airports:
+    status: MAPPED
+    parent: null
+    sampled: 2026-10-09
+    audited: null
+    audited_sha: null
+    blocks: [logbook, tour-map, planner, live-tracking, flight-panel]
+    blockedBy: []
+    detail: airports.md
+    next: "Add tests for the 40 implemented APT specs, then close the 10 gaps (keep referenced airports across re-imports, monthly refresh, nearest across 180°, Wikipedia fallback, search ordering, blurb cut)"
+    drift: null
+
+  tour-map:
+    status: MAPPED
+    parent: null
+    sampled: 2026-10-09
+    audited: null
+    audited_sha: null
+    blocks: [planner, live-tracking, simbrief]
+    blockedBy: [logbook, fleet, airports]
+    detail: tour-map.md
+    next: "Fix the great-circle world-copy bug (MAP-GEO-005) with a test first, then add tests for the 47 implemented MAP specs and close the other 4 gaps (arc zoom, hazards on every copy, partial outages, planner candidates across 180°)"
+    drift: null
+
+  planner:
+    status: MAPPED
+    parent: null
+    sampled: 2026-10-09
+    audited: null
+    audited_sha: null
+    blocks: []
+    blockedBy: [logbook, fleet, airports, tour-map, simbrief, live-tracking]
+    detail: planner.md
+    next: "Add tests for the 56 implemented PLAN specs, then close the 8 gaps (12,500 ft oxygen altitude, METARs for small ICAO fields, full result total, cruise-altitude label)"
+    drift: null
+
+  live-tracking:
+    status: MAPPED
+    parent: null
+    sampled: 2026-10-09
+    audited: null
+    audited_sha: null
+    blocks: [planner, flight-panel, simbrief]
+    blockedBy: [logbook, fleet, airports, tour-map]
+    detail: live-tracking.md
+    next: "Fix the restart-loses-the-leg livery bug (LIVE-LEG-012) with a test first, then add tests for the 54 implemented LIVE specs and close the other 16 gaps (pending-leg list, keep legs on disconnect, landed-leg interruptions, paused time, parked-airport tie-break, sim-clock times, live statistics and pending-leg profiles for the flight panel)"
+    drift: null
+
+  flight-panel:
+    status: MAPPED
+    parent: null
+    sampled: 2026-10-09
+    audited: null
+    audited_sha: null
+    blocks: []
+    blockedBy: [logbook, fleet, airports, live-tracking]
+    detail: flight-panel.md
+    next: "Add tests for the 26 implemented PANEL specs, then close the 7 gaps (pending legs in the panel, live flight card, live header after touchdown, scale wording)"
+    drift: null
+
+  simbrief:
+    status: MAPPED
+    parent: null
+    sampled: 2026-10-09
+    audited: null
+    audited_sha: null
+    blocks: [planner]
+    blockedBy: [fleet, live-tracking, tour-map]
+    detail: simbrief.md
+    next: "Add tests for the 27 implemented SB specs, then close the 12 gaps (sanitise OFP HTML, preview-and-confirm everywhere, hop plan replace/delete, route world copy, pending-leg plan, registration test, card polish)"
+    drift: null
+
+  # Foundation: every segment relies on the shell's conventions, so its dependencies are not listed.
+  app-shell:
+    status: MAPPED
+    parent: null
+    sampled: 2026-10-09
+    audited: null
+    audited_sha: null
+    blocks: []
+    blockedBy: []
+    detail: app-shell.md
+    next: "Add npm test and test:e2e first (APP-RUN-011/012; every other gap is closed test-first), then tests for the 28 implemented APP specs, then the other 5 gaps (icons beside the database, launcher rebuild and version check, one version, shared hint style)"
+    drift: null
