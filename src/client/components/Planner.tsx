@@ -320,7 +320,7 @@ export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged
                 </button>
                 <a
                   className="small sb-btn"
-                  href={simbriefUrl(legFor(plan.origin, c, state.aircraft.find((a) => a.id === plan.aircraft_id), plan.profile.cruise_alt_ft))}
+                  href={simbriefUrl(legFor(plan.origin, c, state.aircraft.find((a) => a.id === plan.aircraft_id)))}
                   target="_blank"
                   rel="noreferrer"
                   title="Start a SimBrief plan for this leg"
