@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../api";
+import { api, ApiError } from "../api";
 import { aircraftLabel, fmtDuration, fmtTimeShort } from "../format";
 import type { LiveState } from "../tracker";
 import type { Aircraft, BriefingSummary, PendingLeg, Settings, SimAircraft, TrackerStatus } from "../types";
@@ -26,12 +26,24 @@ const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 type Preview = Omit<BriefingSummary, "id"> & { id: null };
 
-/** SimBrief alias setting, "import latest plan" with a confirmation step, and the attached plan. */
+/**
+ * SimBrief alias setting, "import latest plan" with a confirmation step, and the attached plan.
+ * In casual mode nothing can be imported, so only an attached plan shows.
+ */
+// @spec SB-CTRL-001, SB-CTRL-002, SB-CTRL-003, SB-CTRL-004
 function SimbriefControls({ status, busy, run }: { status: TrackerStatus; busy: boolean; run: (fn: () => Promise<unknown>) => Promise<void> }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [userText, setUserText] = useState("");
   const [editingUser, setEditingUser] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
+  const casual = status.casual != null;
+
+  // A preview or alias edit left open when casual mode starts is dropped, not kept for later.
+  useEffect(() => {
+    if (!casual) return;
+    setPreview(null);
+    setEditingUser(false);
+  }, [casual]);
 
   useEffect(() => {
     api
@@ -45,7 +57,8 @@ function SimbriefControls({ status, busy, run }: { status: TrackerStatus; busy: 
 
   if (!settings) return null;
   const b = status.briefing;
-  const needUser = !settings.simbrief_username || editingUser;
+  if (casual && !b) return null;
+  const needUser = !casual && (!settings.simbrief_username || editingUser);
 
   const saveUser = () =>
     run(async () => {
@@ -84,7 +97,7 @@ function SimbriefControls({ status, busy, run }: { status: TrackerStatus; busy: 
         </div>
       )}
 
-      {!needUser && !b && !preview && (
+      {!casual && !needUser && !b && !preview && (
         <div className="row-line">
           <button type="button" className="small" onClick={loadPreview} disabled={busy} title="Fetch your most recent SimBrief OFP and attach it to this flight">
             Import SimBrief plan
@@ -95,7 +108,7 @@ function SimbriefControls({ status, busy, run }: { status: TrackerStatus; busy: 
         </div>
       )}
 
-      {preview && (
+      {!casual && preview && (
         <div className="pending">
           <div>
             <b>Latest SimBrief plan</b>
@@ -147,12 +160,36 @@ function SimbriefControls({ status, busy, run }: { status: TrackerStatus; busy: 
   );
 }
 
+/** The Casual slider. A click only switches: it never reaches the strip, which would open the card. */
+function CasualSwitch({ on, busy, onSwitch }: { on: boolean; busy: boolean; onSwitch: (on: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      className={`casual-switch${on ? " on" : ""}`}
+      disabled={busy}
+      title={on ? "Casual mode: the path is drawn and nothing is logged" : "Casual mode: draw the path flown without logging it"}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSwitch(!on);
+      }}
+    >
+      <span className="slider" aria-hidden="true">
+        <span className="knob" />
+      </span>
+      Casual
+    </button>
+  );
+}
+
 /**
  * Sidebar card for the live tracker: connection state, the sim aircraft and which fleet row it is
  * bound to, the leg in progress, and any finished leg waiting for details before it is logged.
  * Collapsed, it is a one-line status strip; its body stays mounted, so nothing typed is lost.
+ * The Casual switch sits in both, so casual mode is never on unseen.
  */
-// @spec LIVE-CARD-001, LIVE-CARD-011
+// @spec LIVE-CARD-001, LIVE-CARD-003, LIVE-CARD-006, LIVE-CARD-011, LIVE-CARD-012, LIVE-CARD-013, LIVE-CARD-014
 export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onSelect, onNewFromSim, open, onToggle }: Props) {
   const { status: s, online } = live;
   const [bindId, setBindId] = useState("");
@@ -160,6 +197,7 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
   const [error, setError] = useState<string | null>(null);
 
   const bound = s?.aircraft_id != null ? aircraft.find((a) => a.id === s.aircraft_id) : undefined;
+  const casual = s?.casual ?? null;
 
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -173,11 +211,27 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
     }
   };
 
+  /** Switch casual mode; when the server protects a fleet aircraft's leg, ask before dropping it. */
+  const switchCasual = (on: boolean) =>
+    run(async () => {
+      try {
+        await api.trackerCasual(on);
+      } catch (e) {
+        if (!(on && e instanceof ApiError && e.status === 409)) throw e;
+        const leg = (e.body ?? {}) as { name?: string; origin?: string | null };
+        const where = leg.origin ? `a leg from ${leg.origin}` : "a leg that started in the air";
+        if (!window.confirm(`${leg.name ?? "A fleet aircraft"} is flying ${where}. Switch to casual mode? The leg will not be logged.`)) return;
+        await api.trackerCasual(true, true);
+      }
+    });
+  const casualSwitch = online && s ? <CasualSwitch on={casual != null} busy={busy} onSwitch={(on) => void switchCasual(on)} /> : null;
+
   let pill: { cls: string; text: string };
   if (!online) pill = { cls: "", text: "no connection to the app server" };
   else if (!s || !s.connected) pill = { cls: "", text: "sim not running" };
   else if (s.paused) pill = { cls: "warn", text: "paused" };
   else if (!s.sim_running) pill = { cls: "warn", text: "in menus" };
+  else if (s.casual) pill = { cls: "casual", text: "casual" };
   else if (s.phase === "airborne") pill = { cls: "air", text: "airborne" };
   else if (s.phase === "landed") pill = { cls: "air", text: "landed" };
   else if (s.phase === "ground") pill = { cls: "on", text: "on the ground" };
@@ -194,6 +248,7 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
         <div className="card-title live-head">
           <h2>Live from the sim</h2>
           <span className={`pill ${pill.cls}`}>{pill.text}</span>
+          {casualSwitch}
           <IconButton icon="chevron-down" label="Collapse Live from the sim" aria-expanded onClick={onToggle} />
         </div>
       ) : (
@@ -203,63 +258,78 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
           <span className={`pill ${pill.cls}`}>{pill.text}</span>
           {readout && <span className="readout code">{readout}</span>}
           {s?.pending && <span className="caution">Leg waiting to be logged</span>}
+          {casualSwitch}
           <IconButton icon="chevron-right" label="Expand Live from the sim" aria-expanded={false} />
         </div>
       )}
 
       <div className="card-body live-body" hidden={!open}>
-        {s && s.connected && s.sim && (
+        {casual && (
+          <p className="muted small casual-note">
+            Casual mode: the path you fly is drawn on the map and nothing is logged. Switching casual mode off, or stopping the app, clears it.
+          </p>
+        )}
+
+        {s && ((s.connected && s.sim) || casual) && (
           <dl className="live-grid">
-            <dt>Sim aircraft</dt>
-            <dd>
-              {s.sim.title || <span className="muted">(no title yet)</span>}
-              {s.sim.livery && (
-                <>
-                  {" "}
-                  · <span className="code">{s.sim.livery}</span>
-                </>
-              )}
-              {s.sim.atc_id && (
-                <>
-                  {" "}
-                  · <span className="code">{s.sim.atc_id}</span>
-                </>
-              )}
-            </dd>
+            {s.connected && s.sim && (
+              <>
+                <dt>Sim aircraft</dt>
+                <dd>
+                  {s.sim.title || <span className="muted">(no title yet)</span>}
+                  {s.sim.livery && (
+                    <>
+                      {" "}
+                      · <span className="code">{s.sim.livery}</span>
+                    </>
+                  )}
+                  {s.sim.atc_id && (
+                    <>
+                      {" "}
+                      · <span className="code">{s.sim.atc_id}</span>
+                    </>
+                  )}
+                </dd>
+              </>
+            )}
 
-            <dt>Fleet</dt>
-            <dd>
-              {bound ? (
-                <button type="button" className="small" onClick={() => onSelect(bound.id)} title="Highlight on the map">
-                  {aircraftLabel(bound)}
-                </button>
-              ) : (
-                <div className="live-bind">
-                  <select value={bindId} onChange={(e) => setBindId(e.target.value)} disabled={busy}>
-                    <option value="">Bind to…</option>
-                    {aircraft.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {aircraftLabel(a)}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className="small"
-                    disabled={!bindId || busy}
-                    onClick={() => run(() => api.trackerBind(Number(bindId)).then(reload))}
-                    title="Remember this sim aircraft + livery as that fleet aircraft"
-                  >
-                    Bind
-                  </button>
-                  <button type="button" className="small" onClick={() => onNewFromSim(s.sim!)} title="Add a fleet aircraft from what the sim reports">
-                    + New
-                  </button>
-                </div>
-              )}
-            </dd>
+            {s.connected && s.sim && !casual && (
+              <>
+                <dt>Fleet</dt>
+                <dd>
+                  {bound ? (
+                    <button type="button" className="small" onClick={() => onSelect(bound.id)} title="Highlight on the map">
+                      {aircraftLabel(bound)}
+                    </button>
+                  ) : (
+                    <div className="live-bind">
+                      <select value={bindId} onChange={(e) => setBindId(e.target.value)} disabled={busy}>
+                        <option value="">Bind to…</option>
+                        {aircraft.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {aircraftLabel(a)}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        className="small"
+                        disabled={!bindId || busy}
+                        onClick={() => run(() => api.trackerBind(Number(bindId)).then(reload))}
+                        title="Remember this sim aircraft + livery as that fleet aircraft"
+                      >
+                        Bind
+                      </button>
+                      <button type="button" className="small" onClick={() => onNewFromSim(s.sim!)} title="Add a fleet aircraft from what the sim reports">
+                        + New
+                      </button>
+                    </div>
+                  )}
+                </dd>
+              </>
+            )}
 
-            {p && (
+            {s.connected && s.sim && p && (
               <>
                 <dt>Position</dt>
                 <dd>
@@ -271,7 +341,19 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
               </>
             )}
 
-            {s.leg && (
+            {casual && (
+              <>
+                <dt>Path</dt>
+                <dd>
+                  {casual.points} points · since {fmtTimeShort(casual.since)}{" "}
+                  <button type="button" className="small" disabled={busy} onClick={() => void run(() => api.trackerClearPath())} title="Start the drawn path afresh">
+                    Clear
+                  </button>
+                </dd>
+              </>
+            )}
+
+            {!casual && s.leg && (
               <>
                 <dt>Leg</dt>
                 <dd>
@@ -317,7 +399,7 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
         {s && s.connected && s.sim && <SimbriefControls status={s} busy={busy} run={run} />}
 
         {s && s.connected && !s.sim && <p className="muted small">Connected to {s.sim_name ?? "the sim"}; waiting for the aircraft to load.</p>}
-        {s && !s.connected && (
+        {s && !s.connected && !casual && (
           <p className="muted small">
             Start MSFS and the tracker connects by itself. Takeoffs and landings are logged as hops with the flown track.
           </p>

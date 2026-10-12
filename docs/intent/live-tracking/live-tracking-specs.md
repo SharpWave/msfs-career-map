@@ -3,8 +3,8 @@
 Design: [live-tracking-design.md](live-tracking-design.md). Prefix `LIVE`; facets `LINK` (sim
 link), `LEG` (leg detection and interruptions), `NAME` (naming the airports), `LAND` (landings and
 rating), `REC` (what a leg records), `BIND` (binding a sim aircraft), `HOP` (logging and pending
-legs), `SAVE` (checkpointing), `API` (tracker API and event stream), `CARD` (live card), `LAYER`
-(live aircraft on the map), `TOOL` (sim-fake and sim-probe).
+legs), `SAVE` (checkpointing), `CASUAL` (casual mode and its path), `API` (tracker API and event
+stream), `CARD` (live card), `LAYER` (live aircraft on the map), `TOOL` (sim-fake and sim-probe).
 
 `[x]` implemented · `[ ]` intended, not yet implemented · `[D]` deferred
 
@@ -23,8 +23,8 @@ legs), `SAVE` (checkpointing), `API` (tracker API and event stream), `CARD` (liv
 ## Leg Detection
 
 - [x] **LIVE-LEG-001**: While the sim is paused or not running, the tracker shall ignore samples, and it shall ignore any sample whose position is not finite or lies within 0.05° of both latitude 0 and longitude 0.
-- [x] **LIVE-LEG-002**: When the aircraft has been off the ground for 5 s after being on the ground, the tracker shall start a leg whose departure time is the first airborne sample and whose track begins at the last on-ground sample.
-- [x] **LIVE-LEG-003**: When tracking begins with the aircraft already airborne, the tracker shall start a leg with no departure airport.
+- [x] **LIVE-LEG-002**: While casual mode is off, when the aircraft has been off the ground for 5 s after being on the ground, the tracker shall start a leg whose departure time is the first airborne sample and whose track begins at the last on-ground sample.
+- [x] **LIVE-LEG-003**: While casual mode is off, when tracking begins with the aircraft already airborne, the tracker shall start a leg with no departure airport.
 - [x] **LIVE-LEG-004**: When the aircraft touches down during a leg, the tracker shall mark the leg landed and set its touchdown time.
 - [x] **LIVE-LEG-005**: When a landed aircraft leaves the ground again, the tracker shall continue the same leg as airborne and clear its touchdown time.
 - [x] **LIVE-LEG-006**: When a landed aircraft has stayed below 5 kt ground speed for 30 s, the tracker shall close the leg at that sample.
@@ -46,7 +46,7 @@ legs), `SAVE` (checkpointing), `API` (tracker API and event stream), `CARD` (liv
 
 ## Landings and Rating
 
-- [x] **LIVE-LAND-001**: When the once-a-second samples show a touchdown and no measured touchdown has arrived within 6 s, the tracker shall record a provisional landing with the descent rate and airspeed of the last airborne sample, no G, and the touchdown position.
+- [x] **LIVE-LAND-001**: When the once-a-second samples show a touchdown during a leg and no measured touchdown has arrived within 6 s, the tracker shall record a provisional landing with the descent rate and airspeed of the last airborne sample, no G, and the touchdown position.
 - [x] **LIVE-LAND-002**: When a measured touchdown arrives during a leg, the tracker shall replace a provisional landing from within 6 s of it, or else add a new landing, with the measured descent rate, peak G, airspeed, the sim's touchdown rate, pitch, bank and the position.
 - [x] **LIVE-LAND-003**: When rating a landing, the system shall take the worse of its descent-rate class (butter up to 100 fpm, solid up to 250, hard up to 500, hospital up to 800, graveyard above) and, when its G is known, its peak-G class (butter below 1.6, solid below 2.0, hard below 2.6, hospital below 3.5, graveyard from 3.5).
 - [x] **LIVE-LAND-004**: When a landing is recorded, the tracker shall report "Landed at IDENT: N fpm, rating" or "Landed away from any airport: N fpm, rating", and for a measured touchdown "Touchdown N fpm, G.GG G: rating".
@@ -76,9 +76,24 @@ legs), `SAVE` (checkpointing), `API` (tracker API and event stream), `CARD` (liv
 
 ## Checkpointing
 
-- [x] **LIVE-SAVE-001**: The tracker shall save its whole state to the database at most every 5 s while samples arrive, and at once when a leg closes or is discarded and when the binding, the current briefing or a pending leg changes.
+- [x] **LIVE-SAVE-001**: The tracker shall save its whole state, apart from casual mode and the casual path, to the database at most every 5 s while samples arrive, and at once when a leg closes or is discarded and when the binding, the current briefing or a pending leg changes.
 - [x] **LIVE-SAVE-002**: When the server starts, the tracker shall restore its saved state, dropping a saved leg that began within 0.05° of latitude 0 and longitude 0, and giving a leg saved without landings or statistics empty ones.
 - [x] **LIVE-SAVE-003**: The tracker shall report whether a leg is in progress.
+
+## Casual Mode
+
+- [x] **LIVE-CASUAL-001**: While casual mode is on, the tracker shall not start, continue or close a leg, measure or rate a landing, or create a pending leg, and shall hold the idle phase with no takeoff or stop timer running and no last on-ground or airborne sample.
+- [x] **LIVE-CASUAL-002**: While casual mode is on, the tracker shall still ignore the samples LIVE-LEG-001 ignores, follow the sim aircraft and look up its binding (LIVE-BIND-001) without reporting an unbound one as unbound, report the live position, and leave the current SimBrief plan and any pending legs as they are (no new plan can be imported, SB-CUR-004).
+- [x] **LIVE-CASUAL-003**: While casual mode is on, when the tracker takes a sample and the aircraft is not on the ground below 1 kt, the tracker shall add the sample to the casual path as a track point `[lat, lon, alt_ft, unix_seconds, gs_kts, vs_fpm, ias_kts, fuel_lb]` if the path is empty, a break is waiting (LIVE-CASUAL-004), or at least 5 s have passed since the path's last point.
+- [x] **LIVE-CASUAL-004**: While casual mode is on, when the position jumps more than 50 nm plus 700 kt × the time since the last sample, a new flight is loaded, or the sim disconnects, the tracker shall begin a new casual-path segment with the next point it adds.
+- [x] **LIVE-CASUAL-005**: When the user switches casual mode on with no leg airborne, the tracker shall close a landed leg at the last sample, logging it or keeping it as pending (LIVE-HOP-001, LIVE-HOP-002), and start casual mode with an empty path.
+- [x] **LIVE-CASUAL-006**: If the user switches casual mode on while a leg is airborne in a sim aircraft bound to a fleet aircraft that still exists, and the request does not say to drop the leg (`drop_leg`), then the system shall refuse with HTTP 409 and `{error, aircraft_id, name, origin, departed_at}` naming that fleet aircraft and leg, leaving casual mode off and the leg flying.
+- [x] **LIVE-CASUAL-007**: When the user switches casual mode on while a leg is airborne, and its sim aircraft is not bound to a fleet aircraft that still exists or the request says to drop the leg (`drop_leg`), the tracker shall drop the leg without logging it and start casual mode with the leg's track as the casual path's first segment.
+- [x] **LIVE-CASUAL-008**: When the user switches casual mode off, the tracker shall drop the casual path and resume leg detection from the idle phase with the next sample it takes (LIVE-LEG-002, LIVE-LEG-003).
+- [x] **LIVE-CASUAL-009**: When the user asks to switch casual mode to the state it is already in, the system shall leave casual mode, the casual path and any leg in progress unchanged and answer with the status.
+- [x] **LIVE-CASUAL-010**: When the user clears the casual path, the tracker shall empty it and leave casual mode as it is.
+- [x] **LIVE-CASUAL-011**: When the server starts, the tracker shall start with casual mode off and an empty casual path.
+- [x] **LIVE-CASUAL-012**: When casual mode switches on, the tracker shall report "Casual mode on: nothing is logged", adding "; dropped the leg from ORIG" ("?" for an unknown origin) when it dropped a leg; when casual mode switches off, it shall report "Casual mode off: takeoffs and landings are logged again".
 
 ## Tracker API and Event Stream
 
@@ -89,26 +104,35 @@ legs), `SAVE` (checkpointing), `API` (tracker API and event stream), `CARD` (liv
 - [x] **LIVE-API-005**: When the tracker event stream drops, the browser shall reconnect and take the full state the server sends again.
 - [ ] **LIVE-API-006**: While a leg is in progress, the tracker status shall carry the leg's statistics so far: fuel and weight at takeoff, fuel used, the highest altitude and ground speed, and the distance flown along the track.
 - [ ] **LIVE-API-007**: When `GET /api/tracker/pending/:id` is called, the system shall return that pending leg in full, with its track, landings, statistics and briefing, and answer HTTP 404 for an unknown id.
+- [x] **LIVE-API-008**: When `PUT /api/tracker/casual` is called with `on` true or false, the system shall switch casual mode to it (LIVE-CASUAL-005 to LIVE-CASUAL-009), saying to drop an airborne leg when `drop_leg` is true, and answer with the status; it shall refuse any other `on` with HTTP 400.
+- [x] **LIVE-API-009**: When `DELETE /api/tracker/path` is called, the system shall clear the casual path (LIVE-CASUAL-010) and answer with the status.
+- [x] **LIVE-API-010**: The tracker status shall carry casual mode as the time it was switched on and the casual path's point count over all segments, or null while casual mode is off.
+- [x] **LIVE-API-011**: The tracker event stream shall send the casual path as `path` — a list of segments of track points, empty while casual mode is off — on connect after the status and the leg's track, and again when casual mode switches, the path is cleared or a new segment begins, by then holding that segment's first point; and it shall send each point added to the last segment as `path-point`.
+- [x] **LIVE-API-012**: When switching casual mode on drops a leg, the tracker event stream shall send the empty leg `track` before the `path` holding the leg's track, and the status last.
 
 ## Live Card
 
-- [x] **LIVE-CARD-001**: The live card shall show a status pill reading, by precedence, "no connection to the app server", "sim not running", "paused", "in menus", "airborne", "landed", "on the ground" or "connected", colored green for connected and on the ground, blue for airborne and landed, amber for paused and in menus, and plain otherwise.
+- [x] **LIVE-CARD-001**: The live card shall show a status pill reading, by precedence, "no connection to the app server", "sim not running", "paused", "in menus", "casual" (while casual mode is on), "airborne", "landed", "on the ground" or "connected", colored green for connected and on the ground, blue for airborne and landed, amber for paused and in menus, violet for casual, and plain otherwise.
 - [x] **LIVE-CARD-002**: While the sim is connected with an aircraft, the live card shall show the aircraft's title ("(no title yet)" while blank), livery and ATC id.
-- [x] **LIVE-CARD-003**: While the sim aircraft is bound, the live card shall show its fleet aircraft, highlighting it on the map when clicked; otherwise the card shall offer **Bind to…** a fleet aircraft and **+ New** to create one from what the sim reports.
+- [x] **LIVE-CARD-003**: While casual mode is off and the sim aircraft is bound, the live card shall show its fleet aircraft, highlighting it on the map when clicked; while casual mode is off and the sim aircraft is not bound, the card shall offer **Bind to…** a fleet aircraft and **+ New** to create one from what the sim reports.
 - [x] **LIVE-CARD-004**: While the live aircraft's position is known, the live card shall show its altitude, ground speed and heading, with **Zoom** to fly the map to it at zoom 10.
 - [x] **LIVE-CARD-005**: While a leg is in progress, the live card shall show its origin (or "?"), takeoff time, points recorded and latest landing's badge, with **Profile** to open the live leg in the flight panel, **Log now** while landed, and **Discard** after confirming "Discard the leg being flown? It will not be logged."
-- [x] **LIVE-CARD-006**: The live card shall show "Start MSFS and the tracker connects by itself. Takeoffs and landings are logged as hops with the flown track." while the sim is not connected, "Connected to X; waiting for the aircraft to load." while connected without an aircraft, and "Waiting for the tracker…" before the first status.
+- [x] **LIVE-CARD-006**: The live card shall show "Start MSFS and the tracker connects by itself. Takeoffs and landings are logged as hops with the flown track." while the sim is not connected and casual mode is off, "Connected to X; waiting for the aircraft to load." while connected without an aircraft, and "Waiting for the tracker…" before the first status.
 - [x] **LIVE-CARD-007**: The live card shall show the tracker's last message with its time, and the error from a failed action.
 - [ ] **LIVE-CARD-008**: For each pending leg, oldest first, the live card shall show "Leg waiting to be logged" with the sim aircraft and livery, the reason, takeoff and touchdown times, flight time and points; aircraft, From and To fields prefilled with what is known; **Log hop**; and **Discard** after confirming "Discard this leg? Its recorded track will be lost."
 - [x] **LIVE-CARD-009**: When the tracker logs a hop, the system shall reload the map and the lists and show "Logged ORIG → DEST · time" for 8 s.
 - [ ] **LIVE-CARD-010**: For each pending leg, the live card shall offer **Profile**, which opens that leg in the flight panel.
-- [x] **LIVE-CARD-011**: While the live card is collapsed, it shall show one line holding the status pill, the live aircraft's altitude, ground speed and heading while the sim is connected and its position is known, and "Leg waiting to be logged" in amber while a leg waits; when the user clicks the line, the card shall open.
+- [x] **LIVE-CARD-011**: While the live card is collapsed, it shall show one line holding the status pill, the live aircraft's altitude, ground speed and heading while the sim is connected and its position is known, "Leg waiting to be logged" in amber while a leg waits, and the casual switch; when the user clicks the line anywhere but the switch, the card shall open.
+- [x] **LIVE-CARD-012**: While the app server is reachable, the live card shall show the casual switch, labelled "Casual" and on while casual mode is on, in its title row when open and in its one-line strip when collapsed, whatever the sim is doing; when the user clicks the switch, the system shall ask the server to switch casual mode (`PUT /api/tracker/casual`) without opening or closing the card.
+- [x] **LIVE-CARD-013**: When the user switches casual mode on and the server refuses with HTTP 409, the live card shall ask "NAME is flying a leg from ORIG. Switch to casual mode? The leg will not be logged." — with "a leg that started in the air" when the refusal gives no origin — and, when the user agrees, repeat the request saying to drop the leg; when the user declines, it shall leave casual mode off.
+- [x] **LIVE-CARD-014**: While casual mode is on, the live card shall leave out the Fleet and Leg rows, show "Casual mode: the path you fly is drawn on the map and nothing is logged. Switching casual mode off, or stopping the app, clears it." whether or not the sim is connected, and show a **Path** row with the casual path's point count and the time casual mode was switched on, with **Clear**.
 
 ## Live Aircraft on the Map
 
 - [x] **LIVE-LAYER-001**: While the sim is connected and a position is known, the system shall draw the live aircraft above every other map layer as the bound aircraft's badge (a white single-piston badge when unbound) with a heading pointer, and the leg's track in the aircraft's color over a dark casing.
 - [x] **LIVE-LAYER-002**: The system shall draw the live aircraft and its track on every world copy in view (MAP-GEO-014), the aircraft at its own position and the track placed sample to sample (MAP-GEO-015).
-- [x] **LIVE-LAYER-003**: When the user hovers the live aircraft, the system shall show "LIVE · name", altitude, ground speed, heading, "on ground" while on the ground, and the leg's origin and points.
+- [x] **LIVE-LAYER-003**: When the user hovers the live aircraft, the system shall show "LIVE · name" ("CASUAL · name" while casual mode is on), altitude, ground speed, heading, "on ground" while on the ground, and the leg's origin and points, or while casual mode is on the casual path's points.
+- [x] **LIVE-LAYER-004**: While casual mode is on and the casual path has points, the system shall draw each path segment dashed, in the live aircraft's color (the bound aircraft's, white when unbound), over a dark casing, on every world copy in view placed sample to sample (MAP-GEO-015), whether or not the sim is connected, and while the live position is known it shall run the last segment on to the aircraft.
 
 ## Test Tools
 

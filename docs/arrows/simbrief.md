@@ -7,7 +7,7 @@ the SimBrief card and controls, and the planned route on the map.
 ## Status
 
 **MAPPED** — mapped 2026-10-09 from `b408604`; not yet audited. Brownfield skeleton: the LLD
-describes current behaviour with partly inferred rationale; specs drafted, no tests yet.
+describes current behaviour with partly inferred rationale; specs drafted; first tests in place.
 
 ## References
 
@@ -18,16 +18,18 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
 - docs/intent/simbrief/simbrief-design.md
 
 ### EARS
-- docs/intent/simbrief/simbrief-specs.md (39 specs)
+- docs/intent/simbrief/simbrief-specs.md (40 specs)
 
 ### Tests
 - tests/tour-map/copies.test.ts — SB-ROUTE-003 (the route placed fix to fix; drawn on every copy by the map's shared copies)
+- tests/simbrief/live-card-controls.test.tsx — SB-CTRL-001, 002, 003, 004 (no import in casual mode)
+- tests/live-tracking/casual-api.test.ts — SB-CUR-004 (import refused in casual mode)
 
 ### Code
 - src/client/simbrief.ts
 - src/server/simbrief.ts
 - src/server/ofp.ts
-- src/server/routes.ts — settings and briefings (562-692)
+- src/server/routes.ts — settings and briefings (589-721)
 - src/server/db.ts — `briefings`, `settings`, `kv_cache`
 - src/client/components/LivePanel.tsx — `SimbriefControls`
 - src/client/components/FlightPanel.tsx — `BriefingCard`
@@ -54,19 +56,19 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
 | Alias setting | SB-USER-001 | 1 | 0 | 0 |
 | Fetching a plan | SB-OFP-001 to 004 | 4 | 0 | 0 |
 | Preview and confirm | SB-PICK-001 to 003 | 1 | 0 | 2 |
-| Current plan | SB-CUR-001 to 003 | 3 | 0 | 0 |
+| Current plan | SB-CUR-001 to 004 | 4 | 0 | 0 |
 | Plans on hops | SB-HOP-001 to 005 | 2 | 0 | 3 |
 | Live card controls | SB-CTRL-001 to 004 | 4 | 0 | 0 |
 | Flight panel card | SB-CARD-001 to 008 | 3 | 0 | 5 |
 | Route on the map | SB-ROUTE-001 to 004 | 4 | 0 | 0 |
 
-**Summary:** 28 of 39 specs implemented; 11 gaps; none deferred. 1 spec has a test.
+**Summary:** 29 of 40 specs implemented; 11 gaps; none deferred. 6 specs have tests.
 
 ## Key Findings
 
 1. **OFP HTML inserted unsanitised** — FlightPanel.tsx:340.
-2. **Use this plan fetches again** instead of keeping the previewed plan — LivePanel.tsx:58-62, routes.ts:647-653.
-3. **Re-attaching keeps the old plan** pointing at the hop — routes.ts:666-687.
+2. **Use this plan fetches again** instead of keeping the previewed plan — LivePanel.tsx:71-75, routes.ts:675-682.
+3. **Re-attaching keeps the old plan** pointing at the hop — routes.ts:695-716.
 4. **Any short livery is sent as a registration** — simbrief.ts:15-18.
 5. **Plans of deleted hops stay in the table**, and the panel attaches a plan with no preview.
 

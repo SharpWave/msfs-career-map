@@ -12,6 +12,7 @@
   --ok: #3bceac;
   --caution: #fbbf24;
   --airborne: #7cc4ff;
+  --casual: #b79cff;
   --danger: #ff5c5c;
   --accent-ink: #1c0f07;
 
@@ -1024,13 +1025,17 @@ label.check span {
 .live-strip {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
   min-height: 28px;
   margin: -2px -4px -2px 0;
   cursor: pointer;
 }
 
+/* on a narrow column the readout gives way to the casual switch */
 .live-strip .readout {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 12px;
   white-space: nowrap;
 }
@@ -1045,8 +1050,80 @@ label.check span {
   margin-left: auto;
 }
 
+/* casual mode tints the card; a waiting leg's amber, below, still wins */
+.card-live:has(.casual-switch.on) {
+  border-color: color-mix(in srgb, var(--casual) 45%, transparent);
+}
+
 .card-live:has(.live-strip .caution) {
   border-color: color-mix(in srgb, var(--caution) 55%, transparent);
+}
+
+/* @spec LIVE-CARD-012 */
+button.casual-switch {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  padding: 2px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+button.casual-switch:hover:not(:disabled) {
+  background: none;
+  color: var(--text);
+}
+
+button.casual-switch:focus-visible {
+  outline: 2px solid var(--casual);
+  outline-offset: 1px;
+  border-radius: 6px;
+}
+
+.casual-switch .slider {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--field-edge);
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.casual-switch .knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.15s, background-color 0.15s;
+}
+
+button.casual-switch.on {
+  color: var(--casual);
+}
+
+.casual-switch.on .slider {
+  background: color-mix(in srgb, var(--casual) 28%, transparent);
+  border-color: color-mix(in srgb, var(--casual) 60%, transparent);
+}
+
+.casual-switch.on .knob {
+  transform: translateX(12px);
+  background: var(--casual);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .casual-switch .slider,
+  .casual-switch .knob {
+    transition: none;
+  }
 }
 
 .pill {
@@ -1075,6 +1152,12 @@ label.check span {
   background: color-mix(in srgb, var(--airborne) 16%, transparent);
   color: var(--airborne);
   border-color: color-mix(in srgb, var(--airborne) 50%, transparent);
+}
+
+.pill.casual {
+  background: color-mix(in srgb, var(--casual) 16%, transparent);
+  color: var(--casual);
+  border-color: color-mix(in srgb, var(--casual) 50%, transparent);
 }
 
 .live-grid {

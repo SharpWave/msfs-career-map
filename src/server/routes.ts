@@ -21,7 +21,7 @@ import { simbriefAircraftTypes } from "./simbrief.ts";
 import { currentHazards } from "./hazards.ts";
 import { terrainAlong } from "./terrain.ts";
 import { blockMinutes, maxRangeNm, profileFor } from "./performance.ts";
-import { tracker } from "./tracker.ts";
+import { CasualRefused, tracker } from "./tracker.ts";
 import { fetchLatestOfp, type BriefingSummary, type FetchedOfp } from "./ofp.ts";
 
 export const api = Router();
@@ -448,8 +448,10 @@ api.get("/tracker", wrap((_req, res) => res.json(tracker.status())));
 
 /**
  * Server-sent events: `status` about once a second, `track` (the live leg's full point list),
- * `point` (one new point), `hop` when a leg was logged, `pending` when one needs details.
+ * `point` (one new point), `path` (the whole casual path) and `path-point` (one point added to its
+ * last segment), `hop` when a leg was logged, `pending` when one needs details.
  */
+// @spec LIVE-API-011
 api.get("/tracker/events", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -459,7 +461,8 @@ api.get("/tracker/events", (req, res) => {
   const send = (event: string, data: unknown) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   send("status", tracker.status());
   send("track", tracker.track());
-  const handlers = ["status", "track", "point", "hop", "pending"].map((ev) => [ev, (d: unknown) => send(ev, d)] as const);
+  send("path", tracker.path());
+  const handlers = ["status", "track", "point", "path", "path-point", "hop", "pending"].map((ev) => [ev, (d: unknown) => send(ev, d)] as const);
   for (const [ev, fn] of handlers) tracker.on(ev, fn);
   const ping = setInterval(() => res.write(": ping\n\n"), 25000);
   req.on("close", () => {
@@ -513,6 +516,30 @@ api.post("/tracker/complete", wrap((_req, res) => {
 
 api.delete("/tracker/leg", wrap((_req, res) => {
   tracker.discardLeg("discarded from the app");
+  res.json(tracker.status());
+}));
+
+/**
+ * Switch casual mode: { on, drop_leg? }. While a bound fleet aircraft's leg is airborne, switching
+ * on is refused with 409 and the leg's details unless drop_leg is true.
+ */
+// @spec LIVE-API-008, LIVE-CASUAL-006
+api.put("/tracker/casual", wrap((req, res) => {
+  const on = req.body?.on;
+  if (on !== true && on !== false) throw new HttpError(400, "on must be true or false");
+  try {
+    tracker.setCasual(on, { dropLeg: req.body?.drop_leg === true });
+  } catch (e) {
+    if (!(e instanceof CasualRefused)) throw e;
+    res.status(409).json({ error: e.message, ...e.details });
+    return;
+  }
+  res.json(tracker.status());
+}));
+
+// @spec LIVE-API-009
+api.delete("/tracker/path", wrap((_req, res) => {
+  tracker.clearPath();
   res.json(tracker.status());
 }));
 
@@ -643,8 +670,10 @@ api.get("/simbrief/latest", wrap(async (req, res) => {
   res.json({ ...ofp.summary, id: null, has_plan_html: !!ofp.plan_html });
 }));
 
-/** Import the latest OFP for the flight being flown (or the next one). */
+/** Import the latest OFP for the flight being flown (or the next one); not in casual mode. */
+// @spec SB-CUR-004
 api.post("/tracker/briefing", wrap(async (_req, res) => {
+  if (tracker.inCasualMode()) throw new HttpError(409, "casual mode is on: switch it off to import a SimBrief plan");
   const ofp = await latestOfp();
   const st = tracker.status();
   const summary = storeBriefing(ofp, null, st.aircraft_id);

@@ -27,6 +27,7 @@ layout, menu and drawers, the covered part of the map, failures, the look), `FMT
 - [x] **APP-API-004**: When `GET /api/status` is called, the system shall return `ok`, the airport and runway counts, and the app version.
 - [ ] **APP-API-005**: The system shall take the app version from `package.json`, report it in `GET /api/status`, and send `MSFSCareerMap/<version> (personal flight-sim logbook; local use)` as the User-Agent on every request the server makes to an outside service (OurAirports, aviationweather.gov, Wikipedia, Open-Meteo, SimBrief).
 - [x] **APP-API-006**: When an API call from the page fails, the page shall report the server's `error` message, or the HTTP status and its text when there is none; a 204 answer shall count as success with no content.
+- [x] **APP-API-007**: When an API call from the page fails, the browser's request helper shall raise an error that carries the HTTP status and the answer's parsed body alongside the message.
 
 ## Page Layout and Failures
 

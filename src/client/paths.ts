@@ -262,6 +262,25 @@ export function liveShapes(position: { lat: number; lon: number }, track: TrackP
   return { pos: [position.lat, position.lon], track: placeLine(track.map((p): LatLng => [p[0], p[1]])) };
 }
 
+const placedSegments = new WeakMap<TrackPoint[], LatLng[]>();
+
+/** A casual-path segment placed sample to sample, kept per segment so an unchanged one stays the same array. */
+function placedSegment(seg: TrackPoint[]): LatLng[] {
+  let out = placedSegments.get(seg);
+  if (!out) placedSegments.set(seg, (out = placeLine(seg.map((p): LatLng => [p[0], p[1]]))));
+  return out;
+}
+
+/** The casual path's segments placed sample to sample, the last one run on to the aircraft while its position is known. */
+// @spec LIVE-LAYER-004
+export function casualShapes(path: TrackPoint[][], position: { lat: number; lon: number } | null): LatLng[][] {
+  return path.map((seg, i) =>
+    position && i === path.length - 1
+      ? placeLine([...seg.map((p): LatLng => [p[0], p[1]]), [position.lat, position.lon]])
+      : placedSegment(seg),
+  );
+}
+
 /** A SimBrief route's fixes placed fix to fix. */
 // @spec SB-ROUTE-003
 export function routeLine(fixes: OfpFix[]): LatLng[] {

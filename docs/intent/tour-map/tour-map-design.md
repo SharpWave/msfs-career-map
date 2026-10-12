@@ -38,7 +38,8 @@ agree.
 
 **World copies.** The map wraps. The basemap repeats on every world copy, and so does every layer
 drawn over it: hop paths and chevrons, airport dots, parked markers, the planner's ring and
-candidates, SimBrief routes, the live aircraft and its track, hazard areas and night shading. Each
+candidates, SimBrief routes, the live aircraft, its track and the casual path (live-tracking),
+hazard areas and night shading. Each
 shape is placed once, around its own longitude, and drawn again shifted by every whole turn of
 360° that brings any part of it into a world copy in view. Two copies of a region in view therefore
 always show the same things, and a shape that crosses the 180° meridian reads as one continuous
@@ -285,7 +286,7 @@ served; when all three fail, the previous set is served if there is one.
    to five world copies and a 3840 px one up to seven, and every layer, several thousand planner
    candidates included, is drawn on each.
 2. **Zoom to a long great circle** uses only its endpoints, so a poleward arc can be clipped
-   ([paths.ts:278](../../../src/client/paths.ts#L278)).
+   ([paths.ts:297](../../../src/client/paths.ts#L297)).
 3. **Partial hazard outages are not shown** — the toolbar says "N areas" even when one or two of the
    three sources failed; only a failed fetch shows "hazards unavailable"
    ([MapToolbar.tsx:60-64](../../../src/client/components/MapToolbar.tsx#L60-L64)).
@@ -315,7 +316,7 @@ served; when all three fail, the previous set is served if there is one.
   [src/client/icons.ts](../../../src/client/icons.ts) (`shade`, `hopStroke`),
   [src/client/App.tsx](../../../src/client/App.tsx) (selection, focus (`requestFocus`), basemap and
   overlay preferences, URL view options), [src/server/routes.ts](../../../src/server/routes.ts)
-  (`/state` 797-811, `/hazards` 771)
+  (`/state` 826-840, `/hazards` 800)
 - External: Esri ArcGIS Online and OpenStreetMap tiles; aviationweather.gov G-AIRMET / AIRMET-SIGMET
   / ISIGMET APIs
 - Hosted layers: planner (ring, candidates, candidate popup), live-tracking (`LiveLayer`), simbrief

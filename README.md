@@ -78,6 +78,13 @@ picks the basemap, night shading and weather hazards; **Fit all** zooms to every
   reports a bogus position there). Tracked hops are drawn with their real path (hover shows the
   distance flown) instead of a great circle, still tied to the airport dots at both ends.
   `npm run sim-probe` prints what the sim reports, for checking the connection.
+- **Casual mode**: for flying that is not part of the career, slide the **Casual** switch on the
+  live card (it sits in the folded strip too, so you can always see it is on). The path you fly
+  is drawn dashed behind the aircraft and nothing is logged: no legs, no pending legs, no fleet
+  aircraft needed. The path is kept only while the app runs, split wherever you slew, load a new
+  flight or reconnect; **Clear** starts it afresh and switching casual mode off throws it away.
+  Switching on mid-flight in a fleet aircraft asks first, since that leg will not be logged; a
+  leg already landed is logged as usual. The app always starts with casual mode off.
 - **Landing rate**: a few variables are watched every frame, so the moment the wheels touch the
   tracker records the descent rate on the last airborne frame, the peak G over the next second,
   the touchdown airspeed, pitch and bank, and the sim's own touchdown velocity for comparison
@@ -215,14 +222,16 @@ All JSON, under `/api`:
 | GET | `/terrain?from=lat,lon&to=lat,lon` | Terrain profile along a leg with a suggested minimum altitude |
 | GET | `/plan?aircraft_id=&max_minutes=` | Airports in range of where the aircraft is parked; optional `types=`, `paved=1`, `min_runway_ft=`, `from=`, `cruise_alt_ft=`, `limit=` |
 | GET | `/tracker` | Live tracker status: connection, sim aircraft, bound fleet row, phase, position, leg, pending leg |
-| GET | `/tracker/events` | Server-sent events: `status`, `track`, `point`, `hop`, `pending` |
+| GET | `/tracker/events` | Server-sent events: `status`, `track`, `point`, `path`, `path-point`, `hop`, `pending` |
 | POST | `/tracker/bind` | Bind the sim aircraft being flown to a fleet row: `{ aircraft_id }` |
 | POST | `/tracker/pending` | Log the pending leg, supplying any of `{ aircraft_id, origin, dest }` it lacked |
 | DELETE | `/tracker/pending` | Discard the pending leg |
 | POST | `/tracker/complete` | Log the landed leg now, without waiting for the 30 s stop timer (frozen or quit sim) |
 | DELETE | `/tracker/leg` | Discard the leg being flown |
+| PUT | `/tracker/casual` | Switch casual mode: `{ on, drop_leg? }`; 409 with the leg's details while a fleet aircraft's leg is airborne, unless `drop_leg` |
+| DELETE | `/tracker/path` | Clear the casual path |
 | POST | `/tracker/sample` | Feed one synthetic position sample (only with `TRACKER_FAKE=1`) |
-| POST/DELETE | `/tracker/briefing` | Attach your latest SimBrief OFP to the flight being flown (or the next one) / detach it |
+| POST/DELETE | `/tracker/briefing` | Attach your latest SimBrief OFP to the flight being flown (or the next one; 409 in casual mode) / detach it |
 | GET/PUT | `/settings` | `{ simbrief_username }` |
 | GET | `/simbrief/latest` | Preview your latest SimBrief OFP without storing it; optional `?username=` |
 | GET | `/briefings/:id` | A stored briefing: summary, fixes, OFP text as HTML |

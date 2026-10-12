@@ -21,7 +21,7 @@ This segment owns:
 - the block-time model and its defaults ([performance.ts](../../../src/server/performance.ts));
 - the candidate search — origin, range, the hard filters (airport type, runway length, paved,
   field elevation against ceiling and oxygen), timing, ordering and the result cap
-  (`GET /api/plan`, [routes.ts:694-766](../../../src/server/routes.ts#L694-L766);
+  (`GET /api/plan`, [routes.ts:723-795](../../../src/server/routes.ts#L723-L795);
   `planCandidates`, [airports.ts:491-551](../../../src/server/airports.ts#L491-L551));
 - the live checks — fetching METARs for candidates and flagging IFR, crosswind and darkness
   ([constraints.ts](../../../src/client/constraints.ts), [App.tsx:91-142](../../../src/client/App.tsx#L91-L142));
@@ -75,7 +75,7 @@ of it. The result also reports the naive range, cruise speed × time, for compar
 
 ## Finding Candidates
 
-`GET /api/plan` ([routes.ts:701-766](../../../src/server/routes.ts#L701-L766)):
+`GET /api/plan` ([routes.ts:730-795](../../../src/server/routes.ts#L730-L795)):
 
 | Parameter | Meaning | Rules |
 |---|---|---|
@@ -117,7 +117,7 @@ candidate carries the runway summary but not its runway list, to keep large resu
 `total` is meant to count every airport that passed. Today the search keeps only the nearest
 2 × `limit` airports in the 1.1 × radius before timing them, so in a very dense search `total`
 stops at that many and understates the count
-([routes.ts:733-746](../../../src/server/routes.ts#L733-L746)).
+([routes.ts:762-775](../../../src/server/routes.ts#L762-L775)).
 
 ## Live Checks: Weather and Darkness
 
@@ -154,7 +154,7 @@ are dropped from the list and faded on the map; they stay hoverable so the reaso
 ## Terrain Along a Leg
 
 Opening a candidate's popup checks the terrain on the direct leg from the plan's origin
-(`GET /api/terrain?from=lat,lon&to=lat,lon[&n=24]`, [routes.ts:777-793](../../../src/server/routes.ts#L777-L793)).
+(`GET /api/terrain?from=lat,lon&to=lat,lon[&n=24]`, [routes.ts:806-822](../../../src/server/routes.ts#L806-L822)).
 
 - **Samples**: `n` + 1 points (`n` 4–99, default 24) evenly spaced along the great circle, with
   elevations from Open-Meteo's API (Copernicus DEM, 90 m); the sea counts as 0 ft
@@ -280,7 +280,7 @@ meridian from the origin sits beside the ring (MAP-GEO-013, MAP-GEO-014).
 ### Deferred
 
 1. **Result count stops early in dense searches** — `total` counts only the nearest 2 × `limit`
-   airports searched ([routes.ts:733-746](../../../src/server/routes.ts#L733-L746)).
+   airports searched ([routes.ts:762-775](../../../src/server/routes.ts#L762-L775)).
 2. **Stale cruise-altitude label** — "also sent to SimBrief" ([Planner.tsx:196](../../../src/client/components/Planner.tsx#L196)).
 3. **Oxygen altitude** is 12,000 ft in the code, not 12,500 ft ([routes.ts:153](../../../src/server/routes.ts#L153),
    [Planner.tsx:199-227](../../../src/client/components/Planner.tsx#L199-L227)).
@@ -303,7 +303,7 @@ meridian from the origin sits beside the ring (MAP-GEO-013, MAP-GEO-014).
 10. **A plan outlives logbook changes** — deleting or reordering hops, or deleting the planning
     aircraft, leaves the result on the map from the old origin; only logging a hop clears it.
 11. **Rounding before the time check** — estimates are rounded to the minute before being compared
-    with the maximum, so a leg up to 30 s over is kept ([routes.ts:743-744](../../../src/server/routes.ts#L743-L744)).
+    with the maximum, so a leg up to 30 s over is kept ([routes.ts:772-773](../../../src/server/routes.ts#L772-L773)).
 12. **Terrain cache has no bound** — it grows for the life of the server process ([terrain.ts:10](../../../src/server/terrain.ts#L10)).
 
 ## References

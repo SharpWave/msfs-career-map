@@ -27,7 +27,7 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
 
 ### Code
 - src/server/performance.ts
-- src/server/routes.ts — limits (150-153), `maxFieldElevation` (214-229), `/plan` (694-766), `/terrain` (773-793)
+- src/server/routes.ts — limits (150-153), `maxFieldElevation` (214-229), `/plan` (723-795), `/terrain` (802-822)
 - src/server/airports.ts — `planCandidates`, `distanceNm`, `bearingDeg` (473-551)
 - src/server/terrain.ts
 - src/client/constraints.ts
@@ -66,7 +66,7 @@ is parked, and show which of them live weather or darkness rules out.
 
 ## Key Findings
 
-1. **`total` understates dense searches** — routes.ts:733-746 counts only the nearest 2 × limit.
+1. **`total` understates dense searches** — routes.ts:762-775 counts only the nearest 2 × limit.
 2. **Stale label** — Planner.tsx:196 says cruise altitude is "also sent to SimBrief"; it no longer is.
 3. **Short legs to a higher field are timed too short** — performance.ts:57-61.
 4. **Planner limits restated in the browser** — Planner.tsx:199-229 hard-codes 2,000 / 10,000 / 12,000 ft.
@@ -82,7 +82,7 @@ is parked, and show which of them live weather or darkness rules out.
 1. Use a 12,500 ft oxygen altitude everywhere, from one server constant (PLAN-FIND-006,
    PLAN-TERR-007, PLAN-FORM-007, PLAN-FORM-009).
 2. Look up METARs for small candidates with a four-letter station (PLAN-FLAG-001, PLAN-LIST-003).
-3. Count every passing airport in the result total (PLAN-FIND-010; routes.ts:733-746).
+3. Count every passing airport in the result total (PLAN-FIND-010; routes.ts:762-775).
 
 ### Nice to Have
 4. Drop "also sent to SimBrief" from the cruise-altitude label (PLAN-FORM-006).

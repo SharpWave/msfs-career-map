@@ -22,7 +22,7 @@ This segment owns:
 - the alias setting, fetching and parsing the latest OFP ([ofp.ts](../../../src/server/ofp.ts));
 - briefings: archiving a plan whole, the current plan for the flight being flown, attaching and
   removing plans on logged hops, and when an archived plan is deleted
-  ([routes.ts:562-692](../../../src/server/routes.ts#L562-L692));
+  ([routes.ts:589-721](../../../src/server/routes.ts#L589-L721));
 - the SimBrief controls in the live card, the SimBrief card in the flight panel, and the route on
   the map ([LivePanel.tsx](../../../src/client/components/LivePanel.tsx) `SimbriefControls`,
   [FlightPanel.tsx](../../../src/client/components/FlightPanel.tsx) `BriefingCard`,
@@ -69,7 +69,7 @@ The aircraft form also carries its own shorter list for when the server cannot b
 
 **Alias.** `simbrief_username` in the `settings` table — a Navigraph alias or a numeric pilot ID.
 `GET /api/settings` reads it; `PUT /api/settings` sets it, a blank value clearing it
-([routes.ts:562-586](../../../src/server/routes.ts#L562-L586)).
+([routes.ts:589-613](../../../src/server/routes.ts#L589-L613)).
 
 **Fetching** ([ofp.ts:65-84](../../../src/server/ofp.ts#L65-L84)). The latest OFP comes from
 `xml.fetcher.php?userid=` (all digits) or `?username=`, with `json=v2`, and a 20 s timeout.
@@ -98,13 +98,16 @@ latest plan has changed in between, the request is refused (`409`) and the newer
 for confirmation instead. **Cancel** stores nothing.
 
 Today **Use this plan** in the live card fetches the latest again and stores whatever it gets
-([LivePanel.tsx:58-62](../../../src/client/components/LivePanel.tsx#L58-L62), [routes.ts:647-653](../../../src/server/routes.ts#L647-L653)),
+([LivePanel.tsx:71-75](../../../src/client/components/LivePanel.tsx#L71-L75), [routes.ts:675-682](../../../src/server/routes.ts#L675-L682)),
 and the flight panel attaches the latest plan with no preview at all.
 
 **For the flight being flown** (live card). A confirmed plan becomes the tracker's current plan
 (`POST /api/tracker/briefing`); **Remove** clears it (`DELETE /api/tracker/briefing`). The current
 plan goes with the next leg the tracker logs or keeps as pending (LIVE-HOP-001/002). Replacing or
-removing a current plan that no hop uses deletes it.
+removing a current plan that no hop uses deletes it. While the tracker is in casual mode
+(live-tracking) no plan can be made current: the card offers no import, and
+`POST /api/tracker/briefing` is refused with 409. A plan made current before casual mode was
+switched on stays, with **Remove**, and goes with the next leg logged after it.
 
 **For a logged hop** (flight panel). **Attach my latest SimBrief plan** previews, and a confirmed
 plan is linked to the hop (`POST /api/hops/:id/briefing`); **Remove** deletes it after "Remove the
@@ -113,7 +116,7 @@ SimBrief plan from this hop?" (`DELETE /api/hops/:id/briefing`).
 Attaching to a hop that already has a plan is meant to replace it. Today the old plan stays in the
 table still pointing at the hop, and `GET /api/hops/:id/briefing`, which falls back to any plan
 pointing at the hop, returns it again once the new one is removed
-([routes.ts:666-687](../../../src/server/routes.ts#L666-L687)).
+([routes.ts:695-716](../../../src/server/routes.ts#L695-L716)).
 
 **A pending leg** carries its plan until it is logged, or deletes it when discarded and no hop uses
 it (LIVE-HOP-005).
@@ -127,7 +130,7 @@ with its hop link cleared.
 | Endpoint | Does | Errors |
 |---|---|---|
 | `GET /api/simbrief/latest[?username=]` | Latest plan's summary, not stored, with whether it has OFP text | 400 no alias; 502 SimBrief's error |
-| `POST /api/tracker/briefing` | `{ofp_id}`: store the previewed plan as the current plan → tracker status | as above; 409 latest plan changed |
+| `POST /api/tracker/briefing` | `{ofp_id}`: store the previewed plan as the current plan → tracker status | as above; 409 latest plan changed; 409 casual mode is on |
 | `DELETE /api/tracker/briefing` | Clear the current plan | |
 | `GET /api/briefings/:id` | A stored plan: summary, OFP text, hop and aircraft | 404 |
 | `GET /api/hops/:id/briefing` | The plan the hop links to | 404 no hop or no plan |
@@ -138,8 +141,9 @@ The `ofp_id` checks and the `409` are intended; today both `POST`s store whateve
 
 ## SimBrief Controls in the Live Card
 
-([LivePanel.tsx:29-148](../../../src/client/components/LivePanel.tsx#L29-L148)), shown while the sim is
-connected with an aircraft:
+([LivePanel.tsx:29-161](../../../src/client/components/LivePanel.tsx#L29-L161)), shown while the sim is
+connected with an aircraft. The first three states are for importing a plan, and appear only while
+casual mode is off; in casual mode the controls show only a current plan, if there is one.
 
 - **No alias** (or changing it): a "SimBrief alias or pilot ID" field with **Save** (Enter saves)
   and **Cancel** when changing.
@@ -208,9 +212,9 @@ unstyled, and with neither callsign nor airline the Flight line is blank rather 
 ### Deferred
 
 1. **Registration test too loose** — any short word is sent as `reg` ([simbrief.ts:15-18](../../../src/client/simbrief.ts#L15-L18)).
-2. **Use this plan fetches again** ([LivePanel.tsx:58-62](../../../src/client/components/LivePanel.tsx#L58-L62), [routes.ts:647-653](../../../src/server/routes.ts#L647-L653)).
+2. **Use this plan fetches again** ([LivePanel.tsx:71-75](../../../src/client/components/LivePanel.tsx#L71-L75), [routes.ts:675-682](../../../src/server/routes.ts#L675-L682)).
 3. **Re-attaching keeps the old plan** pointing at the hop, where `GET /api/hops/:id/briefing` can
-   find it again ([routes.ts:666-687](../../../src/server/routes.ts#L666-L687)).
+   find it again ([routes.ts:695-716](../../../src/server/routes.ts#L695-L716)).
 4. **Plans of deleted hops** stay in the table with nothing pointing to them.
 5. **Attaching to a logged hop has no preview** — it takes whatever plan is latest
    ([FlightPanel.tsx:234-246](../../../src/client/components/FlightPanel.tsx#L234-L246)).
@@ -226,7 +230,7 @@ unstyled, and with neither callsign nor airline the Flight line is blank rather 
 
 - Code: [src/client/simbrief.ts](../../../src/client/simbrief.ts), [src/server/simbrief.ts](../../../src/server/simbrief.ts),
   [src/server/ofp.ts](../../../src/server/ofp.ts), [src/server/routes.ts](../../../src/server/routes.ts)
-  (settings and briefings 562-692), [src/server/db.ts](../../../src/server/db.ts) (`briefings`,
+  (settings and briefings 589-721), [src/server/db.ts](../../../src/server/db.ts) (`briefings`,
   `settings`, `kv_cache`), [src/client/components/LivePanel.tsx](../../../src/client/components/LivePanel.tsx)
   (`SimbriefControls`), [src/client/components/FlightPanel.tsx](../../../src/client/components/FlightPanel.tsx)
   (`BriefingCard`), [src/client/components/BriefingLayer.tsx](../../../src/client/components/BriefingLayer.tsx),

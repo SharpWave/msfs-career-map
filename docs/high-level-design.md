@@ -20,7 +20,10 @@ A local, map-first logbook that the sim fills in by itself.
 - **The sim logs the flights.** With MSFS running, a takeoff and a landing become a hop on their
   own, with the flown track, a rated landing, a flight profile and fuel figures. When the app cannot
   tell something (which aircraft, which airport), it keeps the leg for the user to finish rather
-  than guessing. Hops can always be logged and corrected by hand too.
+  than guessing. Hops can always be logged and corrected by hand too. For flying that is not part
+  of the career, a **casual mode** switched on from the live card turns logging off: the path flown
+  is drawn behind the aircraft for as long as the server runs, never stored and never tied to a
+  fleet aircraft.
 - **Planning hands off.** The app answers "where can this aircraft go next within N minutes?", with
   live weather and darkness flagged; SimBrief does the real flight planning, and its plan comes back
   to be kept with the flight.
@@ -35,8 +38,9 @@ flights afterwards. They are comfortable starting a local Node app and occasiona
 
 ## Goals
 
-- Every flight flown with the sim connected ends up in the logbook, or waiting for the pilot to
-  finish or discard it — never silently lost, not even across a server restart or a sim crash.
+- Every flight flown with the sim connected, outside casual mode, ends up in the logbook, or
+  waiting for the pilot to finish or discard it — never silently lost, not even across a server
+  restart or a sim crash.
 - At a glance: where every aircraft is parked, the tour each has flown, and when each airport was
   visited.
 - Choosing the next hop takes one search, with unusable airports filtered and doubtful ones flagged.
@@ -108,7 +112,7 @@ under `docs/arrows/`.
 | [airports](intent/airports/airports-design.md) | `APT` | OurAirports data and its monthly refresh, code lookup, nearest airport, the airport popup, METARs, Wikipedia |
 | [tour-map](intent/tour-map/tour-map-design.md) | `MAP` | The map: geometry and world copies, tours, airport dots, parked markers, highlight and zoom, night and hazard overlays |
 | [planner](intent/planner/planner-design.md) | `PLAN` | Block-time model, reachable-airport search, weather and darkness flags, terrain check, the planner card and layers |
-| [live-tracking](intent/live-tracking/live-tracking-design.md) | `LIVE` | Sim link, leg detection, airport naming, landings and ratings, logging and pending legs, the live card and layer |
+| [live-tracking](intent/live-tracking/live-tracking-design.md) | `LIVE` | Sim link, leg detection, airport naming, landings and ratings, logging and pending legs, casual mode, the live card and layer |
 | [flight-panel](intent/flight-panel/flight-panel-design.md) | `PANEL` | One flight under the map: profile chart, landing and flight cards, how ratings look |
 | [simbrief](intent/simbrief/simbrief-design.md) | `SB` | Dispatch links, type list, importing and keeping plans, the SimBrief card and route |
 | [app-shell](intent/app-shell/app-shell-design.md) | `APP` | Server, data locations, API conventions, page layout, shared formatting, scripts and launcher |
@@ -167,6 +171,7 @@ app-shell sits under everything and is left out.
 | Unit of the career | Aircraft + livery, hops chained per aircraft, parked position derived | Free-standing flights; a stored "current location" | Matches how the career is flown and how add-ons persist wear; a derived position cannot drift. |
 | Tracker design | A sim-independent state machine fed samples, checkpointed every few seconds | Logic inside the SimConnect callbacks | Testable with a synthetic feed; survives restarts. |
 | When unsure | Keep the leg as pending with the reason; the pilot finishes or discards it | Guess; drop | Nothing guessed into the logbook, nothing flown lost. |
+| Flying outside the career | A casual mode on the tracker: no legs detected, the path flown kept in server memory only and drawn live | Turn tracking off (`TRACKER=0`); a throwaway fleet aircraft; discard each leg by hand; keep the path in the browser; discard each finished leg automatically | One switch, nothing written to the logbook or database. Kept by the server, the path survives a page reload and looks the same in every tab; held in memory, it ends with the server. Discarding finished legs would lose the path at every full stop. |
 | Data sources | Free, keyless public sources, cached locally | Commercial or keyed APIs | No sign-ups or keys for a local hobby tool. |
 | Planning | Choose the destination here; plan the flight in SimBrief and import the plan | Build route, wind and fuel planning in | SimBrief already does it well. |
 | Spec IDs | `PREFIX-FACET-NNN`, one prefix per segment | Global numbering | IDs say where they belong and survive reordering. |
@@ -176,8 +181,10 @@ app-shell sits under everything and is left out.
 
 The project is broken when any of these happens:
 
-- A flight flown with the sim connected appears neither as a hop nor as a pending leg.
+- A flight flown with the sim connected and casual mode off appears neither as a hop nor as a
+  pending leg.
 - A server restart or a sim crash in flight loses the leg being flown.
+- Switching to casual mode drops a fleet aircraft's leg in progress without the pilot confirming it.
 - The map shows an aircraft parked anywhere but its last hop's destination, a hop's path not
   meeting its airport dots, or two copies of the same region in view showing different paths, dots
   or layers.

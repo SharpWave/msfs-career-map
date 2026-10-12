@@ -2,13 +2,14 @@
 
 From the sim to the logbook: the SimConnect link and touchdown watcher, the leg state machine,
 airport naming, landing measurement and rating, the recorded track and statistics, binding,
-logging and pending legs, checkpointing, the tracker API and event stream, the live card and
+logging and pending legs, checkpointing, casual mode and its path, the tracker API and event stream, the live card and
 map layer, and the `sim-fake` / `sim-probe` tools.
 
 ## Status
 
 **MAPPED** — mapped 2026-10-09 from `b408604`; not yet audited. Brownfield skeleton: the LLD
 describes current behaviour with partly inferred rationale; specs drafted; first tests in place.
+Casual mode (LIVE-CASUAL) was designed and built test-first on 2026-10-12.
 
 ## References
 
@@ -19,22 +20,28 @@ describes current behaviour with partly inferred rationale; specs drafted; first
 - docs/intent/live-tracking/live-tracking-design.md
 
 ### EARS
-- docs/intent/live-tracking/live-tracking-specs.md (72 specs)
+- docs/intent/live-tracking/live-tracking-specs.md (94 specs)
 
 ### Tests
 - tests/live-tracking/sim-link.test.ts — LIVE-LEG-012, LIVE-LINK-005, LIVE-LINK-009 (the link driven through `fake-sim.ts`, a stand-in node-simconnect)
 - tests/live-tracking/restored-leg.test.ts — LIVE-LEG-012 (a checkpointed leg survives a restart and reconnect)
-- tests/live-tracking/live-card.test.tsx — LIVE-CARD-001, LIVE-CARD-011
+- tests/live-tracking/live-card.test.tsx — LIVE-CARD-001, 003, 006, 011, 012, 013, 014
+- tests/live-tracking/casual.test.ts — LIVE-CASUAL-001 to 012; LIVE-API-010, 011, 012; LIVE-SAVE-001; LIVE-LEG-002, 003 (the tracker driven by synthetic samples)
+- tests/live-tracking/casual-api.test.ts — LIVE-API-008, 009, 011; LIVE-CASUAL-006, 009, 010 (against a running test server, including the event stream)
+- tests/live-tracking/casual-shapes.test.ts — LIVE-LAYER-004 (placing the casual path)
+- tests/live-tracking/use-tracker.test.tsx — LIVE-API-005, 011 (the page's event-stream hook)
+- tests/e2e/casual.spec.ts — LIVE-CARD-012, LIVE-CASUAL-001, 008, LIVE-LAYER-003, 004 (a casual flight in the browser; the path on every world copy)
 - tests/tour-map/copies.test.ts, tests/e2e/world-copies.spec.ts — LIVE-LAYER-002 (the live aircraft and track on every world copy in view)
 
 ### Code
 - src/server/simconnect.ts
 - src/server/tracker.ts
 - src/server/index.ts — `startTracking`
-- src/server/routes.ts — live tracker (445-560)
+- src/server/routes.ts — live tracker (445-587)
 - src/client/tracker.ts — `useTracker` (`parseTrack` is shared)
 - src/client/components/LivePanel.tsx — all but `SimbriefControls` (simbrief)
 - src/client/components/LiveLayer.tsx
+- src/client/paths.ts — `casualShapes`
 - src/client/App.tsx — tracker stream, logged-hop handling, toast, zoom to the live aircraft
 - scripts/sim-fake.ts, scripts/sim-probe.ts
 
@@ -48,8 +55,9 @@ without the user typing anything when the tracker can work it out.
 2. `Tracker.feed` — phases, takeoff / landing / stop, interruptions
 3. `complete` / `insertHop` / pending leg — logging or parking a finished leg
 4. Checkpoint — `tracker_state` row, restored at startup
-5. `/api/tracker*` + event stream
-6. `LivePanel`, `LiveLayer`, App's tracker handling
+5. Casual mode — `setCasual`, `recordCasual`, `clearPath`; the path held in memory only
+6. `/api/tracker*` + event stream
+7. `LivePanel`, `LiveLayer`, App's tracker handling
 
 ## Spec Coverage
 
@@ -63,19 +71,20 @@ without the user typing anything when the tracker can work it out.
 | Binding | LIVE-BIND-001 to 003 | 2 | 0 | 1 |
 | Logging and pending legs | LIVE-HOP-001 to 006 | 5 | 0 | 1 |
 | Checkpointing | LIVE-SAVE-001 to 003 | 3 | 0 | 0 |
-| API and event stream | LIVE-API-001 to 007 | 4 | 0 | 3 |
-| Live card | LIVE-CARD-001 to 010 | 8 | 0 | 2 |
-| Live aircraft on the map | LIVE-LAYER-001 to 003 | 3 | 0 | 0 |
+| Casual mode | LIVE-CASUAL-001 to 012 | 12 | 0 | 0 |
+| API and event stream | LIVE-API-001 to 012 | 9 | 0 | 3 |
+| Live card | LIVE-CARD-001 to 014 | 12 | 0 | 2 |
+| Live aircraft on the map | LIVE-LAYER-001 to 004 | 4 | 0 | 0 |
 | Test tools | LIVE-TOOL-001 to 004 | 3 | 0 | 1 |
 
-**Summary:** 56 of 72 specs implemented; 16 gaps; none deferred. 4 specs have tests.
+**Summary:** 78 of 94 specs implemented; 16 gaps; none deferred. 34 specs have tests.
 
 ## Key Findings
 
 1. **A landed leg can be lost or misnamed** when a new flight loads or the position jumps before the
-   stop timer runs (tracker.ts:425-427, 545-556).
-2. **A second pending leg replaces the first** and orphans its briefing (tracker.ts:776).
-3. **Legs of 30–59 s are kept** despite the one-minute minimum (tracker.ts:729-730).
+   stop timer runs (tracker.ts:468-471, 652-664).
+2. **A second pending leg replaces the first** and orphans its briefing (tracker.ts:913).
+3. **Legs of 30–59 s are kept** despite the one-minute minimum (tracker.ts:866-867).
 4. **`sim-fake` misreads arguments** when options come first (sim-fake.ts:20).
 
 ## Work Required

@@ -25,8 +25,10 @@ This segment owns:
 - the tracker — leg phases, takeoff and stop detection, airport naming, touch-and-go, landing
   measurement and rating, the recorded track and flight statistics, checkpointing;
 - binding a sim aircraft to a fleet row, and logging or parking a finished leg;
+- casual mode — flying with the path drawn on the map and nothing logged;
 - the tracker API and event stream (`/api/tracker*`);
-- the **Live from the sim** card, the live aircraft and track on the map, and the "Logged" toast;
+- the **Live from the sim** card, the live aircraft, track and casual path on the map, and the
+  "Logged" toast;
 - the test tools `sim-fake` and `sim-probe`.
 
 It relies on: fleet for the sim-binding fields and create-from-sim (FLEET-SIM); airports for
@@ -72,12 +74,13 @@ LOG-REC-002). Today only wall-clock times are recorded.
 
 ## Leg Detection
 
-The tracker ([tracker.ts:520-630](../../../src/server/tracker.ts#L520-L630)) moves through
+While casual mode is off (below), the tracker
+([tracker.ts:626-747](../../../src/server/tracker.ts#L626-L747)) moves through
 **idle → ground → airborne → landed**, and back to ground when the leg is closed.
 
 **Samples it ignores.** While the sim is paused, in menus or loading, or the position is within
 0.05° of latitude 0, longitude 0 (where the sim parks the aircraft in its menus), samples change
-nothing ([tracker.ts:260-268](../../../src/server/tracker.ts#L260-L268)).
+nothing ([tracker.ts:286-294](../../../src/server/tracker.ts#L286-L294)).
 
 **Takeoff.** On the ground, the on-ground flag must stay off for 5 s before a takeoff counts, so
 runway bounces do not start legs. The leg's departure time is the first airborne sample; its
@@ -103,7 +106,7 @@ the same leg continues and the next touchdown replaces the touchdown time.
 destination is the airport nearest the stop position, within 5 nm. **Log now** closes a landed
 leg at once, for a sim that froze or was left after touchdown.
 
-**Interruptions** ([tracker.ts:396-427](../../../src/server/tracker.ts#L396-L427), [527-556](../../../src/server/tracker.ts#L527-L556)):
+**Interruptions** ([tracker.ts:438-471](../../../src/server/tracker.ts#L438-L471), [633-664](../../../src/server/tracker.ts#L633-L664)):
 
 | Event | Leg airborne | Leg landed |
 |---|---|---|
@@ -128,7 +131,7 @@ after a server restart nor one started in the air is mistaken for an aircraft ch
 
 **Too short.** A leg is meant to be dropped when its flight time (below) is under a minute. Today
 the check uses the rounded duration, so legs of 30–59 s are kept
-([tracker.ts:729-734](../../../src/server/tracker.ts#L729-L734)). A dropped leg leaves the current
+([tracker.ts:866-871](../../../src/server/tracker.ts#L866-L871)). A dropped leg leaves the current
 SimBrief briefing for the next leg.
 
 **Pauses.** Time the sim spends paused does not count: not toward the 5 s takeoff confirmation or
@@ -139,7 +142,7 @@ counts in full and a stop timer running before a pause can fire on the first sam
 
 Each touchdown in a leg becomes a landing: time, descent rate (fpm, positive down), peak G,
 airspeed, the sim's own touchdown rate, pitch, bank, position, rating and source
-([tracker.ts:668-710](../../../src/server/tracker.ts#L668-L710)).
+([tracker.ts:805-847](../../../src/server/tracker.ts#L805-L847)).
 
 - **Provisional** ("samples"): when the once-a-second data shows the wheels down, the descent rate
   and airspeed come from the last airborne sample and G is unknown.
@@ -147,7 +150,7 @@ airspeed, the sim's own touchdown rate, pitch, bank, position, rating and source
   landing from within 6 s, or is added as a new landing. With the fake feed the measured numbers
   come from the script.
 
-**Rating** ([tracker.ts:50-66](../../../src/server/tracker.ts#L50-L66)) — the worse of the two
+**Rating** ([tracker.ts:55-71](../../../src/server/tracker.ts#L55-L71)) — the worse of the two
 classes:
 
 | Rating | Descent rate up to | Peak G below |
@@ -164,25 +167,25 @@ Without a G the rating comes from the descent rate alone. How a rating is drawn 
 
 - **Track**: a point at most every 5 s while airborne or landed, plus the stop point, each
   `[lat, lon, alt_ft, unix_seconds, gs_kts, vs_fpm, ias_kts, fuel_lb]` (logbook's track format)
-  ([tracker.ts:271-280](../../../src/server/tracker.ts#L271-L280), [658-666](../../../src/server/tracker.ts#L658-L666)).
+  ([tracker.ts:297-306](../../../src/server/tracker.ts#L297-L306), [775-783](../../../src/server/tracker.ts#L775-L783)).
 - **Times**: departure at takeoff and arrival at the last touchdown, on the real-world clock (and,
   intended, the sim's); flight time as the whole minutes between them less any time paused. For a
   leg kept after a disconnect in flight, the arrival is the last sample.
-- **Statistics** ([tracker.ts:736-746](../../../src/server/tracker.ts#L736-L746)): fuel at takeoff and
+- **Statistics** ([tracker.ts:873-883](../../../src/server/tracker.ts#L873-L883)): fuel at takeoff and
   at the stop, fuel used, weight at takeoff and at the stop, highest altitude, highest ground
   speed, and distance flown along the track. A fuel or weight reading of zero is stored as unknown.
 - **Landings** (above) and the **briefing** current when the leg closes.
 
 ## Binding and Logging
 
-**Binding** ([tracker.ts:220-224](../../../src/server/tracker.ts#L220-L224), [432-442](../../../src/server/tracker.ts#L432-L442),
-[634-637](../../../src/server/tracker.ts#L634-L637)). The tracker finds the fleet aircraft whose sim
+**Binding** ([tracker.ts:245-249](../../../src/server/tracker.ts#L245-L249), [476-486](../../../src/server/tracker.ts#L476-L486),
+[751-754](../../../src/server/tracker.ts#L751-L754)). The tracker finds the fleet aircraft whose sim
 title matches and whose sim livery matches exactly or is blank ("any livery"), preferring an exact
 livery, then the oldest row. Binding from the live card writes the current title and livery onto
 the chosen aircraft, so the pairing is remembered, and fills in the aircraft of every waiting leg
 flown in that sim aircraft and livery that has none.
 
-**Logging** ([tracker.ts:713-781](../../../src/server/tracker.ts#L713-L781)). A closed leg is logged
+**Logging** ([tracker.ts:850-918](../../../src/server/tracker.ts#L850-L918)). A closed leg is logged
 straight into the logbook, at the end of the aircraft's sequence, when the sim aircraft is bound
 to an existing fleet aircraft and both airports are known. The current SimBrief briefing goes with
 it. Otherwise it becomes a **pending leg**, with the reason: no fleet aircraft bound (including one
@@ -192,17 +195,78 @@ and logs it, or discards it.
 
 **Pending legs** wait in a list, oldest first, each logged or discarded on its own; a new one never
 displaces another. Today only one can wait: a second replaces the first, losing it and leaving its
-briefing archived but attached to nothing ([tracker.ts:776](../../../src/server/tracker.ts#L776)).
+briefing archived but attached to nothing ([tracker.ts:913](../../../src/server/tracker.ts#L913)).
 
-**Checkpointing** ([tracker.ts:215-256](../../../src/server/tracker.ts#L215-L256), [789-794](../../../src/server/tracker.ts#L789-L794)).
+**Checkpointing** ([tracker.ts:240-282](../../../src/server/tracker.ts#L240-L282), [926-931](../../../src/server/tracker.ts#L926-L931)).
 The whole tracker state — phase, sim aircraft, binding, the leg in progress, the pending legs, the
 current briefing, recent samples, timers and the last message — is saved to the single
 `tracker_state` row at most every 5 s and at once on every event, and reloaded at startup. A
 restored leg that began at the menu position is dropped; one saved by an older version gains the
-fields it lacks.
+fields it lacks. Casual mode and its path are not part of the saved state.
 
 **Leg in progress.** The tracker's status says whether a leg is being flown; the monthly airport
 refresh waits on it (airports, APT-DATA-004).
+
+## Casual Mode
+
+Casual mode is for flying outside the career — sightseeing, trying out an aircraft, a flight
+that belongs to no tour. The path flown is drawn behind the aircraft, and nothing is logged,
+stored or tied to a fleet aircraft. The pilot switches it on and off from the live card.
+
+**While it is on**, the tracker detects no legs: no takeoff, landing or stop, no landing measured
+or rated, no pending leg. A SimBrief plan already current stays for the next logged leg, and no new
+one can be imported (simbrief, SB-CUR-004). It holds the idle phase with no takeoff or stop timer
+running and no last ground or airborne sample, both in memory and in the checkpoint, and its
+status reports the idle phase. It still ignores the samples it always ignores (paused, in menus,
+the menu position), still follows the sim aircraft and looks up its binding — so switching off
+resumes with the right fleet aircraft — without calling an unbound aircraft out, and still reports
+the live position. Binding from the API works as usual; the card simply does not offer it. Pending
+legs already waiting stay, and can be logged or discarded as usual.
+
+**The path** is a list of segments, each a list of track points in the leg track's format. A
+sample the tracker takes becomes a point when the path is empty, after a break, or once at least
+5 s have passed since the path's last point — unless the aircraft is standing still, on the ground
+below 1 kt, so a sim left parked does not grow the path. A **break** — a position jump (more than
+50 nm plus 700 kt × the time since the last sample, the rule legs use), a new flight loaded, or the
+sim disconnecting — makes the next point begin a new segment. No line is therefore drawn across a
+slew, a new flight or a reconnect somewhere else. **Clear** on the card empties the path. The path
+lives in the server's memory only: it is not checkpointed and never written to the database. Its
+point count is the total over all segments.
+
+**Switching on** with no leg in progress starts an empty path. A takeoff still within its 5 s
+confirmation is not yet a leg; switching on simply stops it from becoming one. With a leg in
+progress:
+
+| Leg in progress | Switching on |
+|---|---|
+| Landed | The leg closes where the aircraft is and is logged, or kept as pending, as for any interruption of a landed leg; the path starts empty. A touchdown whose frame-rate figures have not arrived yet keeps its provisional landing, as with **Log now** |
+| Airborne, sim aircraft bound to a fleet aircraft that still exists | Only once the pilot confirms: the leg is dropped without logging, and its track becomes the path's first segment |
+| Airborne, otherwise | The leg is dropped without asking, and its track becomes the path's first segment |
+
+The server requires the confirmation: a request to switch on while a bound fleet aircraft's leg is
+airborne is refused with 409 unless it says to drop the leg, and the refusal names the fleet
+aircraft, the leg's origin and its takeoff time. The card then asks "NAME is flying a leg from
+ORIG. Switch to casual mode? The leg will not be logged." — or "NAME is flying a leg that started
+in the air." when the origin is unknown — and repeats the request with the drop if the pilot
+agrees. Because the server checks, a leg that took off between the card's last status and the
+click is protected too. Saying to drop the leg only ever drops an airborne leg: a leg that landed
+while the question was open is closed and logged like any landed leg.
+
+**Switching off** drops the path and resumes leg detection from the next sample, starting from the
+idle phase: on the ground the tracker waits for a takeoff; in the air it starts a leg with no
+departure (LIVE-LEG-003), which ends as a pending leg rather than going unrecorded.
+
+Asking for the state casual mode is already in changes nothing: the path, its start time and any
+leg in progress stay as they are. A second browser tab acting on a stale status therefore cannot
+reset the path.
+
+The tracker reports "Casual mode on: nothing is logged" — with "; dropped the leg from ORIG" when
+it dropped one — and "Casual mode off: takeoffs and landings are logged again".
+
+**Server start.** Casual mode is off whenever the server starts. A casual session left running
+across a restart therefore falls back to recording — at worst a pending leg to discard — rather
+than a career flight going unrecorded because casual mode was forgotten. While the server stays
+up, the card keeps the switch in view in every state (below) for the same reason.
 
 ## API and Event Stream
 
@@ -216,6 +280,8 @@ refresh waits on it (airports, APT-DATA-004).
 | DELETE | `/api/tracker/pending/:id` | Discard that pending leg | 404 unknown pending leg |
 | POST | `/api/tracker/complete` | Close the landed leg now (**Log now**) | 409 no leg, or not landed |
 | DELETE | `/api/tracker/leg` | Discard the leg being flown | |
+| PUT | `/api/tracker/casual` | `{on, drop_leg?}`: switch casual mode on or off → status; the state it is already in → status, unchanged | 400 `on` not true or false; 409 switching on while a bound fleet aircraft's leg is airborne and `drop_leg` is not true, with `{error, aircraft_id, name, origin, departed_at}` |
+| DELETE | `/api/tracker/path` | Clear the casual path → status | |
 | POST | `/api/tracker/sample` | Feed one synthetic sample | 403 unless `TRACKER_FAKE=1`; 400 a required number missing |
 
 The per-leg pending routes are intended; today `POST` and `DELETE /api/tracker/pending` act on the
@@ -227,13 +293,19 @@ supported; the sim aircraft (title, livery, ATC id) and the bound fleet aircraft
 latest position (altitude, ground speed, heading, vertical speed, airspeed, fuel, on ground,
 time); the leg (origin, departure, touchdown, point count, landings, and its statistics so far —
 fuel and weight at takeoff, fuel used, highest altitude and ground speed, distance flown — of
-which only fuel used and highest altitude are sent today); the pending legs, each with its id and without its track; the current briefing; the last
+which only fuel used and highest altitude are sent today); the pending legs, each with its id and without its track; the current briefing; casual
+mode — when it was switched on and the path's point count, or nothing while it is off; the last
 message and its time.
 
-**Event stream** ([routes.ts:449-469](../../../src/server/routes.ts#L449-L469)): on connect,
-`status` and the leg's full `track`; then `status` on every sample and change, `point` for each
-recorded point, `track` when a leg starts or ends, `hop` when a leg is logged, `pending` when one
-needs details, and a keep-alive every 25 s. The browser reconnects by itself and receives the
+**Event stream** ([routes.ts:449-472](../../../src/server/routes.ts#L449-L472)): on connect,
+`status`, the leg's full `track` and the casual `path`; then `status` on every sample and change,
+`point` for each recorded point, `track` when a leg starts or ends, `path` when casual mode
+switches, the path is cleared or a new segment begins, `path-point` for each point added to the
+last segment, `hop` when a leg is logged, `pending` when one needs details, and a keep-alive every
+25 s. `path` is the whole casual path as a list of segments of track points, empty while casual
+mode is off; sent for a new segment, it already holds that segment's first point. When switching
+on drops a leg, `track` (now empty) goes before `path` (now holding the leg's track) and `status`
+last. The browser reconnects by itself and receives the
 full state again ([client tracker.ts](../../../src/client/tracker.ts)).
 
 ## The Live Card
@@ -243,13 +315,20 @@ collapsible; open on a first visit, then as the user left it (app-shell).
 
 **Collapsed**, the card is a one-line status strip, so it can stay in view without taking room
 from the planner: the status pill; the live aircraft's altitude, ground speed and heading while the
-sim is connected and its position is known; and "Leg waiting to be logged" in amber while a leg
-waits. Clicking the strip
-opens the card. **Open**, it shows:
+sim is connected and its position is known; "Leg waiting to be logged" in amber while a leg
+waits; and the casual switch. Clicking the strip opens the card, except on the switch, which only
+switches. **Open**, it shows:
 
+- **Casual switch**, labelled "Casual", in the card's title row. Collapsed or open, the switch is in
+  view whenever the app server is reachable, whatever the sim is doing, so casual mode is never on
+  unseen; its label says what it is even when the pill reads "sim not running". On a narrow column
+  the strip's position readout gives way to it.
+  Switching it on asks for the confirmation above when the server calls for it; declining leaves
+  casual mode off and the leg flying.
 - **Status pill**: "no connection to the app server", "sim not running", "paused", "in menus",
-  "airborne", "landed", "on the ground" or "connected", colored by state — green for connected
-  and on the ground, blue for airborne and landed, amber for paused and in menus, plain otherwise.
+  "casual", "airborne", "landed", "on the ground" or "connected", colored by state — green for
+  connected and on the ground, blue for airborne and landed, amber for paused and in menus, violet
+  for casual, plain otherwise.
 - **Sim aircraft**: title ("(no title yet)" while blank), livery and ATC id.
 - **Fleet**: the bound aircraft, which highlights it on the map when clicked; or **Bind to…** with
   **Bind**, and **+ New** to create a fleet aircraft from what the sim reports (fleet).
@@ -265,6 +344,17 @@ opens the card. **Open**, it shows:
   prefilled with what is known; **Profile** to open it in the flight panel; **Log hop** and
   **Discard** (confirmed: "Its recorded track will be lost.").
 
+**In casual mode** the card leaves out the Fleet row and the Leg row, and adds:
+
+- "Casual mode: the path you fly is drawn on the map and nothing is logged. Switching casual mode
+  off, or stopping the app, clears it.", whether or not the sim is connected, in place of the
+  not-connected hint;
+- **Path**: the number of points and the time casual mode was switched on, with **Clear**.
+
+The sim aircraft, position, last message and pending legs show as usual. The SimBrief controls offer
+no import; they show only a plan made current before casual mode was switched on, with **Remove**
+(simbrief).
+
 When a leg is logged, the map and lists reload, planner results and any planner hand-off clear, and
 a toast "Logged ORIG → DEST · time" shows for 8 s ([App.tsx:158-177](../../../src/client/App.tsx#L158-L177)).
 
@@ -276,6 +366,13 @@ known ([LiveLayer.tsx](../../../src/client/components/LiveLayer.tsx)): the bound
 aircraft's color over a dark casing. Both are drawn on every world copy in view (MAP-GEO-014):
 the aircraft at its own position, the track placed sample to sample (MAP-GEO-015). The tooltip reads "LIVE · name", altitude, ground speed, heading and "on
 ground", and the leg's origin and point count.
+
+In casual mode the casual path takes the leg track's place: each segment drawn in the live
+aircraft's current color, **dashed**, over the same dark casing, placed sample to sample on every
+world copy in view. The dashes tell at a glance that this path is not being logged. While a
+position is known, the last segment runs on to the aircraft, so the line never trails behind it.
+The path is drawn whenever it has points, connected or not; only the aircraft needs the link. The
+tooltip reads "CASUAL · name" and the path's point count in place of the leg line.
 
 ## Test Tools
 
@@ -312,6 +409,16 @@ ground", and the leg's origin and point count.
 | Checkpointing | Whole state to one row, every 5 s and on each event | Memory only | A server restart mid-flight loses nothing. |
 | Live updates | Server-sent events, full state resent on reconnect | Polling; WebSockets | One-way updates; the browser reconnects by itself. |
 | Menu position | Ignore samples near 0°, 0° | Treat as real | The sim reports the aircraft "airborne" there in menus. |
+| Casual mode | A tracker switch that suspends leg detection and keeps a path in server memory | Turn tracking off (`TRACKER=0`); a throwaway fleet aircraft; discard each leg by hand; the path kept by the browser; discard each finished leg automatically | One switch from the card, nothing written anywhere. Held by the server, the path survives a page reload and is the same in every tab; discarding finished legs would lose the path at every full stop. |
+| Casual mode at server start | Always off; the path is never saved | Restored from the checkpoint with or without its path | A forgotten casual session falls back to recording — a pending leg to discard at worst — rather than a career flight going unrecorded. The path is throwaway by intent. |
+| Switching on mid-leg | Landed: close and log as usual. Airborne in a bound aircraft: drop only after confirming. Airborne unbound: drop. A dropped leg's track starts the path | Always drop; always ask; keep every leg as pending | A landed leg is a finished flight, closed as for any other interruption. An airborne leg in a bound aircraft is a career flight that a slip of the switch would lose. An unbound aircraft's leg would only wait as pending, and flying it is already outside the career. Keeping the track on the map loses nothing the pilot can see. |
+| Where the confirmation is enforced | The server refuses with 409 unless told to drop the leg; the card asks and retries | A confirm in the card only | The server decides, the page shows; a leg that took off after the card's last status is protected too. |
+| Path breaks | A new segment after a position jump, a new flight or a disconnect | One unbroken line; clear the path at a jump | No line across a slew or a new flight; the earlier parts of a session stay. |
+| Look of the casual path | Dashed, in the live aircraft's color | Solid like a leg track; always white | Tells a path that is not being logged from a leg that is, without hiding which aircraft is flying. |
+| Switching off | Drops the path | Keep it on the map until cleared | The path belongs to casual mode; nothing is left drawn beside career tracks and legs. |
+| Keeping casual mode in view | The switch sits in the collapsed strip as well as the open card, in every sim state | The status pill alone; switch casual mode off when the sim disconnects | The pill gives way to "sim not running", "paused" and "in menus", so casual mode could be on unseen at the start of a career session. Switching off at a disconnect would also end the session, and lose the path, at every sim crash. |
+| SimBrief plans in casual mode | No import while casual mode is on; a plan already current stays, with **Remove** | Import as usual; drop, on switching off, a plan imported in casual mode | A plan imported for a casual flight would otherwise wait for the next career leg and be filed with it. Recorded here, where casual mode lives; the simbrief controls carry the obligation (SB-CUR-004, SB-CTRL-001 to 003). |
+| Points while standing still | None while on the ground below 1 kt; no cap on the path | A point every 5 s regardless; a cap on the point count | A sim left parked would otherwise grow the path for nothing; a flown path grows by at most 720 points an hour, small enough to keep and resend whole. |
 
 ## Open Questions & Future Decisions
 
@@ -321,14 +428,14 @@ ground", and the leg's origin and point count.
 
 ### Deferred
 
-1. **Near-tie at takeoff** — the nearest airport always wins ([tracker.ts:580-582](../../../src/server/tracker.ts#L580-L582)).
+1. **Near-tie at takeoff** — the nearest airport always wins ([tracker.ts:697-699](../../../src/server/tracker.ts#L697-L699)).
 2. **Sim-clock times** are not read or stored (LOG-REC-002).
 3. **Interrupting a landed leg** — a new flight or a position jump after landing discards the leg
-   or closes it at the wrong airport ([tracker.ts:425-427](../../../src/server/tracker.ts#L425-L427), [545-556](../../../src/server/tracker.ts#L545-L556)).
-4. **Legs of 30–59 s are kept** ([tracker.ts:729-730](../../../src/server/tracker.ts#L729-L730)).
-5. **One pending leg** — a second replaces the first and orphans its briefing ([tracker.ts:776](../../../src/server/tracker.ts#L776)).
+   or closes it at the wrong airport ([tracker.ts:468-471](../../../src/server/tracker.ts#L468-L471), [652-664](../../../src/server/tracker.ts#L652-L664)).
+4. **Legs of 30–59 s are kept** ([tracker.ts:866-867](../../../src/server/tracker.ts#L866-L867)).
+5. **One pending leg** — a second replaces the first and orphans its briefing ([tracker.ts:913](../../../src/server/tracker.ts#L913)).
 6. **Paused time** counts toward flight time and the takeoff and stop timers.
-7. **A disconnect in flight** discards the leg and its track ([tracker.ts:402-405](../../../src/server/tracker.ts#L402-L405)).
+7. **A disconnect in flight** discards the leg and its track ([tracker.ts:445-448](../../../src/server/tracker.ts#L445-L448)).
 8. **`sim-fake` arguments** — option values read as airports when options come first ([sim-fake.ts:20](../../../scripts/sim-fake.ts#L20)).
 9. **Two fleet rows with the same title and livery** — the older wins silently; binding one does
    not unbind the other.
@@ -337,12 +444,15 @@ ground", and the leg's origin and point count.
 11. **A restored airborne leg whose sim is gone** — after a server restart the leg waits in the
     air until the sim reports again; a new flight then discards it as an aircraft change, new
     flight or position jump, even if the sim had crashed in the meantime.
+12. **Touchdowns in casual mode** are neither measured nor rated; a rating would suit casual
+    flying, but nothing would keep it.
+13. **A profile of the casual path** — the flight panel shows only legs.
 
 ## References
 
 - Code: [src/server/simconnect.ts](../../../src/server/simconnect.ts),
   [src/server/tracker.ts](../../../src/server/tracker.ts), [src/server/index.ts](../../../src/server/index.ts)
-  (`startTracking`), [src/server/routes.ts](../../../src/server/routes.ts) (live tracker 445-560),
+  (`startTracking`), [src/server/routes.ts](../../../src/server/routes.ts) (live tracker 445-587),
   [src/client/tracker.ts](../../../src/client/tracker.ts) (`useTracker`; `parseTrack` is shared with
   tour-map and flight-panel), [src/client/components/LivePanel.tsx](../../../src/client/components/LivePanel.tsx)
   (all but `SimbriefControls`), [src/client/components/LiveLayer.tsx](../../../src/client/components/LiveLayer.tsx),

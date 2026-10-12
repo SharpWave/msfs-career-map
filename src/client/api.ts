@@ -17,6 +17,19 @@ import type {
   WikiSummary,
 } from "./types";
 
+/** A failed API call: the server's message, with the HTTP status and the answer's body (null when not JSON). */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public body: unknown,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+// @spec APP-API-006, APP-API-007
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
     method,
@@ -24,9 +37,11 @@ async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   if (res.status === 204) return undefined as T;
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? `${res.status} ${res.statusText}`);
-  return data as T;
+  const data: unknown = await res.json().catch(() => undefined);
+  if (!res.ok) {
+    throw new ApiError((data as { error?: string } | undefined)?.error ?? `${res.status} ${res.statusText}`, res.status, data ?? null);
+  }
+  return (data ?? {}) as T;
 }
 
 export const api = {
@@ -62,6 +77,10 @@ export const api = {
   trackerDiscardPending: () => req<TrackerStatus>("DELETE", "/api/tracker/pending"),
   trackerDiscardLeg: () => req<TrackerStatus>("DELETE", "/api/tracker/leg"),
   trackerCompleteLeg: () => req<TrackerStatus>("POST", "/api/tracker/complete"),
+  /** Refused with a 409 ApiError naming the leg while a fleet aircraft's leg is airborne, unless `dropLeg`. */
+  trackerCasual: (on: boolean, dropLeg = false) =>
+    req<TrackerStatus>("PUT", "/api/tracker/casual", dropLeg ? { on, drop_leg: true } : { on }),
+  trackerClearPath: () => req<TrackerStatus>("DELETE", "/api/tracker/path"),
   trackerBriefing: () => req<TrackerStatus>("POST", "/api/tracker/briefing"),
   trackerDropBriefing: () => req<TrackerStatus>("DELETE", "/api/tracker/briefing"),
 

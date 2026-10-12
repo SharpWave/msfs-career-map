@@ -20,7 +20,7 @@ This segment owns:
 - data locations, opening the database and in-place schema upgrades ([db.ts](../../../src/server/db.ts));
   each table's meaning belongs to the segment that uses it;
 - API conventions: error responses, ids, the status endpoint, the browser's request helper
-  ([routes.ts:28-62](../../../src/server/routes.ts#L28-L62), [818-828](../../../src/server/routes.ts#L818-L828),
+  ([routes.ts:28-62](../../../src/server/routes.ts#L28-L62), [847-857](../../../src/server/routes.ts#L847-L857),
   [api.ts](../../../src/client/api.ts));
 - the page: the full-window map with panels floating over it, the sidebar, the menu and its
   drawers, which part of the map the panels cover, loading and error states, error boundaries
@@ -79,8 +79,9 @@ with it, and a reimport on a copy reads the lists beside it (downloading them wh
 
 ## API Conventions
 
-- **Errors**: a known failure answers with its status and `{"error": "message"}`; anything else is
-  logged and answered `500` with its message. An unknown `/api` path is `404 {"error": "not found"}`.
+- **Errors**: a known failure answers with its status and `{"error": "message"}`, plus any fields
+  the page needs to act on that refusal (the tracker's casual-mode 409 names the leg it protects,
+  live-tracking); anything else is logged and answered `500` with its message. An unknown `/api` path is `404 {"error": "not found"}`.
   A path id that is not a positive whole number is `400 "invalid id"`.
 - **Status**: `GET /api/status` returns `ok`, the airport and runway counts and the app version; the
   launcher uses it to tell whether the server is up.
@@ -89,11 +90,13 @@ with it, and a reimport on a copy reads the lists beside it (downloading them wh
   `MSFSCareerMap/<version> (personal flight-sim logbook; local use)` — OurAirports,
   aviationweather.gov, Wikipedia, Open-Meteo and SimBrief. Today `/api/status` hard-codes "0.8.0",
   four User-Agents say "0.6", and the OurAirports downloads and SimBrief plan fetch send none
-  ([routes.ts:813-815](../../../src/server/routes.ts#L813-L815), [airports.ts:306](../../../src/server/airports.ts#L306),
+  ([routes.ts:842-844](../../../src/server/routes.ts#L842-L844), [airports.ts:306](../../../src/server/airports.ts#L306),
   [hazards.ts:7](../../../src/server/hazards.ts#L7), [terrain.ts:7](../../../src/server/terrain.ts#L7),
   [simbrief.ts:5](../../../src/server/simbrief.ts#L5)).
-- **Browser helper** ([api.ts:20-30](../../../src/client/api.ts#L20-L30)): JSON in and out; `204` is
-  no content; a failed call raises the server's `error` message, or the status and its text.
+- **Browser helper** ([api.ts:19-45](../../../src/client/api.ts#L19-L45)): JSON in and out; `204` is
+  no content; a failed call raises an error whose message is the server's `error`, or the status
+  and its text, and which carries the HTTP status and the answer's body, so a caller can tell one
+  refusal from another and use its fields.
 
 ## The Page
 
@@ -437,7 +440,7 @@ since the server may still hold it open when the run ends.
 - Code: [src/server/index.ts](../../../src/server/index.ts), [src/server/app.ts](../../../src/server/app.ts)
   (`createApp`), [src/server/locations.ts](../../../src/server/locations.ts) (data locations),
   [src/server/db.ts](../../../src/server/db.ts) (pragmas, `addColumnIfMissing`), [src/server/routes.ts](../../../src/server/routes.ts)
-  (helpers 28-62, `/status` 813-815, error handlers 818-828), [src/client/api.ts](../../../src/client/api.ts)
+  (helpers 28-62, `/status` 842-844, error handlers 847-857), [src/client/api.ts](../../../src/client/api.ts)
   (`req`), [src/client/App.tsx](../../../src/client/App.tsx) (layout, hand-offs to the drawers
   (`openDrawer`), loading, error banner), [src/client/layout.ts](../../../src/client/layout.ts) (panel
   sizes, covered part of the map (`clearInsets`), the left column's reducer),

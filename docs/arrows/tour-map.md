@@ -39,7 +39,7 @@ describes current behaviour with partly inferred rationale; specs drafted; first
 - src/client/components/HazardLayer.tsx, src/server/hazards.ts
 - src/client/icons.ts — `shade`, `hopStroke` (93-112)
 - src/client/App.tsx — selection, zoom requests (`requestFocus`), basemap and overlay preferences, URL view options
-- src/server/routes.ts — `/state` (797-811), `/hazards` (771)
+- src/server/routes.ts — `/state` (826-840), `/hazards` (800)
 
 ## Architecture
 
@@ -74,14 +74,14 @@ parked and when airports were visited, and overlay daylight and weather hazards.
 ## Key Findings
 
 1. **Partial hazard outages are invisible** — MapToolbar.tsx:60-64 ignores the set's `errors`.
-2. **Zoom to a long great circle uses only its endpoints** — paths.ts:278, so a poleward arc can be clipped.
+2. **Zoom to a long great circle uses only its endpoints** — paths.ts:297, so a poleward arc can be clipped.
 3. **Copies cost most zoomed out** — at the minimum zoom a wide window touches five or more world
    copies, and every layer, planner candidates included, is drawn on each.
 
 ## Work Required
 
 ### Should Fix
-1. Include great-circle arc points in zoom-to-fit (MAP-GEO-012; paths.ts:278).
+1. Include great-circle arc points in zoom-to-fit (MAP-GEO-012; paths.ts:297).
 
 ### Nice to Have
 2. Show partial hazard outages in the toolbar (MAP-HAZ-009).

@@ -43,6 +43,7 @@ Design: [simbrief-design.md](simbrief-design.md). Prefix `SB`; facets `LINK` (di
 - [x] **SB-CUR-001**: When a SimBrief plan is confirmed in the live card, the system shall archive it whole (summary, OFP text and raw OFP) linked to the bound fleet aircraft or none, make it the tracker's current plan, and delete the previous current plan if no hop uses it.
 - [x] **SB-CUR-002**: When the user removes the current SimBrief plan in the live card, the system shall clear it and delete it if no hop uses it.
 - [x] **SB-CUR-003**: While the tracker has a current SimBrief plan, the tracker status shall carry its summary, including the navlog fixes.
+- [x] **SB-CUR-004**: If `POST /api/tracker/briefing` is called while the tracker is in casual mode (LIVE-CASUAL), then the system shall refuse it with HTTP 409 and leave the current plan as it is.
 
 ## Plans on Hops
 
@@ -54,9 +55,9 @@ Design: [simbrief-design.md](simbrief-design.md). Prefix `SB`; facets `LINK` (di
 
 ## SimBrief Controls in the Live Card
 
-- [x] **SB-CTRL-001**: While the sim is connected with an aircraft and no SimBrief alias is set, the live card shall offer a "SimBrief alias or pilot ID" field with **Save**, which Enter also triggers.
-- [x] **SB-CTRL-002**: While a SimBrief alias is set and the flight being flown has no current plan, the live card shall offer **Import SimBrief plan** and show the alias, which opens the alias field with **Cancel** when clicked.
-- [x] **SB-CTRL-003**: While a SimBrief plan is previewed, the preview shall show "Latest SimBrief plan · callsign", "ORIG/RWY → DEST/RWY", and the aircraft type and registration, passengers, distance, time en route and generation time, with **Use this plan** and **Cancel**.
+- [x] **SB-CTRL-001**: While the sim is connected with an aircraft, the tracker is not in casual mode and no SimBrief alias is set, the live card shall offer a "SimBrief alias or pilot ID" field with **Save**, which Enter also triggers.
+- [x] **SB-CTRL-002**: While the tracker is not in casual mode, a SimBrief alias is set and the flight being flown has no current plan, the live card shall offer **Import SimBrief plan** and show the alias, which opens the alias field with **Cancel** when clicked.
+- [x] **SB-CTRL-003**: While the tracker is not in casual mode and a SimBrief plan is previewed in the live card, the preview shall show "Latest SimBrief plan · callsign", "ORIG/RWY → DEST/RWY", and the aircraft type and registration, passengers, distance, time en route and generation time, with **Use this plan** and **Cancel**.
 - [x] **SB-CTRL-004**: While the flight being flown has a current SimBrief plan, the live card shall show "Plan ORIG → DEST · callsign · N pax" with **Remove**.
 
 ## SimBrief Card in the Flight Panel

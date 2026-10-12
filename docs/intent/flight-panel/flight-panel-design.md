@@ -188,7 +188,7 @@ opens it (LIVE-API-007).
 2. **Live flight card** shows only fuel used, current fuel and highest altitude ([FlightPanel.tsx:54-65](../../../src/client/components/FlightPanel.tsx#L54-L65)).
 3. **Scale wording** says "above" for G thresholds that apply at the threshold ([FlightPanel.tsx:179](../../../src/client/components/FlightPanel.tsx#L179)).
 4. **Rating bands restated** — the scale's fpm bands and G note repeat the server's thresholds
-   ([landing.ts:17-23](../../../src/client/landing.ts#L17-L23), [tracker.ts:52-55](../../../src/server/tracker.ts#L52-L55)).
+   ([landing.ts:17-23](../../../src/client/landing.ts#L17-L23), [tracker.ts:57-60](../../../src/server/tracker.ts#L57-L60)).
 5. **Another great-circle formula** — the direct distance is computed in the panel
    ([FlightPanel.tsx:97-105](../../../src/client/components/FlightPanel.tsx#L97-L105)).
 6. **"At landing" weight** is read where the aircraft stopped, after taxiing in.

@@ -19,6 +19,8 @@ description, API table and roadmap.
   and only produces position samples and system events; `src/server/tracker.ts` is the
   sim-independent state machine (`feed(sample)`), checkpointed to the `tracker_state` row so a
   leg survives a server restart. The client subscribes to `/api/tracker/events` (SSE).
+  Casual mode (`setCasual`) suspends leg detection and keeps a `path` of segments in memory
+  only — deliberately outside `tracker_state`, so it never survives a restart.
 - Landing rating thresholds (`rateLanding`) live in `src/server/tracker.ts`; the client only
   maps a rating to icon/word/color in `src/client/landing.ts`. The per-frame touchdown watcher
   is in `simconnect.ts`; the tracker makes a provisional landing from 1 Hz data and replaces it

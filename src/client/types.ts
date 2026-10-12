@@ -273,6 +273,8 @@ export interface TrackerStatus {
   } | null;
   pending: PendingLeg | null;
   briefing: BriefingSummary | null;
+  /** Casual mode: when it was switched on and the path's points; null while off. */
+  casual: { since: string; points: number } | null;
   message: string | null;
   message_at: string | null;
 }

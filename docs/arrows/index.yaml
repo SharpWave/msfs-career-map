@@ -1,5 +1,5 @@
 schema_version: 2
-last_updated: 2026-10-11
+last_updated: 2026-10-12
 
 # Flat depth-2 mapping: every segment sits directly under docs/high-level-design.md.
 arrows:
@@ -72,7 +72,7 @@ arrows:
     blocks: [planner, flight-panel, simbrief]
     blockedBy: [logbook, fleet, airports, tour-map]
     detail: live-tracking.md
-    next: "Close the 16 gaps test-first (pending-leg list, keep legs on disconnect, landed-leg interruptions, paused time, parked-airport tie-break, sim-clock times, live statistics and pending-leg profiles for the flight panel), and add tests for the 53 implemented LIVE specs that have none"
+    next: "Close the 16 gaps test-first (pending-leg list, keep legs on disconnect, landed-leg interruptions, paused time, parked-airport tie-break, sim-clock times, live statistics and pending-leg profiles for the flight panel), and add tests for the 44 implemented LIVE specs that have none"
     drift: null
 
   flight-panel:
@@ -96,7 +96,7 @@ arrows:
     blocks: [planner]
     blockedBy: [fleet, live-tracking, tour-map]
     detail: simbrief.md
-    next: "Add tests for the 27 implemented SB specs that have none, then close the 11 gaps (sanitise OFP HTML, preview-and-confirm everywhere, hop plan replace/delete, pending-leg plan, registration test, card polish)"
+    next: "Add tests for the 23 implemented SB specs that have none, then close the 11 gaps (sanitise OFP HTML, preview-and-confirm everywhere, hop plan replace/delete, pending-leg plan, registration test, card polish)"
     drift: null
 
   # Foundation: every segment relies on the shell's conventions, so its dependencies are not listed.

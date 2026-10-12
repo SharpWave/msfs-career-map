@@ -17,7 +17,7 @@ Hops enter the logbook two ways:
 
 - **Hand-logged** through the "Log a hop" card or an inline edit — owned by this segment.
 - **Auto-logged** by the live tracker when a flown leg completes — the tracker writes the row
-  ([tracker.ts:306-325](../../../src/server/tracker.ts#L306-L325)) and must follow this segment's
+  ([tracker.ts:332-351](../../../src/server/tracker.ts#L332-L351)) and must follow this segment's
   record rules (sequence, canonical idents, time fields). What it records inside the hop (track,
   landings, stats) belongs to live-tracking.
 
@@ -69,7 +69,7 @@ separate statements outside a transaction ([routes.ts:407-410](../../../src/serv
 
 Every read returns hops sorted by `seq, id` per aircraft (all hops: `aircraft_id, seq, id`)
 ([routes.ts:333-334](../../../src/server/routes.ts#L333-L334)), including the whole-map `/state`
-payload ([routes.ts:798-811](../../../src/server/routes.ts#L798-L811)). Clients rely on that order
+payload ([routes.ts:827-840](../../../src/server/routes.ts#L827-L840)). Clients rely on that order
 and do not re-sort.
 
 **Parked position.** An aircraft is parked at the `dest` of its highest-`seq` hop; with no hops it
@@ -248,13 +248,13 @@ Handlers are at [routes.ts:368-443](../../../src/server/routes.ts#L368-L443); er
 
 ## References
 
-- Code: [src/server/routes.ts](../../../src/server/routes.ts) (hops section 313-443, `/state` 797-811),
+- Code: [src/server/routes.ts](../../../src/server/routes.ts) (hops section 313-443, `/state` 826-840),
   [src/server/db.ts](../../../src/server/db.ts) (hops table),
   [src/client/components/HopForm.tsx](../../../src/client/components/HopForm.tsx),
   [src/client/components/Fleet.tsx](../../../src/client/components/Fleet.tsx) (`AircraftCard` hop list),
   [src/client/App.tsx](../../../src/client/App.tsx) (the Log a hop drawer, the planner hand-off `pickCandidate`),
   [src/client/format.ts](../../../src/client/format.ts) (`hopDurationMin`, datetime conversion)
-- Writes from other segments: live-tracking `insertHop` ([tracker.ts:306-325](../../../src/server/tracker.ts#L306-L325)),
+- Writes from other segments: live-tracking `insertHop` ([tracker.ts:332-351](../../../src/server/tracker.ts#L332-L351)),
   which is also to capture sim-clock times; simbrief `POST /hops/:id/briefing`
 - Consumers of the parked position and hop order: tour-map (`paths.ts`), planner (`Planner.tsx`,
   `/plan`), live-tracking (takeoff airport tie-break)

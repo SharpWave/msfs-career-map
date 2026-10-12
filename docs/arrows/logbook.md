@@ -24,7 +24,7 @@ describes current behaviour plus confirmed intended changes; specs drafted, no t
 - tests/app-shell/page.test.tsx — LOG-FORM-003, LOG-FORM-004, LOG-FORM-009
 
 ### Code
-- src/server/routes.ts — hops section (313-443), `/state` (797-811)
+- src/server/routes.ts — hops section (313-443), `/state` (826-840)
 - src/server/db.ts — `hops` table (113-126, 177-179)
 - src/client/components/HopForm.tsx
 - src/client/App.tsx — the "Log a hop" drawer (396-411), the planner hand-off `pickCandidate` (312-318)
@@ -58,9 +58,9 @@ hops by hand.
 ## Key Findings
 
 1. **Two writers to `hops`** — hand-logged rows come from the hop routes; flown legs come from the
-   tracker's `insertHop` (src/server/tracker.ts:306-325), which follows the same append rule.
+   tracker's `insertHop` (src/server/tracker.ts:332-351), which follows the same append rule.
 2. **Parked position is derived in six places** — Fleet.tsx:106, HopForm.tsx:28-32,
-   Planner.tsx:86-89, paths.ts:194-202, routes.ts:709-714, and the tracker's takeoff tie-break
+   Planner.tsx:86-89, paths.ts:194-202, routes.ts:738-743, and the tracker's takeoff tie-break
    (intended); all depend on hops arriving sorted.
 3. **Renumbering is not atomic** — routes.ts:407-410 and 417-418 run outside a transaction;
    reorder (434-441) is the only transactional path.

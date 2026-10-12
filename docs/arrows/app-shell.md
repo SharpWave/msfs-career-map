@@ -24,6 +24,7 @@ covers the specs listed under Tests.
 ### Tests
 - tests/app-shell/harness.test.ts — APP-RUN-001, 011, 012, 013, 014, 015, 016; APP-DATA-001, 002
 - tests/app-shell/api.test.ts — APP-SRV-002, 004; APP-API-001, 002, 003, 004; APP-DATA-002; APP-RUN-011
+- tests/app-shell/api-client.test.tsx — APP-API-006, 007 (the browser's request helper)
 - tests/app-shell/format.test.ts — APP-FMT-001, 002, 003
 - tests/app-shell/error-boundary.test.tsx — APP-UI-005
 - tests/app-shell/fetch-guard.test.tsx — APP-RUN-011, 014
@@ -48,7 +49,7 @@ covers the specs listed under Tests.
 - src/server/app.ts — `createApp`
 - src/server/locations.ts — data locations
 - src/server/db.ts — pragmas, `addColumnIfMissing`
-- src/server/routes.ts — helpers (28-62), `/status` (813-815), error handlers (818-828)
+- src/server/routes.ts — helpers (28-62), `/status` (842-844), error handlers (847-857)
 - src/client/api.ts — `req`
 - src/client/App.tsx — the page's layout, hand-offs to the drawers (`openDrawer`), loading, error banner
 - src/client/layout.ts — panel sizes, the clear part of the map (`clearInsets`), the left column's reducer
@@ -86,7 +87,7 @@ start with a double-click, and test it without touching the real logbook or the 
 |----------|----------|-------------|----------|------|
 | Server | APP-SRV-001 to 004 | 4 | 0 | 0 |
 | Data and database | APP-DATA-001 to 003 | 3 | 0 | 0 |
-| API conventions | APP-API-001 to 006 | 5 | 0 | 1 |
+| API conventions | APP-API-001 to 007 | 6 | 0 | 1 |
 | Page layout and failures | APP-UI-001 to 008 | 7 | 0 | 1 |
 | Shared formatting | APP-FMT-001 to 003 | 3 | 0 | 0 |
 | Scripts, launcher and tests | APP-RUN-001 to 018 | 16 | 0 | 2 |

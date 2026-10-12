@@ -21,6 +21,9 @@ import type { BriefingSummary } from "./ofp.ts";
  * A finished leg is logged straight into `hops` (with track, landings, stats and any SimBrief
  * briefing imported for it) when the sim aircraft is bound to a fleet row and both airports are
  * known; otherwise it is parked as `pending` for the user to complete from the UI.
+ *
+ * Casual mode suspends all of that: no legs, only a path of the samples flown, kept in memory and
+ * never checkpointed, broken into segments at a jump, a new flight or a disconnect.
  */
 
 /** `[lat, lon, alt_ft, unix_seconds, gs_kts, vs_fpm, ias_kts, fuel_lb]`; old rows have the first four only. */
@@ -44,6 +47,8 @@ const MIN_LEG_MIN = 1;
 const SAVE_MS = 5000;
 /** A frame-accurate touchdown within this of a provisional one replaces it. */
 const TOUCHDOWN_MATCH_MS = 6000;
+/** On the ground below this, the aircraft is standing still and adds nothing to the casual path. */
+const STILL_KTS = 1;
 
 // ------------------------------------------------------------------ landings
 
@@ -175,8 +180,28 @@ export interface TrackerStatus {
   } | null;
   pending: (Omit<PendingLeg, "track"> & { points: number }) | null;
   briefing: BriefingSummary | null;
+  /** Casual mode: when it was switched on and the path's points over all segments; null while off. */
+  casual: { since: string; points: number } | null;
   message: string | null;
   message_at: string | null;
+}
+
+/** Casual mode's own state. Held in memory only: it never reaches the checkpoint. */
+interface Casual {
+  since: number;
+  path: TrackPoint[][];
+  /** The next point begins a new segment (after a jump, a new flight or a disconnect). */
+  breakPending: boolean;
+}
+
+/** Switching casual mode on would drop a fleet aircraft's airborne leg, and the request did not say to. */
+export class CasualRefused extends Error {
+  constructor(public details: { aircraft_id: number; name: string; origin: string | null; departed_at: string }) {
+    super(
+      `${details.name} is flying a leg ${details.origin ? `from ${details.origin}` : "that started in the air"}; ` +
+        "switching to casual mode would drop it",
+    );
+  }
 }
 
 export interface LoggedHop {
@@ -223,6 +248,7 @@ const bindLookup = db.prepare(
 );
 const bindSet = db.prepare(`UPDATE aircraft SET sim_title = ?, sim_livery = ? WHERE id = ?`);
 const aircraftExists = db.prepare(`SELECT id FROM aircraft WHERE id = ?`);
+const aircraftName = db.prepare(`SELECT name, livery FROM aircraft WHERE id = ?`);
 const nextSeq = db.prepare(`SELECT COALESCE(MAX(seq),0)+1 AS s FROM hops WHERE aircraft_id = ?`);
 const insertHopStmt = db.prepare(
   `INSERT INTO hops (aircraft_id, seq, origin, dest, departed_at, arrived_at, duration_min, notes, track, landings, stats, briefing_id)
@@ -326,6 +352,9 @@ function insertHop(aircraftId: number, h: HopDraft): LoggedHop {
 
 export class Tracker extends EventEmitter {
   private s: Persisted;
+  /** Off at every start, and kept out of `s` so no checkpoint carries it. */
+  // @spec LIVE-CASUAL-011
+  private casual: Casual | null = null;
   private lastSave = 0;
   connected = false;
   simName: string | null = null;
@@ -381,6 +410,10 @@ export class Tracker extends EventEmitter {
         : null,
       pending: st.pending ? { ...(pendingRest as Omit<PendingLeg, "track">), points: pendingTrack.length } : null,
       briefing: st.briefing,
+      // @spec LIVE-API-010
+      casual: this.casual
+        ? { since: iso(this.casual.since), points: this.casual.path.reduce((n, seg) => n + seg.length, 0) }
+        : null,
       message: st.message,
       message_at: st.message_at,
     };
@@ -391,6 +424,15 @@ export class Tracker extends EventEmitter {
     return this.s.leg?.track ?? [];
   }
 
+  /** The casual path's segments (empty while casual mode is off). */
+  path(): TrackPoint[][] {
+    return this.casual?.path ?? [];
+  }
+
+  inCasualMode(): boolean {
+    return this.casual != null;
+  }
+
   // ------------------------------------------------------------------ link events
 
   setConnected(v: boolean, name: string | null = null) {
@@ -399,6 +441,7 @@ export class Tracker extends EventEmitter {
     if (!v) {
       this.simRunning = true;
       this.paused = false;
+      if (this.casual) this.casual.breakPending = true;
       if (this.s.leg) {
         if (this.s.phase === "landed" && this.s.last) this.complete(this.s.last);
         else this.discardLeg("the sim disconnected mid-flight");
@@ -423,6 +466,7 @@ export class Tracker extends EventEmitter {
   }
 
   flightLoaded(_file: string) {
+    if (this.casual) this.casual.breakPending = true;
     if (this.s.leg && this.s.phase === "airborne") this.discardLeg("a new flight was loaded");
   }
 
@@ -515,6 +559,68 @@ export class Tracker extends EventEmitter {
     this.emitStatus();
   }
 
+  /**
+   * Switch casual mode. On: a landed leg is closed as for any interruption; an airborne one is
+   * dropped, its track starting the path — but a bound fleet aircraft's only when `dropLeg` says
+   * so, otherwise CasualRefused. Off: the path goes and leg detection resumes from idle.
+   * Asking for the state it is already in changes nothing.
+   */
+  // @spec LIVE-CASUAL-005, LIVE-CASUAL-006, LIVE-CASUAL-007, LIVE-CASUAL-008, LIVE-CASUAL-009, LIVE-CASUAL-012, LIVE-API-012
+  setCasual(on: boolean, opts: { dropLeg?: boolean } = {}): void {
+    const st = this.s;
+    if (on === (this.casual != null)) return;
+    if (!on) {
+      this.casual = null;
+      this.note("Casual mode off: takeoffs and landings are logged again");
+      this.emit("path", []);
+      this.save(true);
+      this.emitStatus();
+      return;
+    }
+
+    let seed: TrackPoint[] = [];
+    let dropped: string | null = null;
+    if (st.leg && st.phase === "landed") {
+      this.complete(st.last!);
+    } else if (st.leg) {
+      const bound = st.aircraft_id && aircraftExists.get(st.aircraft_id) ? st.aircraft_id : null;
+      if (bound && !opts.dropLeg) {
+        const a = aircraftName.get(bound) as { name: string; livery: string };
+        throw new CasualRefused({
+          aircraft_id: bound,
+          name: a.livery ? `${a.name} · ${a.livery}` : a.name,
+          origin: st.leg.origin,
+          departed_at: iso(st.leg.departed_at),
+        });
+      }
+      seed = st.leg.track.slice();
+      dropped = st.leg.origin ?? "?";
+      st.leg = null;
+      this.emit("track", []);
+    }
+    st.phase = "idle";
+    st.lastGround = null;
+    st.lastAirborne = null;
+    st.airborneSince = null;
+    st.stopSince = null;
+    this.casual = { since: Date.now(), path: seed.length ? [seed] : [], breakPending: false };
+    this.note(`Casual mode on: nothing is logged${dropped ? `; dropped the leg from ${dropped}` : ""}`);
+    this.emit("path", this.casual.path);
+    this.save(true);
+    this.emitStatus();
+  }
+
+  /** Empty the casual path, staying in casual mode. */
+  // @spec LIVE-CASUAL-010
+  clearPath(): void {
+    if (this.casual) {
+      this.casual.path = [];
+      this.casual.breakPending = false;
+      this.emit("path", this.casual.path);
+    }
+    this.emitStatus();
+  }
+
   // ------------------------------------------------------------------ samples
 
   feed(s: SimSample): void {
@@ -532,8 +638,9 @@ export class Tracker extends EventEmitter {
       }
       st.sim = { title: s.title, livery: s.livery, atc_id: s.atc_id };
       st.aircraft_id = this.lookupBinding(s.title, s.livery);
+      // In casual mode an unbound aircraft is not worth a word: nothing is being logged to it.
       this.note(
-        st.aircraft_id
+        st.aircraft_id || this.casual
           ? `Flying ${s.title}${s.livery ? ` (${s.livery})` : ""}`
           : `${s.title}${s.livery ? ` (${s.livery})` : ""} is not bound to a fleet aircraft`,
       );
@@ -546,6 +653,7 @@ export class Tracker extends EventEmitter {
       const gapHours = Math.max(0, s.t - st.last.t) / 3600000;
       const d = distanceNm(st.last.lat, st.last.lon, s.lat, s.lon);
       if (d > TELEPORT_NM + gapHours * 700) {
+        if (this.casual) this.casual.breakPending = true;
         if (st.leg) this.discardLeg(`the position jumped ${Math.round(d)} nm`);
         st.phase = "idle";
         st.lastGround = null;
@@ -553,6 +661,15 @@ export class Tracker extends EventEmitter {
         st.airborneSince = null;
         st.stopSince = null;
       }
+    }
+
+    // Casual mode: no legs, only the path.
+    if (this.casual) {
+      this.recordCasual(this.casual, s);
+      st.last = s;
+      this.save(false);
+      this.emitStatus();
+      return;
     }
 
     if (s.touchdown && st.leg) this.applyTouchdown(st.leg, s.touchdown, s);
@@ -663,6 +780,26 @@ export class Tracker extends EventEmitter {
     const p = point(s);
     leg.track.push(p);
     this.emit("point", p);
+  }
+
+  /**
+   * Add a sample to the casual path: a new segment when the path is empty or after a break, else
+   * the last segment at most every SAMPLE_MS; nothing while standing still on the ground.
+   */
+  // @spec LIVE-CASUAL-001, LIVE-CASUAL-002, LIVE-CASUAL-003, LIVE-CASUAL-004, LIVE-API-011
+  private recordCasual(c: Casual, s: SimSample) {
+    if (s.on_ground && fin(s.gs_kts) < STILL_KTS) return;
+    const seg = c.path[c.path.length - 1];
+    if (!seg || c.breakPending) {
+      c.path.push([point(s)]);
+      c.breakPending = false;
+      this.emit("path", c.path);
+      return;
+    }
+    if (s.t - seg[seg.length - 1][3] * 1000 < SAMPLE_MS) return;
+    const p = point(s);
+    seg.push(p);
+    this.emit("path-point", p);
   }
 
   /** A landing worked out from 1 Hz samples; replaced by the frame watcher's numbers when they arrive. */
