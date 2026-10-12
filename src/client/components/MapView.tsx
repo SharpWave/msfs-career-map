@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { Circle, CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { bearing, type LatLng } from "../geo";
@@ -20,10 +20,11 @@ import { headMarkerHtml, hopStroke } from "../icons";
 import { applyFocus, type FitMap } from "../fit";
 import type { Insets } from "../layout";
 import { prefersReducedMotion } from "../prefs";
-import { planLonShift, type AirportNode, type RenderData, type RenderHop } from "../paths";
+import { copiesInView, copyShifts, lonSpan, planSpan, shiftLine, shiftPoint, type AirportNode, type Copies, type RenderData, type RenderHop } from "../paths";
 import type { Aircraft, PlanCandidate, PlanResult } from "../types";
 import { RunwayInfo } from "./RunwayInfo";
 import { AirportPopup } from "./AirportPopup";
+import { WorldCopies, useWorldCopies } from "./WorldCopies";
 
 /** How strongly everything that is not the highlighted aircraft fades back. */
 const DIM = { path: 0.45, casing: 0.25, head: 0.6, airport: 0.5 };
@@ -127,13 +128,51 @@ interface Props {
   clear: Insets;
 }
 
-export function MapView({
+/** Div icons kept by their markup, so a re-render hands Leaflet the same icon and rebuilds nothing. */
+const icons = new Map<string, L.DivIcon>();
+function divIcon(className: string, html: string, size: number, anchor: [number, number]): L.DivIcon {
+  const key = `${className}|${size}|${anchor[0]},${anchor[1]}|${html}`;
+  let icon = icons.get(key);
+  if (!icon) icons.set(key, (icon = L.divIcon({ className, html, iconSize: [size, size], iconAnchor: anchor })));
+  return icon;
+}
+
+/** A candidate's longitude in −180..180 (180 counts as −180), so it has one copy per world. */
+const ownLon = (lon: number) => (lon >= 180 ? lon - 360 : lon);
+
+/** The shift of each world copy in view. */
+const copyRange = ({ lo, hi }: Copies) => Array.from({ length: hi - lo + 1 }, (_, i) => 360 * (lo + i) + 0);
+
+/**
+ * The map: basemap, zoom requests, and every layer drawn on every world copy in view. Panning carries
+ * on across the antimeridian onto any copy — there is no jump back to the first world.
+ */
+// @spec MAP-VIEW-004
+export function MapView(props: Props) {
+  const tiles = TILES[props.basemap];
+  // Vector layers are rendered a quarter of the view beyond each edge, as far as the copies in view reach.
+  const renderer = useMemo(() => L.svg({ padding: 0.25 }), []);
+  return (
+    <MapContainer center={[39, -96]} zoom={4} minZoom={2} renderer={renderer} className="map" zoomControl={false}>
+      <TileLayer key={props.basemap} url={tiles.url} attribution={tiles.attribution} maxNativeZoom={tiles.maxZoom} maxZoom={19} />
+      {tiles.labels && <TileLayer key={`${props.basemap}-labels`} url={tiles.labels} maxNativeZoom={tiles.maxZoom} maxZoom={19} zIndex={2} />}
+      <PopupPadding clear={props.clear} />
+      <Resizer />
+      <WorldCopies>
+        <FitController focus={props.focus} />
+        <Layers {...props} />
+      </WorldCopies>
+    </MapContainer>
+  );
+}
+
+/** Everything over the basemap, bottom to top, each shape on every world copy in view. */
+// @spec MAP-GEO-013, MAP-GEO-014, MAP-GEO-019, MAP-PATH-005
+function Layers({
   data,
   aircraft,
   selectedId,
   onSelect,
-  focus,
-  basemap,
   plan,
   metars,
   flags,
@@ -146,70 +185,78 @@ export function MapView({
   live,
   onOpenHop,
   routes,
-  clear,
 }: Props) {
   const { hops, nodes, heads } = data;
-  const tiles = TILES[basemap];
+  const { copies } = useWorldCopies();
   const byId = new Map(aircraft.map((a) => [a.id, a]));
-  const planShift = plan ? planLonShift(data, plan) : 0;
   const planAircraft = plan ? byId.get(plan.aircraft_id) : undefined;
-  const [openCandidate, setOpenCandidate] = useState<PlanCandidate | null>(null);
+  const spans = useMemo(() => new Map(hops.map((r) => [r.hop.id, lonSpan(r.pts)])), [hops]);
+  const ring = useMemo(() => (plan ? { centre: [plan.origin.lat, plan.origin.lon] as LatLng, span: planSpan(plan) } : null), [plan]);
+  const at = (pos: LatLng) => copyShifts([pos[1], pos[1]], copies);
+
+  // The candidate popup opens on the world copy whose dot was clicked.
+  const [openCandidate, setOpenCandidate] = useState<{ c: PlanCandidate; shift: number } | null>(null);
+  const pickCandidate = useCallback((c: PlanCandidate, shift: number) => setOpenCandidate({ c, shift }), []);
   // Stable reference: react-leaflet reopens a popup whenever its `position` array changes identity,
   // and the live tracker re-renders this component every second.
   const candidatePos = useMemo<LatLng | null>(
-    () => (openCandidate ? [openCandidate.lat, openCandidate.lon + planShift] : null),
-    [openCandidate, planShift],
+    () => (openCandidate ? [openCandidate.c.lat, ownLon(openCandidate.c.lon) + openCandidate.shift] : null),
+    [openCandidate],
   );
 
-  // A new plan (or none) closes any candidate popup.
+  // A new plan (or none) closes any candidate popup, and so does its world copy leaving the view.
   useEffect(() => setOpenCandidate(null), [plan]);
+  useEffect(() => {
+    if (openCandidate && (openCandidate.shift < 360 * copies.lo || openCandidate.shift > 360 * copies.hi)) setOpenCandidate(null);
+  }, [copies, openCandidate]);
 
   return (
-    <MapContainer center={[39, -96]} zoom={4} minZoom={2} worldCopyJump className="map" zoomControl={false}>
-      <TileLayer key={basemap} url={tiles.url} attribution={tiles.attribution} maxNativeZoom={tiles.maxZoom} maxZoom={19} />
-      {tiles.labels && <TileLayer key={`${basemap}-labels`} url={tiles.labels} maxNativeZoom={tiles.maxZoom} maxZoom={19} zIndex={2} />}
-      <FitController focus={focus} />
-      <PopupPadding clear={clear} />
-      <Resizer />
-
+    <>
       {/* weather hazard areas and day/night shading sit under everything */}
       {hazardKinds.size > 0 && <HazardLayer kinds={hazardKinds} now={now} onStatus={onHazardStatus} />}
       {nightOn && <NightLayer now={now} />}
 
       {/* 0. planner: range ring and reachable airports, under everything else */}
-      {plan && (
-        <Circle
-          center={[plan.origin.lat, plan.origin.lon + planShift]}
-          radius={plan.range_nm * 1852}
-          interactive={false}
-          pathOptions={{ color: planAircraft?.color ?? "#ffffff", weight: 1.5, dashArray: "8 8", opacity: 0.8, fillColor: planAircraft?.color ?? "#ffffff", fillOpacity: 0.05 }}
-        />
-      )}
-      {plan && plan.truncated && (
-        <Circle
-          center={[plan.origin.lat, plan.origin.lon + planShift]}
-          radius={plan.shown_nm * 1852}
-          interactive={false}
-          pathOptions={{ color: "#ffffff", weight: 1, opacity: 0.6, fill: false }}
-        />
-      )}
-      {plan && <CandidateLayer plan={plan} shift={planShift} metars={metars} flags={flags} hideFlagged={hideFlagged} onClick={setOpenCandidate} />}
+      {plan &&
+        ring &&
+        copyShifts(ring.span, copies).map((d) => (
+          <Circle
+            key={`ring@${d}`}
+            center={shiftPoint(ring.centre, d)}
+            radius={plan.range_nm * 1852}
+            interactive={false}
+            pathOptions={{ color: planAircraft?.color ?? "#ffffff", weight: 1.5, dashArray: "8 8", opacity: 0.8, fillColor: planAircraft?.color ?? "#ffffff", fillOpacity: 0.05 }}
+          />
+        ))}
+      {plan &&
+        ring &&
+        plan.truncated &&
+        copyShifts(ring.span, copies).map((d) => (
+          <Circle
+            key={`shown@${d}`}
+            center={shiftPoint(ring.centre, d)}
+            radius={plan.shown_nm * 1852}
+            interactive={false}
+            pathOptions={{ color: "#ffffff", weight: 1, opacity: 0.6, fill: false }}
+          />
+        ))}
+      {plan && <CandidateLayer plan={plan} metars={metars} flags={flags} hideFlagged={hideFlagged} onClick={pickCandidate} />}
       {plan && openCandidate && candidatePos && (
         <Popup
           position={candidatePos}
           className="apop-wrap"
           maxWidth={360}
           minWidth={280}
-          offset={[0, -candidateStyle(openCandidate.type).radius]}
+          offset={[0, -candidateStyle(openCandidate.c.type).radius]}
           eventHandlers={{ remove: () => setOpenCandidate(null) }}
         >
           <AirportPopup
-            airport={openCandidate}
-            extra={<div className="tip-route">{legLine(openCandidate)}</div>}
-            onUse={() => onPickCandidate(openCandidate)}
-            simbrief={legFor(plan.origin, openCandidate, planAircraft)}
+            airport={openCandidate.c}
+            extra={<div className="tip-route">{legLine(openCandidate.c)}</div>}
+            onUse={() => onPickCandidate(openCandidate.c)}
+            simbrief={legFor(plan.origin, openCandidate.c, planAircraft)}
             leg={{ from: plan.origin, aircraft: planAircraft }}
-            flags={flags.get(openCandidate.ident)}
+            flags={flags.get(openCandidate.c.ident)}
           />
         </Popup>
       )}
@@ -218,57 +265,57 @@ export function MapView({
       <ErrorBoundary label="Planned route" className="map-notice">{routes?.map((r, i) => <BriefingLayer key={`route-${i}`} fixes={r.fixes} color={r.color} />)}</ErrorBoundary>
 
       {/* 1. dark casing under every path so colors pop on any basemap */}
-      {hops.map((r) => (
-        <Polyline
-          key={`case-${r.hop.id}`}
-          positions={r.pts}
-          interactive={false}
-          pathOptions={{ color: "#05080c", weight: 9, opacity: isDim(r.aircraft, selectedId) ? DIM.casing : 0.45, lineCap: "round", lineJoin: "round" }}
-        />
-      ))}
+      {hops.map((r) =>
+        copyShifts(spans.get(r.hop.id)!, copies).map((d) => (
+          <Polyline
+            key={`case-${r.hop.id}@${d}`}
+            positions={shiftLine(r.pts, d)}
+            interactive={false}
+            pathOptions={{ color: "#05080c", weight: 9, opacity: isDim(r.aircraft, selectedId) ? DIM.casing : 0.45, lineCap: "round", lineJoin: "round" }}
+          />
+        )),
+      )}
 
       {/* 2. the colored paths */}
-      {hops.map((r) => (
-        <Polyline
-          key={`hop-${r.hop.id}`}
-          positions={r.pts}
-          pathOptions={{ className: `hop-path hop-${r.hop.id}`, color: hopStroke(r.aircraft.color, r.hop.seq), weight: 5, opacity: isDim(r.aircraft, selectedId) ? DIM.path : 0.95, lineCap: "round", lineJoin: "round" }}
-          eventHandlers={{ click: () => (onOpenHop ? onOpenHop(r.hop) : onSelect(r.aircraft.id)) }}
-        >
-          <Tooltip sticky className="tip" opacity={1}>
-            <HopTip r={r} />
-          </Tooltip>
-        </Polyline>
-      ))}
+      {hops.map((r) =>
+        copyShifts(spans.get(r.hop.id)!, copies).map((d) => (
+          <Polyline
+            key={`hop-${r.hop.id}@${d}`}
+            positions={shiftLine(r.pts, d)}
+            pathOptions={{ className: `hop-path hop-${r.hop.id}`, color: hopStroke(r.aircraft.color, r.hop.seq), weight: 5, opacity: isDim(r.aircraft, selectedId) ? DIM.path : 0.95, lineCap: "round", lineJoin: "round" }}
+            eventHandlers={{ click: () => (onOpenHop ? onOpenHop(r.hop) : onSelect(r.aircraft.id)) }}
+          >
+            <Tooltip sticky className="tip" opacity={1}>
+              <HopTip r={r} />
+            </Tooltip>
+          </Polyline>
+        )),
+      )}
 
       {/* 3. direction chevrons at each hop's midpoint */}
       {hops.map((r) => {
         if (r.nm < 8 || isDim(r.aircraft, selectedId)) return null;
         const mid = Math.floor(r.pts.length / 2);
         const brg = bearing(r.pts[Math.max(0, mid - 1)], r.pts[Math.min(r.pts.length - 1, mid + 1)]);
-        return (
-          <Marker
-            key={`chev-${r.hop.id}`}
-            position={r.pts[mid]}
-            interactive={false}
-            icon={L.divIcon({
-              className: "chev-wrap",
-              html: `<div class="chev" style="--c:${hopStroke(r.aircraft.color, r.hop.seq)};transform:rotate(${brg.toFixed(1)}deg)"></div>`,
-              iconSize: [16, 16],
-              iconAnchor: [8, 8],
-            })}
-          />
+        const icon = divIcon(
+          "chev-wrap",
+          `<div class="chev" style="--c:${hopStroke(r.aircraft.color, r.hop.seq)};transform:rotate(${brg.toFixed(1)}deg)"></div>`,
+          16,
+          [8, 8],
         );
+        return copyShifts(spans.get(r.hop.id)!, copies).map((d) => (
+          <Marker key={`chev-${r.hop.id}@${d}`} position={shiftPoint(r.pts[mid], d)} interactive={false} icon={icon} />
+        ));
       })}
 
       {/* 4. airports visited, with arrival/departure history on hover */}
       {nodes.map((n) => {
         const dim = selectedId != null && !n.aircraftIds.has(selectedId);
         const single = n.aircraftIds.size === 1 ? byId.get([...n.aircraftIds][0]) : undefined;
-        return (
+        return at(n.pos).map((d) => (
           <CircleMarker
-            key={`ap-${n.key}`}
-            center={n.pos}
+            key={`ap-${n.key}@${d}`}
+            center={shiftPoint(n.pos, d)}
             radius={6}
             pathOptions={{ className: `airport-dot ap-${n.airport.ident}`, color: "#05080c", weight: 2, fillColor: single?.color ?? "#ffffff", fillOpacity: dim ? DIM.airport : 1, opacity: dim ? DIM.airport : 1 }}
           >
@@ -279,42 +326,40 @@ export function MapView({
               <AirportPopup airport={n.airport} />
             </Popup>
           </CircleMarker>
-        );
+        ));
       })}
 
       {/* 5. where each aircraft currently sits */}
-      {heads.map(({ aircraft: a, airport, pos, offset }) => (
-        <Marker
-          key={`head-${a.id}`}
-          position={pos}
-          zIndexOffset={selectedId === a.id ? 1000 : 0}
-          opacity={isDim(a, selectedId) ? DIM.head : 1}
-          icon={L.divIcon({
-            className: "head-wrap",
-            html: headMarkerHtml(a, selectedId === a.id),
-            iconSize: [44, 44],
-            iconAnchor: [22 - offset[0], 22 - offset[1]],
-          })}
-          eventHandlers={{ click: () => onSelect(selectedId === a.id ? null : a.id) }}
-        >
-          <Tooltip direction="top" offset={[offset[0], -24 + offset[1]]} className="tip" opacity={1}>
-            <div className="tip-title" style={{ color: a.color }}>
-              {aircraftLabel(a)}
-            </div>
-            <div className="tip-sub">
-              parked at <b>{airport.ident}</b> · {airport.name}
-            </div>
-          </Tooltip>
-        </Marker>
-      ))}
+      {heads.map(({ aircraft: a, airport, pos, offset }) => {
+        const icon = divIcon("head-wrap", headMarkerHtml(a, selectedId === a.id), 44, [22 - offset[0], 22 - offset[1]]);
+        return at(pos).map((d) => (
+          <Marker
+            key={`head-${a.id}@${d}`}
+            position={shiftPoint(pos, d)}
+            zIndexOffset={selectedId === a.id ? 1000 : 0}
+            opacity={isDim(a, selectedId) ? DIM.head : 1}
+            icon={icon}
+            eventHandlers={{ click: () => onSelect(selectedId === a.id ? null : a.id) }}
+          >
+            <Tooltip direction="top" offset={[offset[0], -24 + offset[1]]} className="tip" opacity={1}>
+              <div className="tip-title" style={{ color: a.color }}>
+                {aircraftLabel(a)}
+              </div>
+              <div className="tip-sub">
+                parked at <b>{airport.ident}</b> · {airport.name}
+              </div>
+            </Tooltip>
+          </Marker>
+        ));
+      })}
 
       {/* 6. the aircraft being flown right now, with its track so far */}
       {live && (
         <ErrorBoundary label="Live aircraft" className="map-notice">
-          <LiveLayer live={live} aircraft={aircraft} data={data} />
+          <LiveLayer live={live} aircraft={aircraft} />
         </ErrorBoundary>
       )}
-    </MapContainer>
+    </>
   );
 }
 
@@ -362,10 +407,11 @@ function ringStyle(c: PlanCandidate, cat: FlightCategory | null): { color: strin
 }
 
 /**
- * Planner candidates drawn straight with Leaflet on a canvas: one circle marker per airport with
- * a lazily-built tooltip. This stays snappy with several thousand airports, where one React
- * component per marker would not. As METARs arrive, only the markers whose category changed
- * are restyled.
+ * Planner candidates drawn straight with Leaflet on a canvas: one circle marker per airport per
+ * world copy in view, with a lazily-built tooltip. This stays snappy with several thousand
+ * airports, where one React component per marker would not. As METARs arrive, only the markers
+ * whose category changed are restyled. A click says which copy it came from, so the popup opens
+ * beside that dot.
  */
 interface MarkerEntry {
   marker: L.CircleMarker;
@@ -377,73 +423,95 @@ interface MarkerEntry {
 /** Opacity for a candidate: faded when its flags rule it out and the planner is hiding those. */
 const fadeStyle = (faded: boolean) => (faded ? { opacity: 0.25, fillOpacity: 0.12 } : { opacity: 0.95, fillOpacity: 0.9 });
 
+// @spec PLAN-DRAW-005
 function CandidateLayer({
   plan,
-  shift,
   metars,
   flags,
   hideFlagged,
   onClick,
 }: {
   plan: PlanResult;
-  shift: number;
   metars: MetarMap;
   flags: Map<string, Flag[]>;
   hideFlagged: boolean;
-  onClick: (c: PlanCandidate) => void;
+  onClick: (c: PlanCandidate, shift: number) => void;
 }) {
   const map = useMap();
-  const markers = useRef(new Map<string, MarkerEntry>());
+  const { copies } = useWorldCopies();
+  const drawn = useRef(new Map<number, { group: L.LayerGroup; entries: MarkerEntry[] }>());
+  const renderer = useRef<L.Canvas | null>(null);
   const metarsRef = useRef(metars);
   metarsRef.current = metars;
   const flagsRef = useRef(flags);
   flagsRef.current = flags;
 
+  // A new plan starts afresh: every copy of the old plan's markers goes, with their canvas.
   useEffect(() => {
-    const renderer = L.canvas({ padding: 0.5 });
-    const group = L.layerGroup();
-    const reg = new Map<string, MarkerEntry>();
-    for (const c of plan.candidates) {
-      const s = candidateStyle(c.type);
-      const cat = categoryFor(c, metarsRef.current);
-      const ring = ringStyle(c, cat);
-      const faded = hideFlagged && isBlocked(flagsRef.current.get(c.ident));
-      const m = L.circleMarker([c.lat, c.lon + shift], {
-        renderer,
-        radius: s.radius,
-        color: ring.color,
-        weight: ring.weight,
-        fillColor: candidateColor(c),
-        ...fadeStyle(faded),
-      });
-      m.bindTooltip(() => candidateTooltipHtml(c, metarsRef.current, flagsRef.current.get(c.ident)), {
-        direction: "top",
-        offset: [0, -s.radius],
-        className: "tip",
-        opacity: 1,
-      });
-      m.on("click", () => onClick(c));
-      group.addLayer(m);
-      reg.set(c.ident, { marker: m, c, cat, faded });
-    }
-    markers.current = reg;
-    group.addTo(map);
+    const canvas = L.canvas({ padding: 0.5 });
+    renderer.current = canvas;
     return () => {
-      group.remove();
-      markers.current = new Map();
+      for (const { group } of drawn.current.values()) group.remove();
+      drawn.current = new Map();
+      map.removeLayer(canvas);
+      renderer.current = null;
     };
+  }, [plan, map, onClick]);
+
+  // One group of markers per world copy in view; a copy that stays in view keeps its markers.
+  useEffect(() => {
+    const canvas = renderer.current;
+    if (!canvas) return;
+    const want = new Set(copyRange(copies));
+    for (const [shift, { group }] of drawn.current) {
+      if (want.has(shift)) continue;
+      group.remove();
+      drawn.current.delete(shift);
+    }
+    for (const shift of want) {
+      if (drawn.current.has(shift)) continue;
+      const group = L.layerGroup();
+      const entries: MarkerEntry[] = [];
+      for (const c of plan.candidates) {
+        const s = candidateStyle(c.type);
+        const cat = categoryFor(c, metarsRef.current);
+        const ring = ringStyle(c, cat);
+        const faded = hideFlagged && isBlocked(flagsRef.current.get(c.ident));
+        const m = L.circleMarker([c.lat, ownLon(c.lon) + shift], {
+          renderer: canvas,
+          radius: s.radius,
+          color: ring.color,
+          weight: ring.weight,
+          fillColor: candidateColor(c),
+          ...fadeStyle(faded),
+        });
+        m.bindTooltip(() => candidateTooltipHtml(c, metarsRef.current, flagsRef.current.get(c.ident)), {
+          direction: "top",
+          offset: [0, -s.radius],
+          className: "tip",
+          opacity: 1,
+        });
+        m.on("click", () => onClick(c, shift));
+        group.addLayer(m);
+        entries.push({ marker: m, c, cat, faded });
+      }
+      group.addTo(map);
+      drawn.current.set(shift, { group, entries });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan, shift, map, onClick]);
+  }, [plan, copies, map, onClick]);
 
   // Recolor rings as METARs land, and fade/unfade as flags or the hide toggle change.
   useEffect(() => {
-    for (const entry of markers.current.values()) {
-      const cat = categoryFor(entry.c, metars);
-      const faded = hideFlagged && isBlocked(flags.get(entry.c.ident));
-      if (cat === entry.cat && faded === entry.faded) continue;
-      entry.cat = cat;
-      entry.faded = faded;
-      entry.marker.setStyle({ ...ringStyle(entry.c, cat), ...fadeStyle(faded) });
+    for (const { entries } of drawn.current.values()) {
+      for (const entry of entries) {
+        const cat = categoryFor(entry.c, metars);
+        const faded = hideFlagged && isBlocked(flags.get(entry.c.ident));
+        if (cat === entry.cat && faded === entry.faded) continue;
+        entry.cat = cat;
+        entry.faded = faded;
+        entry.marker.setStyle({ ...ringStyle(entry.c, cat), ...fadeStyle(faded) });
+      }
     }
   }, [metars, flags, hideFlagged]);
 
@@ -511,11 +579,19 @@ function AirportTip({ node }: { node: AirportNode }) {
   );
 }
 
-/** Zoom the map whenever a new focus request arrives, into the part the panels leave clear. */
+/**
+ * Zoom the map whenever a new focus request arrives, into the part the panels leave clear, first
+ * adding the world copies around where it will land.
+ */
 function FitController({ focus }: { focus: Focus | null }) {
   const map = useMap();
+  const { include } = useWorldCopies();
   useEffect(() => {
-    if (focus) applyFocus(map as unknown as FitMap, focus, prefersReducedMotion());
+    if (!focus) return;
+    applyFocus(map as unknown as FitMap, focus, prefersReducedMotion(), (points) => {
+      const [west, east] = lonSpan(points);
+      include(copiesInView(west, east));
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus?.key]);
   return null;

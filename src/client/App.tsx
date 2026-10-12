@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties } from "react";
 import { api } from "./api";
 import type { LatLng } from "./geo";
-import { buildRenderData, focusPoints, planBounds, planLonShift } from "./paths";
+import { buildRenderData, focusPoints, planZoomPoints } from "./paths";
 import { METAR_REUSE_MS, metarStation, type MetarMap } from "./metar";
 import { assessCandidate, type Flag } from "./constraints";
 import { useTracker } from "./tracker";
@@ -269,13 +269,13 @@ export function App() {
     setPlan(p);
     if (p) {
       setSelectedId(p.aircraft_id);
-      requestFocus(planBounds(data, p));
+      requestFocus(planZoomPoints(p));
     }
   };
 
   const focusCandidate = (c: PlanCandidate) => {
     if (!plan) return;
-    requestFocus([[c.lat, c.lon + planLonShift(data, plan)]]);
+    requestFocus([[c.lat, c.lon]]);
   };
 
   /**

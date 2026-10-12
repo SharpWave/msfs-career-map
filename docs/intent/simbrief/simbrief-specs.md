@@ -74,5 +74,5 @@ Design: [simbrief-design.md](simbrief-design.md). Prefix `SB`; facets `LINK` (di
 
 - [x] **SB-ROUTE-001**: The system shall draw the route of the flight being flown's current SimBrief plan in the bound aircraft's color (white when unbound), and the route of the plan of the flight open in the flight panel, when that is a different plan, in that flight's aircraft color.
 - [x] **SB-ROUTE-002**: The system shall draw a SimBrief route as a thin dashed line over a soft dark casing through the navlog fixes, with a dot at each fix (larger for airports) whose tooltip shows the ident, the name when different, "via AIRWAY" unless direct, and the planned altitude, else the fix type.
-- [ ] **SB-ROUTE-003**: The system shall draw a SimBrief route on the world copy of the flight it belongs to, including across the antimeridian.
+- [x] **SB-ROUTE-003**: The system shall draw a SimBrief route on every world copy in view (MAP-GEO-014), placed fix to fix (MAP-GEO-015), so a route across the antimeridian is continuous on both sides of it.
 - [x] **SB-ROUTE-004**: If a SimBrief route fails to draw, then the system shall leave it out without affecting the rest of the map.

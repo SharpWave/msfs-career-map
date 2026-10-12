@@ -21,7 +21,7 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
 - docs/intent/simbrief/simbrief-specs.md (39 specs)
 
 ### Tests
-- none yet (they go in `tests/simbrief/`; the harness is app-shell's)
+- tests/tour-map/copies.test.ts — SB-ROUTE-003 (the route placed fix to fix; drawn on every copy by the map's shared copies)
 
 ### Code
 - src/client/simbrief.ts
@@ -58,18 +58,17 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
 | Plans on hops | SB-HOP-001 to 005 | 2 | 0 | 3 |
 | Live card controls | SB-CTRL-001 to 004 | 4 | 0 | 0 |
 | Flight panel card | SB-CARD-001 to 008 | 3 | 0 | 5 |
-| Route on the map | SB-ROUTE-001 to 004 | 3 | 0 | 1 |
+| Route on the map | SB-ROUTE-001 to 004 | 4 | 0 | 0 |
 
-**Summary:** 27 of 39 specs implemented; 12 gaps; none deferred. No spec has a test.
+**Summary:** 28 of 39 specs implemented; 11 gaps; none deferred. 1 spec has a test.
 
 ## Key Findings
 
 1. **OFP HTML inserted unsanitised** — FlightPanel.tsx:340.
 2. **Use this plan fetches again** instead of keeping the previewed plan — LivePanel.tsx:58-62, routes.ts:647-653.
 3. **Re-attaching keeps the old plan** pointing at the hop — routes.ts:666-687.
-4. **Route can land a world copy away** — the `ref` prop never arrives (BriefingLayer.tsx:9-19).
-5. **Any short livery is sent as a registration** — simbrief.ts:15-18.
-6. **Plans of deleted hops stay in the table**, and the panel attaches a plan with no preview.
+4. **Any short livery is sent as a registration** — simbrief.ts:15-18.
+5. **Plans of deleted hops stay in the table**, and the panel attaches a plan with no preview.
 
 ## Work Required
 
@@ -82,10 +81,9 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
    the latest plan changed (SB-PICK-001, SB-PICK-002, SB-CARD-003).
 3. Replace a hop's old plan when attaching, delete plans with their hops, and return only the
    linked plan (SB-HOP-001, SB-HOP-003, SB-HOP-005; with FLEET-REC-016).
-4. Draw routes on their flight's world copy (SB-ROUTE-003; BriefingLayer.tsx:9-19).
-5. Show a pending leg's plan in the panel (SB-CARD-002).
+4. Show a pending leg's plan in the panel (SB-CARD-002).
 
 ### Nice to Have
-6. Tighten the registration test (SB-LINK-002).
-7. Style the PDF link; "—" for a plan with no flight identity (SB-CARD-007, SB-CARD-005).
-8. One fallback type list instead of two.
+5. Tighten the registration test (SB-LINK-002).
+6. Style the PDF link; "—" for a plan with no flight identity (SB-CARD-007, SB-CARD-005).
+7. One fallback type list instead of two.

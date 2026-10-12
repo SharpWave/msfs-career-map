@@ -251,7 +251,7 @@ src/server/   Express API, SQLite schema, airport + runway import, planner query
   tracker.ts     turns samples into hops: takeoff/landing detection, landing rating, track + stats, pending legs
   ofp.ts         SimBrief OFP fetch + parse
 src/client/   Vite + React + Leaflet UI
-  paths.ts    turns hops into map geometry (great circles or recorded tracks, antimeridian unwrapping)
+  paths.ts    turns hops into map geometry (great circles or recorded tracks) and the world copies each shape is drawn on
   icons.ts    built-in aircraft silhouettes and the path color palette
   tracker.ts  subscribes to the tracker's event stream
   landing.ts  how landing ratings are shown

@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Polygon, Tooltip } from "react-leaflet";
 import { api } from "../api";
 import { fmtDateTime, fmtFt } from "../format";
+import type { LatLng } from "../geo";
+import { copyShifts, lonSpan, placeLine, shiftLine } from "../paths";
 import type { Hazard, HazardKind, HazardSet } from "../types";
+import { useWorldCopies } from "./WorldCopies";
 
 export const HAZARD_STYLE: Record<HazardKind, { color: string; label: string }> = {
   ICE: { color: "#38bdf8", label: "Icing" },
@@ -40,8 +43,13 @@ interface Props {
   onStatus?: (s: { count: number; fetched_at: string | null; error: string | null }) => void;
 }
 
-/** Shaded G-AIRMET / SIGMET areas for the enabled hazard kinds, refreshed every ten minutes. */
+/**
+ * Shaded G-AIRMET / SIGMET areas for the enabled hazard kinds, refreshed every ten minutes. Each area
+ * is placed vertex to vertex and drawn on every world copy in view; the count is of areas, not copies.
+ */
+// @spec MAP-HAZ-006, MAP-HAZ-008, MAP-HAZ-010
 export function HazardLayer({ kinds, now, onStatus }: Props) {
+  const { copies } = useWorldCopies();
   const [set, setSet] = useState<HazardSet | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,6 +73,14 @@ export function HazardLayer({ kinds, now, onStatus }: Props) {
   }, []);
 
   const shown = useMemo(() => (set ? selectCurrent(set.hazards, now).filter((h) => kinds.has(h.kind)) : []), [set, kinds, now]);
+  const placed = useMemo(
+    () =>
+      shown.map((h) => {
+        const ring = placeLine(h.coords as LatLng[]);
+        return { h, ring, span: lonSpan(ring) };
+      }),
+    [shown],
+  );
 
   useEffect(() => {
     onStatus?.({ count: shown.length, fetched_at: set?.fetched_at ?? null, error });
@@ -72,13 +88,13 @@ export function HazardLayer({ kinds, now, onStatus }: Props) {
 
   return (
     <>
-      {shown.map((h) => {
+      {placed.flatMap(({ h, ring, span }) => {
         const st = HAZARD_STYLE[h.kind];
-        return (
+        return copyShifts(span, copies).map((d) => (
           <Polygon
-            key={h.id}
-            positions={h.coords}
-            pathOptions={{ color: st.color, weight: 1.5, opacity: 0.8, fillColor: st.color, fillOpacity: 0.18, dashArray: h.source === "gairmet" ? undefined : "6 4" }}
+            key={`${h.id}@${d}`}
+            positions={shiftLine(ring, d)}
+            pathOptions={{ className: "hazard-area", color: st.color, weight: 1.5, opacity: 0.8, fillColor: st.color, fillOpacity: 0.18, dashArray: h.source === "gairmet" ? undefined : "6 4" }}
           >
             <Tooltip sticky className="tip" opacity={1}>
               <div className="tip-title" style={{ color: st.color }}>
@@ -100,7 +116,7 @@ export function HazardLayer({ kinds, now, onStatus }: Props) {
               {h.raw && <div className="tip-notes">{h.raw.slice(0, 220)}{h.raw.length > 220 ? "…" : ""}</div>}
             </Tooltip>
           </Polygon>
-        );
+        ));
       })}
     </>
   );

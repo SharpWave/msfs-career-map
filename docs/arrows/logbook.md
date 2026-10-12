@@ -60,7 +60,7 @@ hops by hand.
 1. **Two writers to `hops`** — hand-logged rows come from the hop routes; flown legs come from the
    tracker's `insertHop` (src/server/tracker.ts:306-325), which follows the same append rule.
 2. **Parked position is derived in six places** — Fleet.tsx:106, HopForm.tsx:28-32,
-   Planner.tsx:86-89, paths.ts:137-140, routes.ts:709-714, and the tracker's takeoff tie-break
+   Planner.tsx:86-89, paths.ts:194-202, routes.ts:709-714, and the tracker's takeoff tie-break
    (intended); all depend on hops arriving sorted.
 3. **Renumbering is not atomic** — routes.ts:407-410 and 417-418 run outside a transaction;
    reorder (434-441) is the only transactional path.

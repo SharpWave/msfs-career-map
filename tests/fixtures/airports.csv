@@ -44,3 +44,6 @@
 22675,"N41","small_airport","Waterbury Airport",41.632381,-73.048182,850,"NA","US","US-CT","Waterbury","no",,,"KN41","N41",,"https://en.wikipedia.org/wiki/Waterbury_Airport_(Connecticut)",
 24344,"RI07","small_airport","Wing-Over Farm Airport",41.57899856567383,-71.1417007446289,113,"NA","US","US-RI","Tiverton","no",,,"RI07","RI07",,,
 315548,"US-0273","closed","NAS Squantum",42.29772,-71.03371,,"NA","US","US-MA",,"no",,,,,,"https://en.wikipedia.org/wiki/Naval_Air_Station_Squantum",
+900001,"PANC","large_airport","Ted Stevens Anchorage International Airport",61.1744,-149.996002,152,"NA","US","US-AK","Anchorage","yes","PANC","ANC","PANC","ANC",,,
+900002,"PAOM","medium_airport","Nome Airport",64.512199,-165.445007,37,"NA","US","US-AK","Nome","yes","PAOM","OME","PAOM","OME",,,
+900003,"UHMA","medium_airport","Ugolny Airport",64.735001,177.740997,194,"AS","RU","RU-CHU","Anadyr","yes","UHMA","DYR","UHMA",,,,

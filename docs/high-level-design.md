@@ -153,7 +153,8 @@ app-shell sits under everything and is left out.
 - **Time.** Stored as ISO 8601 UTC, shown in the browser's local time. A hop records the real-world
   clock and the sim's clock; flight time leaves out time the sim was paused.
 - **Map geometry** — paths, world copies, parked positions, zoom points — is computed in one place
-  (`paths.ts`) and shared by every layer.
+  (`paths.ts`) and shared by every layer. The map wraps: every layer is drawn on every world copy
+  in view, so two copies of a region never show different things.
 - **The server decides, the page shows.** Landing ratings, hard planner filters and code resolution
   happen on the server; the page maps results to how they look.
 - **Schema changes are additive** and upgrade an existing database in place.
@@ -177,8 +178,9 @@ The project is broken when any of these happens:
 
 - A flight flown with the sim connected appears neither as a hop nor as a pending leg.
 - A server restart or a sim crash in flight loses the leg being flown.
-- The map shows an aircraft parked anywhere but its last hop's destination, or a hop's path not
-  meeting its airport dots.
+- The map shows an aircraft parked anywhere but its last hop's destination, a hop's path not
+  meeting its airport dots, or two copies of the same region in view showing different paths, dots
+  or layers.
 - A planner result offers an airport the aircraft cannot use (runway, surface, elevation) or hides
   one that live weather does not rule out.
 - Logging a normal flight needs anything from the pilot beyond binding a new sim aircraft once.

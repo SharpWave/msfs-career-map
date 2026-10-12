@@ -34,8 +34,9 @@ This segment owns:
 It relies on other segments for: the aircraft's performance and limit fields (fleet); where an
 aircraft is parked (logbook, LOG-SEQ-008); airport records, the runway summary, METAR fetching,
 freshness and flight categories, and which airports may be offered at all (airports — an airport
-kept only because a hop references it is never a candidate, APT-DATA-008); which world copy the
-ring and dots are drawn on and the zoom behaviour (tour-map, MAP-GEO-010, MAP-ZOOM-005/006); the
+kept only because a hop references it is never a candidate, APT-DATA-008); placing the ring and
+dots and drawing them on every world copy in view, and the zoom behaviour (tour-map, MAP-GEO-014,
+MAP-ZOOM-005/006); the
 SimBrief dispatch link for a leg (simbrief); and the hop form that receives a picked destination
 (logbook, LOG-FORM-004).
 
@@ -225,15 +226,15 @@ after the first load, with the default types, and the form takes on that search'
 
 ## On the Map
 
-The planner's layers sit under everything but the hazard and night overlays (MAP-PATH-005), on
-the parked aircraft's world copy, with each candidate beside the ring even when it lies across
-the 180° meridian from the origin (MAP-GEO-010, MAP-GEO-013).
+The planner's layers sit under everything but the hazard and night overlays (MAP-PATH-005) and,
+like every map layer, are drawn on every world copy in view, so a candidate across the 180°
+meridian from the origin sits beside the ring (MAP-GEO-013, MAP-GEO-014).
 
 - **Range ring**: a dashed circle of the ring radius in the planning aircraft's color with a faint
   fill, not clickable. When truncated, a thin white inner ring at `shown_nm` marks how far the
-  drawn candidates reach ([MapView.tsx:179-195](../../../src/client/components/MapView.tsx#L179-L195)).
-- **Candidate dots** ([MapView.tsx:62-94](../../../src/client/components/MapView.tsx#L62-L94),
-  [357-451](../../../src/client/components/MapView.tsx#L357-L451)): filled by runway surface —
+  drawn candidates reach ([MapView.tsx:219-242](../../../src/client/components/MapView.tsx#L219-L242)).
+- **Candidate dots** ([MapView.tsx:65-97](../../../src/client/components/MapView.tsx#L65-L97),
+  [365-519](../../../src/client/components/MapView.tsx#L365-L519)): filled by runway surface —
   paved when any runway is, else the first surface class (paved near-black, grass lime, gravel and
   dirt amber, water cyan, snow white, unknown grey), colors chosen to stay clear of the
   flight-category colors; sized and outlined by class (large 12 px with a white outline, medium
@@ -243,11 +244,11 @@ the 180° meridian from the origin (MAP-GEO-010, MAP-GEO-013).
 - **Candidate tooltip**: "IDENT · Name"; location; distance · ~time · bearing; class, elevation and
   runway summary (or "no runway data"); the category badge and METAR summary, or "METAR stale (…)";
   each flag; "Click for photo, weather, terrain, links, and to use as the next destination"
-  ([MapView.tsx:331-355](../../../src/client/components/MapView.tsx#L331-L355)).
-- **Candidate popup**: clicking a dot opens the airport popup (airports) with the planner's leg
-  line, the flags, the terrain check, a SimBrief link for the leg and **Use as next
+  ([MapView.tsx:376-399](../../../src/client/components/MapView.tsx#L376-L399)).
+- **Candidate popup**: clicking a dot opens the airport popup (airports) at that dot, on the
+  world copy clicked, with the planner's leg line, the flags, the terrain check, a SimBrief link for the leg and **Use as next
   destination**, which hands the airport to the hop form and closes the popup. A new result
-  closes an open candidate popup ([MapView.tsx:197-215](../../../src/client/components/MapView.tsx#L197-L215)).
+  closes an open candidate popup ([MapView.tsx:244-262](../../../src/client/components/MapView.tsx#L244-L262)).
 
 ## Decisions & Alternatives
 

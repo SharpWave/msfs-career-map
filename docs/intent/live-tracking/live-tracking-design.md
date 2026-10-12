@@ -31,7 +31,7 @@ This segment owns:
 
 It relies on: fleet for the sim-binding fields and create-from-sim (FLEET-SIM); airports for
 nearest-airport naming (APT-NEAR) and code resolution; logbook for the hop record it writes and
-the parked position (LOG-SEQ-008); tour-map for keeping the live track on the right world copy;
+the parked position (LOG-SEQ-008); tour-map for placing the live aircraft and track and drawing them on every world copy in view;
 simbrief for the briefing a leg carries; flight-panel for showing the live leg's profile and for
 mapping a landing rating to its icon, word and color.
 
@@ -273,8 +273,8 @@ a toast "Logged ORIG → DEST · time" shows for 8 s ([App.tsx:158-177](../../..
 The live aircraft is drawn on top of everything while the link is connected and a position is
 known ([LiveLayer.tsx](../../../src/client/components/LiveLayer.tsx)): the bound aircraft's badge
 (a white single-piston badge when unbound) with a heading pointer, and the leg's track in the
-aircraft's color over a dark casing. Both are placed on the world copy of the bound aircraft's
-parked position. The tooltip reads "LIVE · name", altitude, ground speed, heading and "on
+aircraft's color over a dark casing. Both are drawn on every world copy in view (MAP-GEO-014):
+the aircraft at its own position, the track placed sample to sample (MAP-GEO-015). The tooltip reads "LIVE · name", altitude, ground speed, heading and "on
 ground", and the leg's origin and point count.
 
 ## Test Tools

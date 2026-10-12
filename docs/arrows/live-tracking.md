@@ -25,6 +25,7 @@ describes current behaviour with partly inferred rationale; specs drafted; first
 - tests/live-tracking/sim-link.test.ts — LIVE-LEG-012, LIVE-LINK-005, LIVE-LINK-009 (the link driven through `fake-sim.ts`, a stand-in node-simconnect)
 - tests/live-tracking/restored-leg.test.ts — LIVE-LEG-012 (a checkpointed leg survives a restart and reconnect)
 - tests/live-tracking/live-card.test.tsx — LIVE-CARD-001, LIVE-CARD-011
+- tests/tour-map/copies.test.ts, tests/e2e/world-copies.spec.ts — LIVE-LAYER-002 (the live aircraft and track on every world copy in view)
 
 ### Code
 - src/server/simconnect.ts
@@ -67,7 +68,7 @@ without the user typing anything when the tracker can work it out.
 | Live aircraft on the map | LIVE-LAYER-001 to 003 | 3 | 0 | 0 |
 | Test tools | LIVE-TOOL-001 to 004 | 3 | 0 | 1 |
 
-**Summary:** 56 of 72 specs implemented; 16 gaps; none deferred. 3 specs have tests.
+**Summary:** 56 of 72 specs implemented; 16 gaps; none deferred. 4 specs have tests.
 
 ## Key Findings
 

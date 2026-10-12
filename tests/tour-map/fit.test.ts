@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { applyFocus, type FitMap } from "../../src/client/fit.ts";
+import { applyFocus, gatherPoints, type FitMap } from "../../src/client/fit.ts";
+import type { LatLng } from "../../src/client/geo.ts";
 import type { Insets } from "../../src/client/layout.ts";
 
 type Call = { fn: string; args: unknown[] };
 
-/** A map 1600 × 1000 px with a flat projection (1 px per degree × 2^zoom), recording what it is asked. */
-function fakeMap(zoom = 5): FitMap & { calls: Call[] } {
+/**
+ * A map 1600 × 1000 px centred on the equator at `centreLon`, with a flat projection (1 px per
+ * degree × 2^zoom), recording what it is asked.
+ */
+function fakeMap(zoom = 5, centreLon = 0): FitMap & { calls: Call[] } {
   const calls: Call[] = [];
   const k = (z: number) => 2 ** z;
   const rec = (fn: string) => (...args: unknown[]) => void calls.push({ fn, args });
@@ -13,6 +17,7 @@ function fakeMap(zoom = 5): FitMap & { calls: Call[] } {
     calls,
     getSize: () => ({ x: 1600, y: 1000 }),
     getZoom: () => zoom,
+    getCenter: () => ({ lat: 0, lng: centreLon }),
     project: ([lat, lon], z) => ({ x: lon * k(z), y: -lat * k(z) }),
     unproject: ({ x, y }, z) => ({ lat: -y / k(z), lng: x / k(z) }),
     setView: rec("setView"),
@@ -119,5 +124,56 @@ describe("zooming under floating panels", () => {
     const map = fakeMap();
     applyFocus(map, { points: [], clear: CLEAR }, false);
     expect(map.calls).toEqual([]);
+  });
+});
+
+const lons = (pts: LatLng[]) => pts.map((p) => p[1]);
+
+describe("zooming across world copies", () => {
+  // @spec MAP-ZOOM-011
+  it("gathers the points onto their narrowest band of longitude, across 180° when that is narrower", () => {
+    expect(lons(gatherPoints([[0, 170], [0, -170]], 100))).toEqual([170, 190]);
+    expect(lons(gatherPoints([[0, 170], [0, -170]], -150))).toEqual([-190, -170]);
+    // Spread the other way round, the band stays clear of the meridian.
+    expect(lons(gatherPoints([[0, -60], [0, 60]], 0))).toEqual([-60, 60]);
+    // Points placed worlds away come back to the copy nearest the centre.
+    expect(lons(gatherPoints([[0, 650], [0, 640]], 0))).toEqual([-70, -80]);
+  });
+
+  // @spec MAP-ZOOM-011
+  it("puts the band's middle within 180° of the centre, an exact tie going east", () => {
+    expect(gatherPoints([[0, 180]], 0)).toEqual([[0, 180]]);
+    expect(gatherPoints([[0, -180]], 0)).toEqual([[0, 180]]);
+    expect(lons(gatherPoints([[0, -170]], 100))).toEqual([190]);
+  });
+
+  // @spec MAP-ZOOM-011, APP-UI-020
+  it("measures from the centre of the clear part of the map", () => {
+    // At zoom 0 a pixel is a degree: the clear part's centre lies 206° east of the window's.
+    const covered = fakeMap(0, 0);
+    applyFocus(covered, { points: [[0, -160]], clear: CLEAR }, false);
+    expect(offsetOf(covered, [0, 200], covered.calls[0].args[0] as LatLng, 9).x).toBeCloseTo(206, 6);
+
+    const open = fakeMap(0, 0);
+    applyFocus(open, { points: [[0, -160]], clear: NONE }, false);
+    expect(offsetOf(open, [0, -160], open.calls[0].args[0] as LatLng, 9).x).toBeCloseTo(0, 6);
+  });
+
+  // @spec MAP-ZOOM-007, MAP-ZOOM-011
+  it("judges whether the points lie at one place once they are gathered", () => {
+    const map = fakeMap(5, 0);
+    applyFocus(map, { points: [[10, 180], [10, -180]], clear: NONE }, false);
+    expect(map.calls.map((c) => c.fn)).toEqual(["flyTo"]);
+  });
+
+  // @spec MAP-GEO-018
+  it("says where the zoom will land before the map moves", () => {
+    const map = fakeMap(5, 0);
+    applyFocus(map, { points: [[0, 170], [0, -170]], clear: NONE }, false, (pts) => map.calls.push({ fn: "target", args: [pts] }));
+    expect(map.calls.map((c) => c.fn)).toEqual(["target", "flyToBounds"]);
+    expect(map.calls[0].args[0]).toEqual([
+      [0, 170],
+      [0, 190],
+    ]);
   });
 });

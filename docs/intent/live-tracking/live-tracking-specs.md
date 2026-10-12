@@ -107,7 +107,7 @@ legs), `SAVE` (checkpointing), `API` (tracker API and event stream), `CARD` (liv
 ## Live Aircraft on the Map
 
 - [x] **LIVE-LAYER-001**: While the sim is connected and a position is known, the system shall draw the live aircraft above every other map layer as the bound aircraft's badge (a white single-piston badge when unbound) with a heading pointer, and the leg's track in the aircraft's color over a dark casing.
-- [x] **LIVE-LAYER-002**: The system shall draw the live aircraft and its track on the world copy of the bound aircraft's parked position.
+- [x] **LIVE-LAYER-002**: The system shall draw the live aircraft and its track on every world copy in view (MAP-GEO-014), the aircraft at its own position and the track placed sample to sample (MAP-GEO-015).
 - [x] **LIVE-LAYER-003**: When the user hovers the live aircraft, the system shall show "LIVE · name", altitude, ground speed, heading, "on ground" while on the ground, and the leg's origin and points.
 
 ## Test Tools

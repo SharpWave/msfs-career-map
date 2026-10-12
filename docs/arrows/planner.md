@@ -23,6 +23,7 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
 ### Tests
 - tests/tour-map/map-toolbar.test.tsx — PLAN-RUN-002
 - tests/app-shell/page.test.tsx — PLAN-FORM-003
+- tests/e2e/world-copies.spec.ts — PLAN-DRAW-005 (a candidate's popup opens beside the dot clicked, across the 180° meridian)
 
 ### Code
 - src/server/performance.ts
@@ -61,18 +62,16 @@ is parked, and show which of them live weather or darkness rules out.
 | Plan lifecycle | PLAN-RUN-001 to 005 | 5 | 0 | 0 |
 | Planner layers on the map | PLAN-DRAW-001 to 006 | 6 | 0 | 0 |
 
-**Summary:** 56 of 64 specs implemented; 8 gaps; none deferred. No spec has a test.
+**Summary:** 56 of 64 specs implemented; 8 gaps; none deferred. 3 specs have tests.
 
 ## Key Findings
 
 1. **`total` understates dense searches** — routes.ts:733-746 counts only the nearest 2 × limit.
 2. **Stale label** — Planner.tsx:196 says cruise altitude is "also sent to SimBrief"; it no longer is.
-3. **Candidates across 180° from the origin land a world away** — MapView.tsx:411, App.tsx:278;
-   the fix is map geometry, tracked in tour-map as MAP-GEO-013.
-4. **Short legs to a higher field are timed too short** — performance.ts:57-61.
-5. **Planner limits restated in the browser** — Planner.tsx:199-229 hard-codes 2,000 / 10,000 / 12,000 ft.
-6. **Oxygen altitude is 12,000 ft, intended 12,500 ft** — routes.ts:153, Planner.tsx:199-227.
-7. **Small airports never get weather** — App.tsx:100 looks up large and medium candidates only.
+3. **Short legs to a higher field are timed too short** — performance.ts:57-61.
+4. **Planner limits restated in the browser** — Planner.tsx:199-229 hard-codes 2,000 / 10,000 / 12,000 ft.
+5. **Oxygen altitude is 12,000 ft, intended 12,500 ft** — routes.ts:153, Planner.tsx:199-227.
+6. **Small airports never get weather** — App.tsx:100 looks up large and medium candidates only.
 
 ## Work Required
 

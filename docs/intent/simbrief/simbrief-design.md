@@ -180,10 +180,9 @@ unstyled, and with neither callsign nor airline the Flight line is blank rather 
   (MAP-PATH-005); a dot at every navlog fix (larger for airports), whose tooltip gives the ident,
   the name when different, "via AIRWAY" unless direct, and the planned altitude or else the fix
   type.
-- Where: on the world copy of the flight it belongs to. Today the route is unwrapped only against
-  itself — the reference meant to place it is passed as a `ref` prop, which React never delivers
-  — so across the antimeridian it can sit a world copy away from its flight
-  ([BriefingLayer.tsx:9-19](../../../src/client/components/BriefingLayer.tsx#L9-L19)).
+- Where: on every world copy in view (MAP-GEO-014), placed fix to fix (MAP-GEO-015), so it lies
+  along its flight on every copy and a route across the antimeridian is continuous on both sides
+  ([BriefingLayer.tsx](../../../src/client/components/BriefingLayer.tsx)).
 
 ## Decisions & Alternatives
 
@@ -216,13 +215,12 @@ unstyled, and with neither callsign nor airline the Flight line is blank rather 
 5. **Attaching to a logged hop has no preview** — it takes whatever plan is latest
    ([FlightPanel.tsx:234-246](../../../src/client/components/FlightPanel.tsx#L234-L246)).
 6. **OFP HTML is not sanitised** ([FlightPanel.tsx:340](../../../src/client/components/FlightPanel.tsx#L340)).
-7. **Route world copy** — the `ref` prop never arrives ([BriefingLayer.tsx:9-19](../../../src/client/components/BriefingLayer.tsx#L9-L19)).
-8. **Pending legs' plans** cannot be seen until the leg is logged.
-9. **Two fallback type lists** — the server's built-in 35 and the form's own
+7. **Pending legs' plans** cannot be seen until the leg is logged.
+8. **Two fallback type lists** — the server's built-in 35 and the form's own
    ([simbrief.ts:22-33](../../../src/server/simbrief.ts#L22-L33), [client simbrief.ts:44-96](../../../src/client/simbrief.ts#L44-L96)).
-10. **PDF link unstyled; blank Flight line** with neither callsign nor airline
+9. **PDF link unstyled; blank Flight line** with neither callsign nor airline
     ([FlightPanel.tsx:284](../../../src/client/components/FlightPanel.tsx#L284), [328-332](../../../src/client/components/FlightPanel.tsx#L328-L332)).
-11. **The archived OFP is never read back** — `ofp` is stored but no endpoint returns it.
+10. **The archived OFP is never read back** — `ofp` is stored but no endpoint returns it.
 
 ## References
 

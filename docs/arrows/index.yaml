@@ -1,5 +1,5 @@
 schema_version: 2
-last_updated: 2026-10-09
+last_updated: 2026-10-11
 
 # Flat depth-2 mapping: every segment sits directly under docs/high-level-design.md.
 arrows:
@@ -48,7 +48,7 @@ arrows:
     blocks: [planner, live-tracking, simbrief]
     blockedBy: [logbook, fleet, airports]
     detail: tour-map.md
-    next: "Close the 4 gaps (hazards on every copy, arc zoom, planner candidates across 180°, partial outages) test-first, and add tests for the 45 implemented MAP specs that have none"
+    next: "Close the 2 gaps (arc zoom, partial hazard outages) test-first, and add tests for the 29 implemented MAP specs that have none"
     drift: null
 
   planner:
@@ -96,7 +96,7 @@ arrows:
     blocks: [planner]
     blockedBy: [fleet, live-tracking, tour-map]
     detail: simbrief.md
-    next: "Add tests for the 27 implemented SB specs, then close the 12 gaps (sanitise OFP HTML, preview-and-confirm everywhere, hop plan replace/delete, route world copy, pending-leg plan, registration test, card polish)"
+    next: "Add tests for the 27 implemented SB specs that have none, then close the 11 gaps (sanitise OFP HTML, preview-and-confirm everywhere, hop plan replace/delete, pending-leg plan, registration test, card polish)"
     drift: null
 
   # Foundation: every segment relies on the shell's conventions, so its dependencies are not listed.

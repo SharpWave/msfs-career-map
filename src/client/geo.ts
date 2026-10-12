@@ -23,14 +23,14 @@ export function bearing(a: LatLng, b: LatLng): number {
 }
 
 /**
- * Points along the great circle from a to b, starting and ending exactly at a and b. Longitudes
- * are unwrapped from a's own longitude, which may lie on another world copy (b within 180° of
- * it), so the line never jumps across the antimeridian and stays on the copy it was given.
+ * Points along the great circle from a to b, starting exactly at a as given and ending exactly at b
+ * on the world copy the line reaches. Every point after a, b included, is placed within 180° of
+ * longitude of the one before, so the line never jumps across the antimeridian.
  */
 // @spec MAP-GEO-004, MAP-GEO-005
 export function greatCircle(a: LatLng, b: LatLng): LatLng[] {
   const nm = distanceNm(a, b);
-  if (nm < 1) return [a, b];
+  if (nm < 1) return unwrapFrom([a, [b[0], b[1]]]);
   const n = Math.max(2, Math.min(96, Math.ceil(nm / 25)));
 
   const lat1 = toRad(a[0]), lon1 = toRad(a[1]);
@@ -48,13 +48,18 @@ export function greatCircle(a: LatLng, b: LatLng): LatLng[] {
     const z = A * Math.sin(lat1) + B * Math.sin(lat2);
     pts.push([toDeg(Math.atan2(z, Math.sqrt(x * x + y * y))), toDeg(Math.atan2(y, x))]);
   }
-  // The trigonometry returns longitudes in -180..180; start from a as given and unwrap so
-  // consecutive points stay within 180° of each other, then pin the far end to b.
+  // The trigonometry returns longitudes in -180..180; start from a as given, end at b exactly, and
+  // unwrap so consecutive points stay within 180° of each other.
   pts[0] = [a[0], a[1]];
+  pts[pts.length - 1] = [b[0], b[1]];
+  return unwrapFrom(pts);
+}
+
+/** Shift each point after the first by whole turns to within 180° of longitude of the one before. */
+function unwrapFrom(pts: LatLng[]): LatLng[] {
   for (let i = 1; i < pts.length; i++) {
     while (pts[i][1] - pts[i - 1][1] > 180) pts[i][1] -= 360;
     while (pts[i][1] - pts[i - 1][1] < -180) pts[i][1] += 360;
   }
-  pts[pts.length - 1] = [b[0], b[1]];
   return pts;
 }
