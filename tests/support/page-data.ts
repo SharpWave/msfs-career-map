@@ -2,7 +2,7 @@
  * Builders for the data the page receives from `/api` — aircraft, hops, airports, map state, tracker
  * status — so component tests can state only what matters to them.
  */
-import type { Aircraft, Airport, AppState, Hop, PendingLeg, PlanCandidate, PlanResult, TrackerStatus } from "../../src/client/types.ts";
+import type { Aircraft, Airport, AppState, Hop, Landing, LandingRating, PendingLeg, PlanCandidate, PlanResult, TrackerStatus } from "../../src/client/types.ts";
 import type { LiveState } from "../../src/client/tracker.ts";
 
 export function aircraft(over: Partial<Aircraft> = {}): Aircraft {
@@ -49,6 +49,26 @@ export function hop(over: Partial<Hop> = {}): Hop {
     stats: null,
     briefing_id: null,
     created_at: "2026-10-01T12:00:00.000Z",
+    ...over,
+  };
+}
+
+const TOUCHDOWN_T0 = Date.parse("2026-10-21T15:00:00Z");
+
+/** A measured touchdown at KPVD, `sec` seconds after 15:00 UTC on 2026-10-21. */
+export function touchdown(sec: number, fpm: number, rating: LandingRating, over: Partial<Landing> = {}): Landing {
+  return {
+    t: new Date(TOUCHDOWN_T0 + sec * 1000).toISOString(),
+    fpm,
+    g: null,
+    ias_kts: null,
+    sim_fpm: null,
+    pitch_deg: null,
+    bank_deg: null,
+    lat: 41.7246,
+    lon: -71.4282,
+    rating,
+    source: "frames",
     ...over,
   };
 }

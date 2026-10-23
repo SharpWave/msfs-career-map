@@ -42,8 +42,23 @@ export function parseStats(json: string | null | undefined): HopStats | null {
   }
 }
 
-/** The landing that ended the hop (the last touchdown), if it was tracked. */
-export function finalLanding(hop: Hop): Landing | null {
-  const ls = parseLandings(hop.landings);
-  return ls.length ? ls[ls.length - 1] : null;
+/** A touchdown less than this after the previous one is a bounce within the same landing. */
+const BOUNCE_MS = 30_000;
+
+/**
+ * The touchdown that stands for a flight wherever one is shown: the first touchdown of its final
+ * landing, so a bounced arrival is judged by its first contact while touch-and-go circuits still
+ * give way to the landing that ended the flight. The tracker's "Logged" message applies the same rule.
+ */
+// @spec PANEL-LOOK-004
+export function shownTouchdown(landings: Landing[]): Landing | null {
+  let i = landings.length - 1;
+  if (i < 0) return null;
+  while (i > 0 && Date.parse(landings[i].t) - Date.parse(landings[i - 1].t) < BOUNCE_MS) i--;
+  return landings[i];
+}
+
+/** The touchdown that stands for a hop, if it was tracked. */
+export function hopTouchdown(hop: Hop): Landing | null {
+  return shownTouchdown(parseLandings(hop.landings));
 }

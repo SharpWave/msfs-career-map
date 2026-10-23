@@ -25,8 +25,9 @@ Casual mode (LIVE-CASUAL) was designed and built test-first on 2026-10-12.
 ### Tests
 - tests/live-tracking/sim-link.test.ts — LIVE-LEG-012, LIVE-LINK-005, LIVE-LINK-009 (the link driven through `fake-sim.ts`, a stand-in node-simconnect)
 - tests/live-tracking/restored-leg.test.ts — LIVE-LEG-012 (a checkpointed leg survives a restart and reconnect)
-- tests/live-tracking/live-card.test.tsx — LIVE-CARD-001, 003, 006, 011, 012, 013, 014
-- tests/live-tracking/casual.test.ts — LIVE-CASUAL-001 to 012; LIVE-API-010, 011, 012; LIVE-SAVE-001; LIVE-LEG-002, 003 (the tracker driven by synthetic samples)
+- tests/live-tracking/live-card.test.tsx — LIVE-CARD-001, 003, 005, 006, 011, 012, 013, 014
+- tests/live-tracking/casual.test.ts — LIVE-CASUAL-001 to 012; LIVE-API-010, 011, 012; LIVE-SAVE-001; LIVE-LEG-002, 003 (the tracker driven by synthetic samples, through `pilot.ts`)
+- tests/live-tracking/logging.test.ts — LIVE-HOP-006 (the "Logged" message after a bounce and after a touch-and-go)
 - tests/live-tracking/casual-api.test.ts — LIVE-API-008, 009, 011; LIVE-CASUAL-006, 009, 010 (against a running test server, including the event stream)
 - tests/live-tracking/casual-shapes.test.ts — LIVE-LAYER-004 (placing the casual path)
 - tests/live-tracking/use-tracker.test.tsx — LIVE-API-005, 011 (the page's event-stream hook)
@@ -77,7 +78,7 @@ without the user typing anything when the tracker can work it out.
 | Live aircraft on the map | LIVE-LAYER-001 to 004 | 4 | 0 | 0 |
 | Test tools | LIVE-TOOL-001 to 004 | 3 | 0 | 1 |
 
-**Summary:** 78 of 94 specs implemented; 16 gaps; none deferred. 34 specs have tests.
+**Summary:** 78 of 94 specs implemented; 16 gaps; none deferred. 36 specs have tests.
 
 ## Key Findings
 

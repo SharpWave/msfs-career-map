@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "../api";
 import { aircraftLabel, fmtDateTime, fmtDuration, hopDurationMin } from "../format";
-import { RATING_BANDS, RATING_META, finalLanding, parseLandings, parseStats } from "../landing";
+import { RATING_BANDS, RATING_META, parseLandings, parseStats, shownTouchdown } from "../landing";
 import { parseTrack, type LiveState } from "../tracker";
 import type { Aircraft, AppState, Briefing, Hop, HopStats, Landing, TrackPoint } from "../types";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -65,7 +65,7 @@ export function FlightPanel({ source, state, live, briefing, onClose, onBriefing
     }
   }
 
-  const landing = hop ? finalLanding(hop) : landings.length ? landings[landings.length - 1] : null;
+  const landing = shownTouchdown(landings);
 
   return (
     <section className="flight-panel glass">
@@ -104,6 +104,7 @@ function directNm(hop: Hop, state: AppState): number | null {
   return 2 * Math.asin(Math.min(1, Math.sqrt(h))) * 3440.065;
 }
 
+// @spec PANEL-LAND-001, PANEL-LAND-002
 function LandingCard({ landing, all }: { landing: Landing | null; all: Landing[] }) {
   const [bands, setBands] = useState(false);
   if (!landing) {

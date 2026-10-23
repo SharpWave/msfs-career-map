@@ -122,8 +122,8 @@ routes; path casings; colored paths; chevrons; airport dots; parked markers; the
 - **Chevrons.** Hops of at least 8 nm direct get a direction arrow at the middle point of their
   path, in the path's color ([MapView.tsx:295-309](../../../src/client/components/MapView.tsx#L295-L309)).
 - **Hop tooltip** (hover): the aircraft in its color; `ORIG → DEST · hop n · direct nm`, plus
-  "· N nm flown (tracked)" for tracked hops; departure, arrival and duration when known; the final
-  landing's badge and its G; the notes; "Click for the flight profile" when tracked
+  "· N nm flown (tracked)" for tracked hops; departure, arrival and duration when known; the badge
+  and G of the first touchdown of its final landing (flight-panel); the notes; "Click for the flight profile" when tracked
   ([MapView.tsx:521-552](../../../src/client/components/MapView.tsx#L521-L552)).
 - **Clicking a path** opens that hop in the flight panel, selects its aircraft and zooms to the hop.
 - **Airport dots** are filled with the visiting aircraft's color when exactly one aircraft has been

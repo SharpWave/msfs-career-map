@@ -173,8 +173,8 @@ Expanding an aircraft card (the chevron with its hop count) lists its hops in se
   (stored or derived), missing ones counting 0, shown only when above zero
   ([107](../../../src/client/components/Fleet.tsx#L107), [203-209](../../../src/client/components/Fleet.tsx#L203-L209)).
   With no hops: "No hops logged for this aircraft."
-- **Row.** Sequence number, `ORIG → DEST`, the final landing's compact badge when the hop has
-  landings, departure and arrival times, the duration, "no times" when none of those exist, and
+- **Row.** Sequence number, `ORIG → DEST`, the compact badge of the first touchdown of its final
+  landing when the hop has touchdowns (flight-panel), departure and arrival times, the duration, "no times" when none of those exist, and
   the notes ([226-248](../../../src/client/components/Fleet.tsx#L226-L248)).
 - **Row click** opens the hop: the flight panel shows it and the map zooms to it
   ([App.tsx:261-266](../../../src/client/App.tsx#L261-L266)).

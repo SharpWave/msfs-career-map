@@ -40,7 +40,7 @@ switching and closing), `HEAD` (header), `CHART` (profile chart), `LAND` (landin
 
 ## Landing Card
 
-- [x] **PANEL-LAND-001**: The landing card shall show the flight's last touchdown: the rating's icon, word and caption; the descent rate, with "sim says N" when the sim's touchdown rate is known; the peak G or "not measured"; and the touchdown IAS and the attitude ("N° pitch · N° left/right bank") when known.
+- [x] **PANEL-LAND-001**: The landing card shall show the first touchdown of the flight's final landing: the rating's icon, word and caption; the descent rate, with "sim says N" when the sim's touchdown rate is known; the peak G or "not measured"; and the touchdown IAS and the attitude ("N° pitch · N° left/right bank") when known.
 - [x] **PANEL-LAND-002**: When a flight has more than one touchdown, the landing card shall list every touchdown as its rating icon and fpm.
 - [x] **PANEL-LAND-003**: The landing card shall say "Measured every frame at touchdown." for a measured landing and "From once-a-second samples; the per-frame watcher was not available." for a provisional one.
 - [ ] **PANEL-LAND-004**: When the user opens the landing card's **scale**, the card shall list the five ratings with their fpm bands (≤ 100, 101–250, 251–500, 501–800, > 800) and the note "A peak G of 1.6 / 2.0 / 2.6 / 3.5 or more bumps the class up regardless of fpm."
@@ -50,7 +50,8 @@ switching and closing), `HEAD` (header), `CHART` (profile chart), `LAND` (landin
 
 - [x] **PANEL-LOOK-001**: The system shall show the landing ratings as butter "🧈 Butter — nobody looked up from their book" (#3bceac), solid "👍 Solid — the coffee stayed in the cups" (#86b6ef), hard "💥 Hard — a few gasps from the cabin" (#fbbf24), hospital "🏥 Hospital — someone is calling a lawyer" (#f97316) and graveyard "🪦 Graveyard — nobody is walking away from that one" (#ef4444), and never by color alone.
 - [x] **PANEL-LOOK-002**: The landing badge shall show the rating's icon, word and fpm in the rating's color, or the icon and fpm when compact, with the hover text "Word: caption · N fpm" followed by ", G.GG G" when the G is known.
-- [x] **PANEL-LOOK-003**: The system shall use the full landing badge for a hop's final landing in its map tooltip, and the compact badge in hop rows and for the live leg's latest landing in the live card.
+- [x] **PANEL-LOOK-003**: The system shall use the full landing badge in a hop's map tooltip, and the compact badge in hop rows and in the live card.
+- [x] **PANEL-LOOK-004**: The system shall stand for a flight with touchdowns by the first touchdown of its final landing (for the live leg, its latest landing so far) in the landing card, the hop's map tooltip, the hop's row and the live card, counting a touchdown less than 30 s after the flight's previous touchdown as a bounce within the same landing and any other touchdown as the start of a new landing.
 
 ## Flight Card
 

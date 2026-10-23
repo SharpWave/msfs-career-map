@@ -57,7 +57,7 @@ Design: [logbook-design.md](logbook-design.md). Prefix `LOG`; facets `REC` (the 
 
 ## The Hop List in an Aircraft Card
 
-- [x] **LOG-LIST-001**: When an aircraft card is expanded, the system shall list that aircraft's hops in sequence, each with its number, origin → destination, the final landing's badge when it has landings, its real-world departure and arrival times, its flight time, and its notes, or "no times" when it has none of those.
+- [x] **LOG-LIST-001**: When an aircraft card is expanded, the system shall list that aircraft's hops in sequence, each with its number, origin → destination, the badge of the first touchdown of its final landing when it has touchdowns, its real-world departure and arrival times, its flight time, and its notes, or "no times" when it has none of those.
 - [x] **LOG-LIST-002**: When an aircraft card is expanded, the system shall show "n hop(s)" with the sum of its hops' flight times when that sum is above zero, or "No hops logged for this aircraft." when it has none.
 - [x] **LOG-LIST-003**: When the user clicks a hop row, the system shall open that hop in the flight panel and zoom the map to it.
 - [x] **LOG-LIST-004**: When the user clicks **Move earlier** or **Move later** on a hop row, the system shall swap the hop with its neighbour and save the new order; **Move earlier** shall be disabled on the first hop and **Move later** on the last.

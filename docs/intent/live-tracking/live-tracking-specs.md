@@ -72,7 +72,7 @@ stream), `CARD` (live card), `LAYER` (live aircraft on the map), `TOOL` (sim-fak
 - [ ] **LIVE-HOP-003**: The tracker shall keep pending legs in a list, oldest first, and never let a new pending leg replace an earlier one.
 - [x] **LIVE-HOP-004**: When the user logs a pending leg, the system shall resolve any airport codes given to idents, apply the aircraft and airports supplied, and log it as a hop, refusing with HTTP 400 while its aircraft, departure or destination is still missing.
 - [x] **LIVE-HOP-005**: When the user discards a pending leg, the system shall drop it and delete its SimBrief briefing unless a hop uses it.
-- [x] **LIVE-HOP-006**: When the tracker logs a hop, it shall report "Logged ORIG → DEST, time" (with the last landing's "N fpm rating" when there is one) and send the hop on the event stream.
+- [x] **LIVE-HOP-006**: When the tracker logs a hop, it shall report "Logged ORIG → DEST, time" (with "N fpm rating" of the first touchdown of its final landing when it has touchdowns, touchdowns less than 30 s apart being bounces of one landing) and send the hop on the event stream.
 
 ## Checkpointing
 
@@ -116,7 +116,7 @@ stream), `CARD` (live card), `LAYER` (live aircraft on the map), `TOOL` (sim-fak
 - [x] **LIVE-CARD-002**: While the sim is connected with an aircraft, the live card shall show the aircraft's title ("(no title yet)" while blank), livery and ATC id.
 - [x] **LIVE-CARD-003**: While casual mode is off and the sim aircraft is bound, the live card shall show its fleet aircraft, highlighting it on the map when clicked; while casual mode is off and the sim aircraft is not bound, the card shall offer **Bind to…** a fleet aircraft and **+ New** to create one from what the sim reports.
 - [x] **LIVE-CARD-004**: While the live aircraft's position is known, the live card shall show its altitude, ground speed and heading, with **Zoom** to fly the map to it at zoom 10.
-- [x] **LIVE-CARD-005**: While a leg is in progress, the live card shall show its origin (or "?"), takeoff time, points recorded and latest landing's badge, with **Profile** to open the live leg in the flight panel, **Log now** while landed, and **Discard** after confirming "Discard the leg being flown? It will not be logged."
+- [x] **LIVE-CARD-005**: While a leg is in progress, the live card shall show its origin (or "?"), takeoff time, points recorded and the badge of the first touchdown of its latest landing, with **Profile** to open the live leg in the flight panel, **Log now** while landed, and **Discard** after confirming "Discard the leg being flown? It will not be logged."
 - [x] **LIVE-CARD-006**: The live card shall show "Start MSFS and the tracker connects by itself. Takeoffs and landings are logged as hops with the flown track." while the sim is not connected and casual mode is off, "Connected to X; waiting for the aircraft to load." while connected without an aircraft, and "Waiting for the tracker…" before the first status.
 - [x] **LIVE-CARD-007**: The live card shall show the tracker's last message with its time, and the error from a failed action.
 - [ ] **LIVE-CARD-008**: For each pending leg, oldest first, the live card shall show "Leg waiting to be logged" with the sim aircraft and livery, the reason, takeoff and touchdown times, flight time and points; aircraft, From and To fields prefilled with what is known; **Log hop**; and **Discard** after confirming "Discard this leg? Its recorded track will be lost."

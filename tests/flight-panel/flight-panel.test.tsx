@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { aircraft, appState, hop, liveState } from "../support/page-data.ts";
+import type { Landing } from "../../src/client/types.ts";
+import { aircraft, appState, hop, liveState, touchdown, trackerStatus } from "../support/page-data.ts";
 
 const chart = vi.hoisted(() => ({ broken: false }));
 vi.mock("../../src/client/components/ProfileChart.tsx", () => ({
@@ -53,5 +54,39 @@ describe("the flight panel", () => {
     expect(panel.textContent).toContain("KBOS → KPVD");
     fireEvent.click(screen.getByRole("button", { name: "Close the flight panel" }));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the landing card", () => {
+  const card = () => screen.getByRole("heading", { name: "Landing" }).parentElement as HTMLElement;
+  const descentRate = () => within(card()).getByText("Descent rate").nextElementSibling?.textContent;
+  const chips = () => Array.from(card().querySelectorAll(".td-chip")).map((c) => c.textContent);
+
+  beforeEach(() => {
+    chart.broken = false;
+  });
+
+  // @spec PANEL-LAND-001, PANEL-LAND-002, PANEL-LOOK-004
+  it("shows a bounced hop's first touchdown, with every touchdown as a chip", () => {
+    const bounced = hop({ id: 6, landings: JSON.stringify([touchdown(0, 420, "hard", { g: 1.9 }), touchdown(4, 90, "butter", { g: 1.2 })]) });
+    render(
+      <FlightPanel source={{ kind: "hop", hopId: 6 }} state={appState({ aircraft: [aircraft()], hops: [bounced] })} live={liveState(null)} briefing={null} onClose={() => {}} onBriefingChanged={() => {}} />,
+    );
+    expect(card().querySelector(".word")?.textContent).toBe("Hard");
+    expect(descentRate()).toBe("420 fpm");
+    expect(within(card()).getByText("Peak G").nextElementSibling?.textContent).toBe("1.90 G");
+    expect(chips()).toEqual(["💥 420", "🧈 90"]);
+  });
+
+  // @spec PANEL-LAND-001, PANEL-LOOK-004
+  it("shows the first touchdown of the live leg's latest landing", () => {
+    const landings: Landing[] = [touchdown(0, 300, "solid"), touchdown(300, 450, "hard"), touchdown(303, 80, "butter")];
+    const leg = { origin: "KPVD", departed_at: "2026-10-21T14:55:00.000Z", touchdown_at: landings[2].t, points: 90, landings, max_alt_ft: 1500, fuel_used_lb: null };
+    render(
+      <FlightPanel source={{ kind: "live" }} state={appState({ aircraft: [aircraft()] })} live={liveState(trackerStatus({ phase: "landed", leg }))} briefing={null} onClose={() => {}} onBriefingChanged={() => {}} />,
+    );
+    expect(card().querySelector(".word")?.textContent).toBe("Hard");
+    expect(descentRate()).toBe("450 fpm");
+    expect(chips()).toEqual(["👍 300", "💥 450", "🧈 80"]);
   });
 });

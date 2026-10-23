@@ -19,8 +19,9 @@ This segment owns:
   ([FlightPanel.tsx](../../../src/client/components/FlightPanel.tsx), [App.tsx](../../../src/client/App.tsx));
 - the profile chart ([ProfileChart.tsx](../../../src/client/components/ProfileChart.tsx));
 - the landing card and the flight card;
-- how a landing rating looks everywhere in the app — icon, word, caption and color — and the
-  landing badge used in hop tooltips, hop rows and the live card
+- how a landing rating looks everywhere in the app — icon, word, caption and color — the
+  landing badge used in hop tooltips, hop rows and the live card, and which touchdown stands for
+  a flight in all of them
   ([landing.ts](../../../src/client/landing.ts), [LandingBadge.tsx](../../../src/client/components/LandingBadge.tsx)).
 
 It does not decide anything about a flight. The track, landings, ratings and statistics come from
@@ -101,13 +102,14 @@ plot without a second axis; the real values live in the legend and the crosshair
 
 ([FlightPanel.tsx:107-184](../../../src/client/components/FlightPanel.tsx#L107-L184))
 
-The card shows the flight's final landing — its last touchdown, the one that ended the hop:
+The card shows the touchdown that stands for the flight — the first touchdown of its final
+landing (below, **Which Touchdown Stands for a Flight**):
 
 - the rating's icon, word and caption;
 - the descent rate, with "sim says N" when the sim's own touchdown rate was recorded;
 - the peak G, or "not measured";
 - the touchdown airspeed, and the attitude ("N° pitch · N° left/right bank") when known;
-- with more than one touchdown (touch-and-goes), every touchdown as a chip of icon and fpm;
+- with more than one touchdown (bounces, touch-and-goes), every touchdown as a chip of icon and fpm;
 - where the numbers came from: "Measured every frame at touchdown." or "From once-a-second samples;
   the per-frame watcher was not available.";
 - a **scale** toggle listing the five ratings with their fpm bands, and how peak G bumps the class.
@@ -117,6 +119,25 @@ Without a landing it reads "No touchdown recorded."
 The scale's G note says "A peak G above 1.6 / 2.0 / 2.6 / 3.5 bumps the class up", but a G of
 exactly a threshold already counts (LIVE-LAND-003); it is meant to read "of 1.6 / 2.0 / 2.6 / 3.5
 or more" ([FlightPanel.tsx:179](../../../src/client/components/FlightPanel.tsx#L179)).
+
+## Which Touchdown Stands for a Flight
+
+([landing.ts](../../../src/client/landing.ts))
+
+A flight can touch down more than once: a bounce puts the wheels back on the runway seconds later,
+a touch-and-go flies a whole circuit before the next touchdown, a go-around after a bounce comes
+back minutes later. The tracker records and rates every touchdown alike (LIVE-LAND). Wherever one
+touchdown has to stand for the flight — the landing card, a hop's map tooltip, its hop row, the
+live card — it is the **first touchdown of the flight's final landing**:
+
+- a touchdown less than 30 s after the flight's previous touchdown is a bounce, part of the same
+  landing;
+- any other touchdown starts a new landing;
+- the final landing is the flight's last one; for the live leg, the latest so far.
+
+A bounced arrival is judged by its first contact, the one the approach flew into, while pattern
+work and go-arounds still show the landing that ended the flight. Touchdowns are grouped from their
+recorded times when a flight is shown, so every hop reads the same way whenever it was logged.
 
 ## How a Rating Looks
 
@@ -135,7 +156,7 @@ word, never alone.
 **Landing badge** ([LandingBadge.tsx](../../../src/client/components/LandingBadge.tsx)): a pill in the
 rating's color with icon, word and fpm ("🧈 Butter · 85 fpm"), or icon and fpm when compact; its
 hover text is "Word: caption · N fpm, G.GG G". Hop tooltips use the full badge; hop rows and the
-live card the compact one.
+live card the compact one. Each shows the touchdown that stands for its flight.
 
 ## Flight Card
 
@@ -171,7 +192,9 @@ opens it (LIVE-API-007).
 | Series colors | A fixed categorical order validated for the dark surface | Reassign colors to visible series | A series keeps its color when others are hidden, so the legend never shifts meaning. |
 | Rating colors | Always with icon and word | Color alone | Readable without color vision and at a glance. |
 | Where ratings are decided | Server; the browser maps rating → look only | Rate in the browser | One rating per landing, stored with the hop and identical everywhere. |
-| Landing shown | The final touchdown, with every touchdown as chips | The worst; the first | The last touchdown is the one that ended the flight; touch-and-goes stay visible. |
+| Landing shown | The first touchdown of the final landing, with every touchdown as chips | The last touchdown; the hop's first touchdown; the worst | The first contact is the landing the approach flew into; the bounces after it are its aftermath and would replace its rating with theirs. The final landing is the one that ended the flight, so a touch-and-go circuit flown earlier does not stand in for it. Every touchdown stays visible as a chip. |
+| Bounce window | Touchdowns less than 30 s apart belong to one landing | Measure the airborne time between touchdowns; a window of a few seconds | Bounces come seconds apart and the tightest circuit takes minutes, so 30 s separates them with room to spare. Each touchdown already carries its time, so no new measurement is needed. |
+| Where bounces are grouped | In the browser, when a flight is shown | The tracker merges bounces into one landing record | Every touchdown stays recorded as measured, and hops logged before the grouping read the same way without a migration. |
 | Live leg following into the logbook | The panel switches to the logged hop | Close it; stay on an empty live view | [inferred] The flight being watched stays on screen as it becomes a hop. |
 | Pending legs | Openable in the panel like any flight | Only the summary line in the live card | A leg kept after a crash or a missed airport can be judged from its profile before it is logged or discarded. |
 | Table view | Every sample as a row | None | [inferred] Exact values for inspection and an accessible alternative to the plot. |

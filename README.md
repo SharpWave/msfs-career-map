@@ -91,8 +91,9 @@ picks the basemap, night shading and weather hazards; **Fit all** zooms to every
   with third-party monitors. Each touchdown is rated **butter** (≤ 100 fpm), **solid** (≤ 250),
   **hard** (≤ 500), **hospital** (≤ 800) or **graveyard**, with a peak G above 1.6 / 2.0 / 2.6 /
   3.5 bumping the class up. The rating shows as a badge in the hop list, on the hop's hover, and
-  in the flight panel with a line about how the passengers took it. A touch-and-go keeps every
-  touchdown; the last one is the hop's rating.
+  in the flight panel with a line about how the passengers took it. A bounce or a touch-and-go
+  keeps every touchdown; the hop is rated by the first touchdown of its final landing, where
+  touchdowns less than 30 s apart count as bounces of one landing.
 - **Flight panel**: click a hop (its line on the map or its row in an aircraft card in Fleet) and
   a panel floats up across the bottom of the map, and the map zooms the hop into the space above it. The chart plots altitude, ground speed, vertical speed,
   indicated airspeed and fuel against elapsed time, each indexed to its own range so they share

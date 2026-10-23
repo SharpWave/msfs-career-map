@@ -99,7 +99,8 @@ mile apart. Today the nearest always wins.
 no origin.
 
 **Landing.** When the on-ground flag comes on in flight, the leg is landed and its touchdown time
-is set. A landing is recorded (below). If the aircraft leaves the ground again — a touch-and-go —
+is set. A landing is recorded (below). If the aircraft leaves the ground again — a bounce or a
+touch-and-go —
 the same leg continues and the next touchdown replaces the touchdown time.
 
 **Stop.** Once landed, the leg closes when ground speed has stayed under 5 kt for 30 s. Its
@@ -188,7 +189,10 @@ flown in that sim aircraft and livery that has none.
 **Logging** ([tracker.ts:850-918](../../../src/server/tracker.ts#L850-L918)). A closed leg is logged
 straight into the logbook, at the end of the aircraft's sequence, when the sim aircraft is bound
 to an existing fleet aircraft and both airports are known. The current SimBrief briefing goes with
-it. Otherwise it becomes a **pending leg**, with the reason: no fleet aircraft bound (including one
+it, and the tracker reports "Logged ORIG → DEST, time" with the descent rate and rating of the
+touchdown that stands for the hop — the first touchdown of its final landing, by flight-panel's
+bounce rule (PANEL-LOOK-004) — so the message and the hop's badge agree.
+Otherwise it becomes a **pending leg**, with the reason: no fleet aircraft bound (including one
 deleted during the flight), departure unknown, no airport within 5 nm of the stop, or the sim
 disconnected in flight. From the card the user picks the aircraft and airports the tracker lacked
 and logs it, or discards it.
@@ -333,7 +337,8 @@ switches. **Open**, it shows:
 - **Fleet**: the bound aircraft, which highlights it on the map when clicked; or **Bind to…** with
   **Bind**, and **+ New** to create a fleet aircraft from what the sim reports (fleet).
 - **Position**: altitude, ground speed and heading, with **Zoom** to fly the map to the aircraft.
-- **Leg**: origin, takeoff time, points recorded, the latest landing's badge; **Profile** opens the
+- **Leg**: origin, takeoff time, points recorded, the badge of the first touchdown of the latest
+  landing (flight-panel); **Profile** opens the
   live leg in the flight panel; **Log now** while landed; **Discard** after a confirmation.
 - The SimBrief controls (simbrief).
 - Hints when not connected ("Start MSFS and the tracker connects by itself…"), connected without
@@ -402,6 +407,7 @@ tooltip reads "CASUAL · name" and the path's point count in place of the leg li
 | Flight time | Takeoff to last touchdown, less time paused | Wall-clock elapsed | A pause mid-flight is not flying; the logbook should not grow by a dinner break. |
 | Landing measurement | Frame-rate watcher, with a provisional landing from 1 Hz data replaced within 6 s | 1 Hz only; the sim's touchdown velocity only | Frame data catches the real touchdown rate and G spike; the provisional landing keeps the fake feed and missed frames working. The sim's own figure is kept for comparison with other monitors. |
 | Rating | Worse of descent-rate and peak-G classes | Descent rate only | A gentle descent with a hard G spike is still a hard landing. |
+| Touchdown in the "Logged" message | The first touchdown of the final landing, with flight-panel's bounce rule repeated in the tracker | The last touchdown; a module shared by server and browser | The message names the rating the hop's badge shows. Server and browser share no code, and the rule is a few lines with one constant. |
 | Interrupted legs | Landed: close where it stopped. Airborne: keep as pending after a disconnect; discard after an aircraft change, new flight or position jump | Discard every airborne leg; keep every airborne leg | A landed leg is a finished flight. A disconnect is usually a crash, and keeping the leg costs one click to discard while covering cases nobody anticipated; the other interruptions are the user's own choice. |
 | Unknown details | Park the leg as pending with the reason | Log with guesses; drop | The user decides; nothing is guessed into the logbook. |
 | Pending legs | A list, each logged or discarded on its own | One slot, newest wins | No flown leg is lost because an earlier one is still waiting. |

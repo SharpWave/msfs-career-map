@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from "react";
 import { api } from "../api";
 import { fmtDuration, fmtTimeShort, hopDurationMin } from "../format";
 import { iconInnerHtml } from "../icons";
-import { finalLanding } from "../landing";
+import { hopTouchdown } from "../landing";
 import type { Aircraft, AppState, Hop } from "../types";
 import { AircraftForm, type AircraftPrefill } from "./AircraftForm";
 import { HopForm } from "./HopForm";
@@ -229,7 +229,7 @@ function AircraftCard(p: CardProps) {
                     <span className="route">
                       <b className="code">{h.origin}</b> → <b className="code">{h.dest}</b>
                       {(() => {
-                        const l = finalLanding(h);
+                        const l = hopTouchdown(h);
                         return l ? (
                           <>
                             {" "}

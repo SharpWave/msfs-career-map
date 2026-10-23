@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Fleet } from "../../src/client/components/Fleet.tsx";
 import type { AppState } from "../../src/client/types.ts";
 import { answerFetch } from "../support/fetch-guard.ts";
-import { aircraft, appState, hop } from "../support/page-data.ts";
+import { aircraft, appState, hop, touchdown } from "../support/page-data.ts";
 
 const bound = aircraft({ id: 1, ifr_capable: 0, sim_title: "Comanche 250", sim_livery: "Blue Stripe" });
 const hidden = aircraft({ id: 2, name: "TBM 850", livery: "Feather Red", visible: 0, cruise_kts: 300, ceiling_ft: 31000 });
@@ -63,6 +63,15 @@ describe("the aircraft card", () => {
 describe("the hop list in an aircraft card", () => {
   const expand = () => fireEvent.click(within(card(1)).getByRole("button", { name: "Show 3 hops" }));
   const rows = () => Array.from(card(1).querySelectorAll(".hop-list > li")) as HTMLElement[];
+
+  // @spec LOG-LIST-001, PANEL-LOOK-004
+  it("badges a bounced hop with the first touchdown of its final landing", () => {
+    const bounced = { ...hops[0], landings: JSON.stringify([touchdown(0, 420, "hard"), touchdown(4, 90, "butter")]) };
+    renderFleet(appState({ aircraft: [bound, hidden], hops: [bounced, hops[1], hops[2]] }));
+    expand();
+    expect(rows()[0].querySelector(".landing-badge")?.textContent).toBe("💥 420 fpm");
+    expect(rows()[1].querySelector(".landing-badge")).toBeNull();
+  });
 
   // @spec LOG-LIST-004
   it("offers Move earlier and Move later, disabled at the ends of the list", () => {

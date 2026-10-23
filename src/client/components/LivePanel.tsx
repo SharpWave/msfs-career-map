@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../api";
 import { aircraftLabel, fmtDuration, fmtTimeShort } from "../format";
+import { shownTouchdown } from "../landing";
 import type { LiveState } from "../tracker";
 import type { Aircraft, BriefingSummary, PendingLeg, Settings, SimAircraft, TrackerStatus } from "../types";
 import { AirportInput } from "./AirportInput";
@@ -189,7 +190,7 @@ function CasualSwitch({ on, busy, onSwitch }: { on: boolean; busy: boolean; onSw
  * Collapsed, it is a one-line status strip; its body stays mounted, so nothing typed is lost.
  * The Casual switch sits in both, so casual mode is never on unseen.
  */
-// @spec LIVE-CARD-001, LIVE-CARD-003, LIVE-CARD-006, LIVE-CARD-011, LIVE-CARD-012, LIVE-CARD-013, LIVE-CARD-014
+// @spec LIVE-CARD-001, LIVE-CARD-003, LIVE-CARD-005, LIVE-CARD-006, LIVE-CARD-011, LIVE-CARD-012, LIVE-CARD-013, LIVE-CARD-014
 export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onSelect, onNewFromSim, open, onToggle }: Props) {
   const { status: s, online } = live;
   const [bindId, setBindId] = useState("");
@@ -198,6 +199,7 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
 
   const bound = s?.aircraft_id != null ? aircraft.find((a) => a.id === s.aircraft_id) : undefined;
   const casual = s?.casual ?? null;
+  const legTouchdown = shownTouchdown(s?.leg?.landings ?? []);
 
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -358,10 +360,10 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
                 <dt>Leg</dt>
                 <dd>
                   from <b className="code">{s.leg.origin ?? "?"}</b> · off {fmtTimeShort(s.leg.departed_at)} · {s.leg.points} points
-                  {(s.leg.landings?.length ?? 0) > 0 && (
+                  {legTouchdown && (
                     <>
                       {" "}
-                      <LandingBadge landing={s.leg.landings[s.leg.landings.length - 1]} compact />
+                      <LandingBadge landing={legTouchdown} compact />
                     </>
                   )}{" "}
                   <button type="button" className="small" onClick={onOpenLive} title="Open the live profile in the flight panel">

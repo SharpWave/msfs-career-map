@@ -1,5 +1,5 @@
 schema_version: 2
-last_updated: 2026-10-12
+last_updated: 2026-10-21
 
 # Flat depth-2 mapping: every segment sits directly under docs/high-level-design.md.
 arrows:
@@ -12,7 +12,7 @@ arrows:
     blocks: [tour-map, planner, live-tracking, flight-panel]
     blockedBy: [fleet, airports]
     detail: logbook.md
-    next: "Add tests for the 37 implemented LOG specs, then close the 7 gaps (atomic renumber, server-side time checks, tracked-hop corrections, sim-clock times, card errors)"
+    next: "Add tests for the 31 implemented LOG specs that have none, then close the 7 gaps (atomic renumber, server-side time checks, tracked-hop corrections, sim-clock times, card errors)"
     drift: null
 
   fleet:
@@ -48,7 +48,7 @@ arrows:
     blocks: [planner, live-tracking, simbrief]
     blockedBy: [logbook, fleet, airports]
     detail: tour-map.md
-    next: "Close the 2 gaps (arc zoom, partial hazard outages) test-first, and add tests for the 29 implemented MAP specs that have none"
+    next: "Close the 2 gaps (arc zoom, partial hazard outages) test-first, and add tests for the 28 implemented MAP specs that have none"
     drift: null
 
   planner:
@@ -72,7 +72,7 @@ arrows:
     blocks: [planner, flight-panel, simbrief]
     blockedBy: [logbook, fleet, airports, tour-map]
     detail: live-tracking.md
-    next: "Close the 16 gaps test-first (pending-leg list, keep legs on disconnect, landed-leg interruptions, paused time, parked-airport tie-break, sim-clock times, live statistics and pending-leg profiles for the flight panel), and add tests for the 44 implemented LIVE specs that have none"
+    next: "Close the 16 gaps test-first (pending-leg list, keep legs on disconnect, landed-leg interruptions, paused time, parked-airport tie-break, sim-clock times, live statistics and pending-leg profiles for the flight panel), and add tests for the 42 implemented LIVE specs that have none"
     drift: null
 
   flight-panel:
@@ -84,7 +84,7 @@ arrows:
     blocks: []
     blockedBy: [logbook, fleet, airports, live-tracking]
     detail: flight-panel.md
-    next: "Add tests for the 26 implemented PANEL specs, then close the 7 gaps (pending legs in the panel, live flight card, live header after touchdown, scale wording)"
+    next: "Add tests for the 21 implemented PANEL specs that have none, then close the 7 gaps (pending legs in the panel, live flight card, live header after touchdown, scale wording)"
     drift: null
 
   simbrief:

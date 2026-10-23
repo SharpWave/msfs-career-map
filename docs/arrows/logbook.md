@@ -20,7 +20,7 @@ describes current behaviour plus confirmed intended changes; specs drafted, no t
 - docs/intent/logbook/logbook-specs.md (44 specs)
 
 ### Tests
-- tests/fleet/fleet-list.test.tsx — LOG-LIST-004, LOG-LIST-005
+- tests/fleet/fleet-list.test.tsx — LOG-LIST-001, LOG-LIST-004, LOG-LIST-005
 - tests/app-shell/page.test.tsx — LOG-FORM-003, LOG-FORM-004, LOG-FORM-009
 
 ### Code
@@ -53,7 +53,7 @@ hops by hand.
 | Hop form | LOG-FORM-001 to 012 | 12 | 0 | 0 |
 | Hop list | LOG-LIST-001 to 007 | 6 | 0 | 1 |
 
-**Summary:** 37 of 44 specs implemented; 7 gaps; none deferred. No spec has a test.
+**Summary:** 37 of 44 specs implemented; 7 gaps; none deferred. 6 specs have tests.
 
 ## Key Findings
 

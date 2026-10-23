@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LivePanel } from "../../src/client/components/LivePanel.tsx";
 import type { TrackerStatus } from "../../src/client/types.ts";
 import { answerFetch, resetAnswers } from "../support/fetch-guard.ts";
-import { aircraft, airport, liveState, pendingLeg, trackerStatus } from "../support/page-data.ts";
+import { aircraft, airport, liveState, pendingLeg, touchdown, trackerStatus } from "../support/page-data.ts";
 
 const POSITION: TrackerStatus["position"] = {
   lat: 41.72, lon: -71.43, alt_ft: 1250, gs_kts: 95, hdg_deg: 45, vs_fpm: 0, ias_kts: 92, fuel_lb: 300, on_ground: false,
@@ -89,6 +89,15 @@ describe("the live card", () => {
     expect(pillFor(trackerStatus({ paused: true }))).toEqual(["warn"]);
     expect(pillFor(trackerStatus({ sim_running: false }))).toEqual(["warn"]);
     expect(pillFor(trackerStatus({ connected: false, sim: null }))).toEqual([]);
+  });
+
+  // @spec LIVE-CARD-005, PANEL-LOOK-004
+  it("badges the leg with the first touchdown of its latest landing", () => {
+    const landings = [touchdown(0, 300, "solid"), touchdown(300, 450, "hard"), touchdown(303, 80, "butter")];
+    const leg = { origin: "KPVD", departed_at: "2026-10-21T14:55:00.000Z", touchdown_at: landings[2].t, points: 90, landings, max_alt_ft: 1500, fuel_used_lb: null };
+    renderCard(trackerStatus({ phase: "landed", position: { ...POSITION!, on_ground: true }, leg }), true);
+    const row = screen.getByText("Leg").nextElementSibling as HTMLElement;
+    expect(row.querySelector(".landing-badge")?.textContent).toBe("💥 450 fpm");
   });
 });
 

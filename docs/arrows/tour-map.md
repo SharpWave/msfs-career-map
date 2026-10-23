@@ -25,6 +25,7 @@ describes current behaviour with partly inferred rationale; specs drafted; first
 - tests/tour-map/copies.test.ts — MAP-GEO-013 to 017, MAP-GEO-020, MAP-GEO-021, MAP-HAZ-010, MAP-NIGHT-001
 - tests/tour-map/fit.test.ts — MAP-GEO-018, MAP-ZOOM-007 to 011
 - tests/tour-map/map-toolbar.test.tsx — MAP-VIEW-006, MAP-VIEW-007, MAP-HAZ-005, MAP-HAZ-008, MAP-HL-002
+- tests/tour-map/hop-tip.test.tsx — MAP-PATH-003
 - tests/e2e/layout.spec.ts — MAP-VIEW-005, MAP-ZOOM-007
 - tests/e2e/world-copies.spec.ts — MAP-GEO-013, MAP-GEO-014, MAP-GEO-016, MAP-GEO-019, MAP-VIEW-004, MAP-DOT-003, MAP-HAZ-008, MAP-HAZ-010
 
@@ -69,7 +70,7 @@ parked and when airports were visited, and overlay daylight and weather hazards.
 | Night shading | MAP-NIGHT-001 to 002 | 2 | 0 | 0 |
 | Weather hazards | MAP-HAZ-001 to 010 | 9 | 0 | 1 |
 
-**Summary:** 62 of 64 specs implemented; 2 gaps; none deferred. 33 specs have tests.
+**Summary:** 62 of 64 specs implemented; 2 gaps; none deferred. 34 specs have tests.
 
 ## Key Findings
 

@@ -59,6 +59,20 @@ const FPM_LIMITS = [100, 250, 500, 800];
 /** Upper bound of peak G for each rating. A hard G floor bumps a gentle-looking fpm up a class. */
 const G_LIMITS = [1.6, 2.0, 2.6, 3.5];
 
+/** A touchdown less than this after the previous one is a bounce within the same landing. */
+const BOUNCE_MS = 30_000;
+
+/**
+ * The touchdown that stands for a leg: the first touchdown of its final landing. The browser
+ * shows hops by the same rule (shownTouchdown in src/client/landing.ts); keep the two in step.
+ */
+function shownTouchdown(landings: Landing[]): Landing | null {
+  let i = landings.length - 1;
+  if (i < 0) return null;
+  while (i > 0 && Date.parse(landings[i].t) - Date.parse(landings[i - 1].t) < BOUNCE_MS) i--;
+  return landings[i];
+}
+
 export function rateLanding(fpm: number, g: number | null): LandingRating {
   let r = FPM_LIMITS.findIndex((lim) => fpm <= lim);
   if (r < 0) r = 4;
@@ -906,7 +920,8 @@ export class Tracker extends EventEmitter {
 
     if (!reason) {
       const hop = insertHop(aircraftId!, draft as HopDraft);
-      const landing = leg.landings[leg.landings.length - 1];
+      // @spec LIVE-HOP-006
+      const landing = shownTouchdown(leg.landings);
       this.note(`Logged ${draft.origin} → ${dest}, ${fmtMin(durationMin)}${landing ? `, ${landing.fpm} fpm ${landing.rating}` : ""}`);
       this.emit("hop", hop);
     } else {

@@ -12,7 +12,7 @@ import { LiveLayer } from "./LiveLayer";
 import { BriefingLayer } from "./BriefingLayer";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { LandingBadge } from "./LandingBadge";
-import { finalLanding } from "../landing";
+import { hopTouchdown } from "../landing";
 import type { LiveState } from "../tracker";
 import type { Hop, OfpFix } from "../types";
 import type { HazardKind } from "../types";
@@ -518,9 +518,10 @@ function CandidateLayer({
   return null;
 }
 
-function HopTip({ r }: { r: RenderHop }) {
+// @spec MAP-PATH-003
+export function HopTip({ r }: { r: RenderHop }) {
   const dur = hopDurationMin(r.hop);
-  const landing = finalLanding(r.hop);
+  const landing = hopTouchdown(r.hop);
   return (
     <>
       <div className="tip-title" style={{ color: r.aircraft.color }}>

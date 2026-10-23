@@ -17,10 +17,12 @@ describes current behaviour with partly inferred rationale; specs drafted, no te
 - docs/intent/flight-panel/flight-panel-design.md
 
 ### EARS
-- docs/intent/flight-panel/flight-panel-specs.md (33 specs)
+- docs/intent/flight-panel/flight-panel-specs.md (34 specs)
 
 ### Tests
-- tests/flight-panel/flight-panel.test.tsx — PANEL-OPEN-003, PANEL-OPEN-007
+- tests/flight-panel/flight-panel.test.tsx — PANEL-OPEN-003, PANEL-OPEN-007, PANEL-LAND-001, PANEL-LAND-002, PANEL-LOOK-004
+- tests/flight-panel/landing.test.ts — PANEL-LOOK-004 (which touchdown stands for a flight)
+- tests/tour-map/hop-tip.test.tsx, tests/fleet/fleet-list.test.tsx, tests/live-tracking/live-card.test.tsx — PANEL-LOOK-004 (the hop tooltip, hop row and live card)
 - tests/e2e/layout.spec.ts — PANEL-OPEN-008
 
 ### Code
@@ -40,7 +42,8 @@ leg being flown.
 1. `FlightPanel` — source (hop, live or pending leg), header, cards
 2. `ProfileChart` — indexed series, legend, crosshair, landing marks, table
 3. `LandingCard` / `StatsCard`
-4. `RATING_META` + `LandingBadge` — how a rating looks across the app
+4. `RATING_META` + `LandingBadge` — how a rating looks across the app; `shownTouchdown` — which
+   touchdown stands for a flight
 
 ## Spec Coverage
 
@@ -50,10 +53,10 @@ leg being flown.
 | Header | PANEL-HEAD-001 to 005 | 3 | 0 | 2 |
 | Profile chart | PANEL-CHART-001 to 010 | 10 | 0 | 0 |
 | Landing card | PANEL-LAND-001 to 005 | 4 | 0 | 1 |
-| How a rating looks | PANEL-LOOK-001 to 003 | 3 | 0 | 0 |
+| How a rating looks | PANEL-LOOK-001 to 004 | 4 | 0 | 0 |
 | Flight card | PANEL-STAT-001 to 003 | 1 | 0 | 2 |
 
-**Summary:** 26 of 33 specs implemented; 7 gaps; none deferred. No spec has a test.
+**Summary:** 27 of 34 specs implemented; 7 gaps; none deferred. 6 specs have tests.
 
 ## Key Findings
 
