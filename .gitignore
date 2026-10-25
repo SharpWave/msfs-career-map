@@ -1,9 +1,6 @@
 node_modules/
 dist/
-data/*.db
-data/*.db-*
-data/*.csv
-data/images/
+/data/
 .env
 test-results/
 playwright-report/

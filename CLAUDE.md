@@ -5,8 +5,12 @@ description, API table and roadmap.
 
 ## Stack
 
-- Node 22+ with the built-in `node:sqlite` (no native modules). Server is Express 4 in TypeScript run
-  via `tsx`; schema lives in `src/server/db.ts`.
+- Node 22.16+ with the built-in `node:sqlite` (no native modules). Server is Express 4 in TypeScript
+  run via `tsx`; schema lives in `src/server/db.ts`.
+- The server's entries are `src/server/index.ts` (a copy run from source) and `bundled.ts` (the
+  desktop app's); both only call `runServer` in `src/server/server.ts`, which reads the inputs
+  (`inputs.ts`) and holds the start order. The shutdown order is in `shutdown.ts`, and
+  `tracking.ts` starts the sim link, the fake feed or nothing by the `--sim` mode.
 - Client is Vite + React 18 + react-leaflet 4. Vite root is `src/client`, build output is `dist/`,
   which the server serves when present.
 - Airport and runway data are the OurAirports CSVs, imported into `airports` / `runways` on first
@@ -18,9 +22,11 @@ description, API table and roadmap.
 - Live tracking: `src/server/simconnect.ts` wraps node-simconnect (pure TypeScript, no SDK DLL)
   and only produces position samples and system events; `src/server/tracker.ts` is the
   sim-independent state machine (`feed(sample)`), checkpointed to the `tracker_state` row so a
-  leg survives a server restart. The client subscribes to `/api/tracker/events` (SSE).
-  Casual mode (`setCasual`) suspends leg detection and keeps a `path` of segments in memory
-  only — deliberately outside `tracker_state`, so it never survives a restart.
+  leg survives a server restart; a checkpoint it cannot read is set aside in
+  `tracker_state_aside`. Pending legs are a list, each addressed by a UUID
+  (`/api/tracker/pending/:id`). The client subscribes to `/api/tracker/events` (SSE).
+  Casual mode (`setCasual`) suspends leg detection; its switch and since time are checkpointed,
+  its `path` of segments never is (memory only, empty after a restart).
 - Landing rating thresholds (`rateLanding`) live in `src/server/tracker.ts`; the client only
   maps a rating to icon/word/color in `src/client/landing.ts`. The per-frame touchdown watcher
   is in `simconnect.ts`; the tracker makes a provisional landing from 1 Hz data and replaces it
@@ -34,20 +40,23 @@ description, API table and roadmap.
 
 ## Commands
 
-- `npm run dev` — server on `PORT` (default :3080, tsx watch) + Vite on :5173 with `/api/` and
-  `/images/` proxied to it.
-- `npm run build` then `npm start` — production-style single server on :3080.
+- `npm run dev` — server on `PORT` (default :3080, tsx watch, tracking off) + Vite on
+  127.0.0.1:5173 with `/api/` and `/images/` proxied to it.
+- `npm run dev:sim` — the same, with the server on the sim link (`--sim=link`).
+- `npm run build` then `npm start` — production-style single server on :3080; add
+  `-- --sim=link` to track flights.
 - `npm run typecheck` — client, server and test tsconfigs.
 - `npm test` — Vitest: Node tests (`tests/<segment>/*.test.ts`, each file on its own temp data
   folder with the fixture airports) and component tests (`*.test.tsx`, jsdom). Outside requests
   fail the test unless answered with `answerFetch()` (`tests/support/fetch-guard.ts`).
-- `npm run test:e2e` — Playwright on its own servers (:3180 app with `TRACKER_FAKE=1`, :5183 page)
+- `npm run test:e2e` — Playwright on its own servers (:3180 app on `--sim=fake`, :5183 page)
   and a temp data folder; first run needs `npx playwright install chromium`. Browser tests run one
   at a time and import `test` from `tests/e2e/fixtures.ts`.
 - `npm run import-airports [-- --fresh]` — re-import (optionally re-download) airports.
 - `npm run sim-probe` — print what a running sim reports, without touching the database.
-- `TRACKER_FAKE=1 npm run dev` then `npm run sim-fake -- KBOS KPVD [--touch-and-go]
-  [--start-airborne] [--fpm 320 --g 2.1]` — drive the tracker with a synthetic flight; test
+- `npm run dev:server -- --sim=fake` (or `TRACKER_FAKE=1 npm run dev`) then
+  `npm run sim-fake -- KBOS KPVD [--touch-and-go] [--start-airborne] [--fpm 320 --g 2.1]
+  [--base http://127.0.0.1:<port>]` — drive the tracker with a synthetic flight; test
   against a copy of the database (`CAREER_DB=...`) so fake hops never land in the real logbook.
   Put the copy in a folder of its own: icons and airport lists live beside whichever database is
   in use, so a copy inside `data/` shares the real ones (copy `images/` along to see the icons).
@@ -72,10 +81,13 @@ description, API table and roadmap.
 - Panels float over a full-window map. Their sizes (column width, top bar, flight panel height)
   live in `src/client/layout.ts` and are mirrored in `styles.css`; zooms fit into the part of the
   map the panels leave clear, worked out from `layout.ts`, so keep the two in step.
-- Data locations come from `dataLocations()` in `src/server/locations.ts`: the database
-  (`CAREER_DB` or `data/career.db`) with `images/`, `airports.csv` and `runways.csv` beside it.
-  The app itself is built by `createApp()` in `src/server/app.ts`, which starts nothing; tests
-  must not import `src/server/index.ts` (it listens and connects to the sim).
+- Data locations come from `dataLocations()` in `src/server/locations.ts`, given the database the
+  server's inputs name: `currentInputs().dbPath` in `src/server/inputs.ts`, which is `--data`'s
+  `career.db`, else `CAREER_DB`, else `data/career.db`. `images/`, `airports.csv`, `runways.csv`
+  and the server's `career.db.lock` sit beside it. The app itself is built by `createApp()` in
+  `src/server/app.ts`, which starts nothing; tests must not import `src/server/index.ts` or
+  `bundled.ts` (they start them as processes, `tests/support/server-process.ts`; an entry
+  listens, takes the data folder's lock, and links to the sim when started with `--sim=link`).
 - Writing files with bash heredocs failed in this environment; use the Write tool for new files.
 
 ## LID

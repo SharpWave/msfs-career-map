@@ -41,6 +41,7 @@ along a leg), `FORM` (planner form), `LIST` (results in the planner card), `RUN`
 - [x] **PLAN-FLAG-007**: While a planner result is shown, the system shall re-evaluate candidate flags when METARs arrive and every minute.
 - [x] **PLAN-FLAG-008**: While a candidate has no fresh METAR, the system shall raise no weather flag for it.
 - [x] **PLAN-FLAG-009**: While "Hide airports ruled out by live weather or darkness" is on (the default on each page load), the system shall leave ruled-out candidates out of the planner list, draw them faded on the map, and show how many are ruled out beside the option.
+- [ ] **PLAN-FLAG-010**: While a planner result is shown, the page shall judge each candidate's METAR fresh (APT-WX-006: observed under 90 minutes ago) again every minute, however long the page stays open, for its list badge (PLAN-LIST-006) and dot outline (PLAN-DRAW-003) as well as its flags (PLAN-FLAG-007, PLAN-FLAG-008).
 
 ## Terrain Along a Leg
 
@@ -51,6 +52,7 @@ along a leg), `FORM` (planner form), `LIST` (results in the planner card), `RUN`
 - [x] **PLAN-TERR-005**: When a planner candidate's airport popup opens, the system shall check terrain along the direct leg from the plan's origin, showing "Checking terrain along the leg…", then "Highest terrain en route X · plan at least Y (Z clearance)", or "Terrain check unavailable." when the check fails.
 - [x] **PLAN-TERR-006**: When a candidate's terrain check needs a minimum altitude above the planning aircraft's service ceiling, the popup shall warn "Needs Y en route, above the C service ceiling."
 - [ ] **PLAN-TERR-007**: When a candidate's terrain check needs a minimum altitude above 12,500 ft and the planning aircraft has no oxygen or pressurisation, the popup shall warn "Needs Y en route: above 12,500 ft without oxygen or pressurisation."
+- [ ] **PLAN-TERR-008**: The server, however long it runs, shall hold at most 100,000 points in its terrain elevation cache (PLAN-TERR-004: elevations kept in its memory by coordinates rounded to 0.001°), dropping the least recently used point to make room for a new one and never a point the terrain request being answered uses, so no terrain profile reads a dropped point as sea level.
 
 ## Planner Form
 
@@ -75,16 +77,18 @@ along a leg), `FORM` (planner form), `LIST` (results in the planner card), `RUN`
 - [x] **PLAN-LIST-005**: The planner list shall show at most 80 candidates in result order, then "N more not listed. All M are on the map; filter above to narrow the list.", and "Nothing matches that filter." when none match.
 - [x] **PLAN-LIST-006**: The planner list shall show for each candidate its ident, name, fresh flight-category badge and flag tags (IFR, X-wind, Dark, Night); its distance, ~time, bearing and class; and its runway summary (or "no runway data") and location; styled as blocked when it is ruled out.
 - [x] **PLAN-LIST-007**: When the user clicks a candidate row in the planner list, the system shall zoom the map to that candidate.
-- [x] **PLAN-LIST-008**: When the user clicks a candidate's **SB** in the planner list, the system shall open SimBrief's dispatch page for the leg from the plan's origin to that candidate in a new tab.
+- [x] **PLAN-LIST-008**: When the user clicks a candidate's SimBrief link — **SB** in the planner list, or **SimBrief** in its airport popup — the page shall open SimBrief's dispatch page for the leg from the plan's origin to that candidate by asking for a new window (`target="_blank"`), which a browser opens as a new tab and the installed app's window sends to the pilot's default browser (DESK-SHELL-WIN-007).
 - [x] **PLAN-LIST-009**: When the user clicks **Use** on a candidate, in the planner list or its popup, the system shall hand that airport to the hop form as the planning aircraft's next destination and zoom the map to it.
 
 ## Plan Lifecycle
 
 - [x] **PLAN-RUN-001**: When a new planner result arrives, the system shall highlight the planning aircraft and show the result in the planner card and on the map.
 - [x] **PLAN-RUN-002**: When the user clicks **Clear** in the planner card or **Clear plan** in the map toolbar, the system shall remove the planner result.
-- [x] **PLAN-RUN-003**: When the live tracker logs a hop, the system shall remove the planner result and any destination the planner handed to the hop form.
+- [x] **PLAN-RUN-003**: When the page receives the tracker's `hop` event (a hop the live tracker logged, LIVE-CARD-009), the system shall remove the planner result and any destination the planner handed to the hop form.
 - [x] **PLAN-RUN-004**: When the page is opened with `?plan=<aircraft id>` (optionally `minutes`, default 90, and `paved=1`), the system shall run one planner search for that aircraft with the default airport types after the first load.
 - [x] **PLAN-RUN-005**: When a planner result arrives, the planner form shall take on its aircraft, maximum time, airport types, paved option and cruise altitude.
+- [ ] **PLAN-RUN-006**: When the page's tracker event stream connects again to a server holding the same logbook (one holding another logbook has the page reload itself, app-shell) and the page reloads the map and lists for it (live-tracking, LIVE-API-005: each time the stream connects again after the page's first connection), and that reload brings no hop the page did not hold before it, the page shall keep the planner result and any destination the planner handed to the hop form as they were.
+- [ ] **PLAN-RUN-007**: When the page's tracker event stream connects again to a server holding the same logbook (one holding another logbook has the page reload itself, app-shell) and the reload of the map and lists that follows (live-tracking, LIVE-API-005: each time the stream connects again after the page's first connection) brings a hop the page did not hold before it — a hop logged while the stream was away — the page shall remove the planner result and any destination the planner handed to the hop form, as for the tracker's `hop` event (PLAN-RUN-003).
 
 ## Planner Layers on the Map
 

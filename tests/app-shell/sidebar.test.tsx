@@ -26,6 +26,7 @@ function renderSidebar() {
       live={liveState(null)}
       onFocusLive={noop}
       onOpenLive={noop}
+      onOpenPending={noop}
       onNewFromSim={noop}
     />,
   );

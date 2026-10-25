@@ -27,6 +27,8 @@ interface Props {
   live: LiveState;
   onFocusLive: () => void;
   onOpenLive: () => void;
+  /** Open a pending leg, by its id, in the flight panel. */
+  onOpenPending: (id: string) => void;
   /** Open the new-aircraft form in the Fleet drawer, prefilled from what the sim reports. */
   onNewFromSim: (sim: SimAircraft) => void;
 }
@@ -61,6 +63,7 @@ export function Sidebar(p: Props) {
             reload={p.reload}
             onFocusLive={p.onFocusLive}
             onOpenLive={p.onOpenLive}
+            onOpenPending={p.onOpenPending}
             onSelect={(id) => p.onSelect(id)}
             onNewFromSim={p.onNewFromSim}
             open={liveOpen}

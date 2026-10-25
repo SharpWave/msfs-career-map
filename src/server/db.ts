@@ -1,10 +1,15 @@
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import { dataLocations } from "./locations.ts";
+import { currentInputs } from "./inputs.ts";
+import { setCounts } from "./status.ts";
 
 export { ROOT } from "./locations.ts";
 
-const loc = dataLocations(process.env.CAREER_DB);
+// The database the inputs name, opened the moment this module loads: the server sets its inputs
+// (useInputs) before it loads this, and the test servers' fallback names the file's own CAREER_DB.
+// @spec APP-DATA-001, APP-SRV-008
+const loc = dataLocations(currentInputs().dbPath);
 export const DATA_DIR = loc.dir;
 export const IMAGES_DIR = loc.imagesDir;
 export const DB_PATH = loc.dbPath;
@@ -125,11 +130,18 @@ CREATE TABLE IF NOT EXISTS hops (
 );
 CREATE INDEX IF NOT EXISTS hops_aircraft ON hops(aircraft_id, seq);
 
--- Single-row checkpoint of the live tracker (in-progress leg, pending leg, last sample).
+-- Single-row checkpoint of the live tracker (in-progress leg, pending legs, casual mode, last sample).
 CREATE TABLE IF NOT EXISTS tracker_state (
   id         INTEGER PRIMARY KEY CHECK (id = 1),
   json       TEXT NOT NULL,
   updated_at TEXT NOT NULL
+);
+
+-- Checkpoints the tracker could not read at a start, kept whole for recovery by hand; never read back.
+CREATE TABLE IF NOT EXISTS tracker_state_aside (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  json         TEXT NOT NULL,
+  set_aside_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS settings (
@@ -183,6 +195,24 @@ addColumnIfMissing("runways", "le_heading", "REAL");
 addColumnIfMissing("runways", "he_heading", "REAL");
 addColumnIfMissing("airport_rwy", "headings", "TEXT");
 
+/** Run `fn` as one transaction: committed when it returns, rolled back when it throws. */
+export function transaction<T>(fn: () => T): T {
+  db.exec("BEGIN");
+  try {
+    const out = fn();
+    db.exec("COMMIT");
+    return out;
+  } catch (e) {
+    // SQLite may already have rolled back by itself; the error that matters is the first one.
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      // no transaction left open
+    }
+    throw e;
+  }
+}
+
 export function airportCount(): number {
   const row = db.prepare("SELECT COUNT(*) AS n FROM airports").get() as { n: number };
   return row.n;
@@ -192,3 +222,12 @@ export function runwayCount(): number {
   const row = db.prepare("SELECT COUNT(*) AS n FROM runways").get() as { n: number };
   return row.n;
 }
+
+/** Hand the status the counts it reports from memory (it never reads the database itself). */
+// @spec APP-API-008
+export function reportCounts(): void {
+  setCounts({ airports: airportCount(), runways: runwayCount() });
+}
+
+// The schema step has run: the logbook is open.
+reportCounts();

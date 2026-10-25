@@ -15,9 +15,10 @@ export interface DataLocations {
 }
 
 /**
- * Where the app keeps its data: the database named by `careerDb` (CAREER_DB), else
- * `data/career.db`, with uploaded icons and the OurAirports lists in the same folder, so a copy
- * elsewhere never reads or changes the real logbook's files. Pure: opens and creates nothing.
+ * Where the app keeps its data: the database named by `careerDb` (the inputs' `dbPath`, which
+ * db.ts always passes), else `data/career.db`, with uploaded icons and the OurAirports lists in the
+ * same folder, so a copy elsewhere never reads or changes the real logbook's files. Pure: opens
+ * and creates nothing.
  */
 // @spec APP-DATA-001, APP-DATA-002
 export function dataLocations(careerDb: string | undefined): DataLocations {

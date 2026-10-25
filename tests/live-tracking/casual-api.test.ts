@@ -3,6 +3,7 @@ import { db } from "../../src/server/db.ts";
 import type { SimSample } from "../../src/server/simconnect.ts";
 import { tracker } from "../../src/server/tracker.ts";
 import { startTestServer, type TestServer } from "../support/test-server.ts";
+import { discardAllPending } from "./state.ts";
 
 // A tripwire: nothing in this file may connect to the sim.
 const simLink = vi.hoisted(() => ({ startSimLink: vi.fn() }));
@@ -85,7 +86,7 @@ describe("the casual mode API", () => {
   beforeEach(() => {
     tracker.setCasual(false);
     tracker.discardLeg("test");
-    tracker.discardPending();
+    discardAllPending(tracker);
     db.exec(`DELETE FROM hops; DELETE FROM aircraft;`);
     lat = KPVD.lat;
     ground(1);

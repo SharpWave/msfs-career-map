@@ -67,6 +67,7 @@ describe("the icon set", () => {
           live={liveState(null)}
           onFocusLive={noop}
           onOpenLive={noop}
+          onOpenPending={noop}
           onNewFromSim={noop}
         />
         <Fleet state={state} selectedId={null} onSelect={noop} onFocusHop={noop} reload={async () => {}} form={null} onFormChange={noop} />

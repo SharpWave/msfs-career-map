@@ -21,8 +21,9 @@ import { simbriefAircraftTypes } from "./simbrief.ts";
 import { currentHazards } from "./hazards.ts";
 import { terrainAlong } from "./terrain.ts";
 import { blockMinutes, maxRangeNm, profileFor } from "./performance.ts";
-import { CasualRefused, tracker } from "./tracker.ts";
+import { CasualRefused, ShuttingDown, TrackerRefused, tracker } from "./tracker.ts";
 import { fetchLatestOfp, type BriefingSummary, type FetchedOfp } from "./ofp.ts";
+import { statusRoute } from "./status.ts";
 
 export const api = Router();
 
@@ -444,14 +445,23 @@ api.put("/aircraft/:id/hops/order", wrap((req, res) => {
 
 // ---------- live tracker ----------
 
+/**
+ * Ahead of every route for a pilot's action that would change the tracker's state: once the tracker
+ * has written its final checkpoint, 503 before the route validates, looks up or fetches anything.
+ */
+// @spec LIVE-API-016
+const unlessShutDown = (_req: Request, _res: Response, next: NextFunction) => next(tracker.isShutDown() ? new ShuttingDown() : undefined);
+
+// @spec LIVE-API-001, LIVE-API-013
 api.get("/tracker", wrap((_req, res) => res.json(tracker.status())));
 
 /**
  * Server-sent events: `status` about once a second, `track` (the live leg's full point list),
  * `point` (one new point), `path` (the whole casual path) and `path-point` (one point added to its
- * last segment), `hop` when a leg was logged, `pending` when one needs details.
+ * last segment), `hop` with `{hop, message}` when a leg was logged, `pending` with the leg as the
+ * status lists it when one is kept as pending. The tracker's events go out as they are.
  */
-// @spec LIVE-API-011
+// @spec LIVE-API-011, LIVE-API-014
 api.get("/tracker/events", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -472,19 +482,39 @@ api.get("/tracker/events", (req, res) => {
 });
 
 /** Bind the sim aircraft being flown to a fleet row: { aircraft_id }. Remembered on the aircraft. */
-api.post("/tracker/bind", wrap((req, res) => {
+// @spec LIVE-BIND-002, LIVE-BIND-003
+api.post("/tracker/bind", unlessShutDown, wrap((req, res) => {
   const id = Number(req.body?.aircraft_id);
   requireAircraft(id);
   try {
     tracker.bind(id);
   } catch (e) {
-    throw new HttpError(400, e instanceof Error ? e.message : String(e));
+    if (!(e instanceof TrackerRefused)) throw e;
+    throw new HttpError(400, e.message);
   }
   res.json(tracker.status());
 }));
 
-/** Log the pending leg, optionally supplying { aircraft_id, origin, dest } the tracker lacked. */
-api.post("/tracker/pending", wrap((req, res) => {
+/** A pending leg's id: a UUID the tracker gave it, so not an `idParam`. */
+const pendingId = (req: Request): string => String(req.params.id);
+const notPending = () => new HttpError(404, "no leg waiting to be logged has that id");
+const pendingBriefing = db.prepare(`SELECT id, summary FROM briefings WHERE id = ?`);
+
+/** That pending leg in full: its track, landings, statistics and the SimBrief briefing it carries. */
+// @spec LIVE-API-007
+api.get("/tracker/pending/:id", wrap((req, res) => {
+  const leg = tracker.pendingLeg(pendingId(req));
+  if (!leg) throw notPending();
+  const b = leg.briefing_id != null ? (pendingBriefing.get(leg.briefing_id) as { id: number; summary: string } | undefined) : undefined;
+  const briefing: BriefingSummary | null = b ? { ...(JSON.parse(b.summary) as Omit<BriefingSummary, "id">), id: b.id } : null;
+  res.json({ ...leg, briefing });
+}));
+
+/** Log that pending leg, optionally supplying { aircraft_id, origin, dest } the tracker lacked. */
+// @spec LIVE-API-003, LIVE-HOP-004
+api.post("/tracker/pending/:id", unlessShutDown, wrap((req, res) => {
+  const id = pendingId(req);
+  if (!tracker.pendingLeg(id)) throw notPending();
   const b = req.body ?? {};
   const o = {
     aircraft_id: b.aircraft_id === undefined || b.aircraft_id === null ? undefined : Number(b.aircraft_id),
@@ -493,28 +523,32 @@ api.post("/tracker/pending", wrap((req, res) => {
   };
   if (o.aircraft_id !== undefined) requireAircraft(o.aircraft_id);
   try {
-    res.status(201).json(tracker.savePending(o));
+    res.status(201).json(tracker.savePending(id, o));
   } catch (e) {
-    throw new HttpError(400, e instanceof Error ? e.message : String(e));
+    if (!(e instanceof TrackerRefused)) throw e;
+    throw new HttpError(400, e.message);
   }
 }));
 
-api.delete("/tracker/pending", wrap((_req, res) => {
-  tracker.discardPending();
+// @spec LIVE-API-003, LIVE-HOP-005
+api.delete("/tracker/pending/:id", unlessShutDown, wrap((req, res) => {
+  if (!tracker.discardPending(pendingId(req))) throw notPending();
   res.json(tracker.status());
 }));
 
 /** Log the landed leg right away instead of waiting for the stop timer (frozen or quit sim). */
-api.post("/tracker/complete", wrap((_req, res) => {
+// @spec LIVE-LEG-007
+api.post("/tracker/complete", unlessShutDown, wrap((_req, res) => {
   try {
     tracker.completeNow();
   } catch (e) {
-    throw new HttpError(409, e instanceof Error ? e.message : String(e));
+    if (!(e instanceof TrackerRefused)) throw e;
+    throw new HttpError(409, e.message);
   }
   res.json(tracker.status());
 }));
 
-api.delete("/tracker/leg", wrap((_req, res) => {
+api.delete("/tracker/leg", unlessShutDown, wrap((_req, res) => {
   tracker.discardLeg("discarded from the app");
   res.json(tracker.status());
 }));
@@ -524,7 +558,7 @@ api.delete("/tracker/leg", wrap((_req, res) => {
  * on is refused with 409 and the leg's details unless drop_leg is true.
  */
 // @spec LIVE-API-008, LIVE-CASUAL-006
-api.put("/tracker/casual", wrap((req, res) => {
+api.put("/tracker/casual", unlessShutDown, wrap((req, res) => {
   const on = req.body?.on;
   if (on !== true && on !== false) throw new HttpError(400, "on must be true or false");
   try {
@@ -543,9 +577,15 @@ api.delete("/tracker/path", wrap((_req, res) => {
   res.json(tracker.status());
 }));
 
-/** Test feed, only with TRACKER_FAKE=1: one SimSample per call (see scripts/sim-fake.ts). */
+/**
+ * Test feed, only while the server's sim mode is the fake feed (`--sim=fake`): one SimSample per
+ * call (see scripts/sim-fake.ts). After the final checkpoint the tracker ignores it.
+ */
+// @spec LIVE-API-004
 api.post("/tracker/sample", wrap((req, res) => {
-  if (process.env.TRACKER_FAKE !== "1") throw new HttpError(403, "start the server with TRACKER_FAKE=1 to accept synthetic samples");
+  if (tracker.status().sim_mode !== "fake") {
+    throw new HttpError(403, "the fake feed is off: start the server with --sim=fake to accept synthetic samples");
+  }
   const b = req.body ?? {};
   const num = (k: string) => {
     const n = Number(b[k]);
@@ -671,17 +711,20 @@ api.get("/simbrief/latest", wrap(async (req, res) => {
 }));
 
 /** Import the latest OFP for the flight being flown (or the next one); not in casual mode. */
-// @spec SB-CUR-004
-api.post("/tracker/briefing", wrap(async (_req, res) => {
+// @spec SB-CUR-004, LIVE-API-016
+api.post("/tracker/briefing", unlessShutDown, wrap(async (_req, res) => {
   if (tracker.inCasualMode()) throw new HttpError(409, "casual mode is on: switch it off to import a SimBrief plan");
   const ofp = await latestOfp();
+  // The shutdown may have come while SimBrief answered: the tracker would turn the plan down, so
+  // archive nothing either.
+  if (tracker.isShutDown()) throw new ShuttingDown();
   const st = tracker.status();
   const summary = storeBriefing(ofp, null, st.aircraft_id);
   tracker.setBriefing(summary);
   res.status(201).json(tracker.status());
 }));
 
-api.delete("/tracker/briefing", wrap((_req, res) => {
+api.delete("/tracker/briefing", unlessShutDown, wrap((_req, res) => {
   tracker.setBriefing(null);
   res.json(tracker.status());
 }));
@@ -839,9 +882,7 @@ api.get("/state", wrap((_req, res) => {
   res.json({ aircraft, hops, airports, airportCount: airportCount(), runwayCount: runwayCount() });
 }));
 
-api.get("/status", wrap((_req, res) => {
-  res.json({ ok: true, airports: airportCount(), runways: runwayCount(), version: "0.8.0" });
-}));
+api.get("/status", statusRoute);
 
 // ---------- errors ----------
 
@@ -850,6 +891,11 @@ api.use((_req, res) => res.status(404).json({ error: "not found" }));
 api.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof HttpError) {
     res.status(err.status).json({ error: err.message });
+  } else if (err instanceof ShuttingDown) {
+    // @spec LIVE-API-016
+    // The guard's own answer, and that of an action already past it that reached the tracker after
+    // its final checkpoint.
+    res.status(503).json({ error: err.message });
   } else {
     console.error(err);
     res.status(500).json({ error: err instanceof Error ? err.message : "internal error" });

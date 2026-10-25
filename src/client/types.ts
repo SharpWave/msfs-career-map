@@ -226,12 +226,16 @@ export interface SimAircraft {
 
 export type TrackerPhase = "idle" | "ground" | "airborne" | "landed";
 
+/** A pending leg as the tracker status lists it: everything known but its track, whose point count it carries. */
 export interface PendingLeg {
+  /** A UUID, never given to another leg; the pending routes address the leg by it. */
+  id: string;
   sim: SimAircraft;
   aircraft_id: number | null;
   origin: string | null;
   dest: string | null;
   departed_at: string;
+  /** When the aircraft came down, or, for a leg that ended in the air, when it was last seen. */
   arrived_at: string;
   duration_min: number;
   points: number;
@@ -239,6 +243,27 @@ export interface PendingLeg {
   stats: HopStats;
   briefing_id: number | null;
   reason: string;
+  /** The leg ended with the aircraft still in the air: the sim disconnected or the app stopped in flight. */
+  ended_in_air: boolean;
+}
+
+/** A pending leg in full (`GET /api/tracker/pending/:id`): its track, and the briefing its `briefing_id` names. */
+export type PendingLegDetail = Omit<PendingLeg, "points"> & { track: TrackPoint[]; briefing: BriefingSummary | null };
+
+/** The payload of the tracker stream's `hop` event: the logged hop and the tracker's message for it. */
+export interface HopEvent {
+  hop: Hop;
+  message: string;
+}
+
+/** The server's sim mode, its `--sim` value. */
+export type SimMode = "link" | "fake" | "off";
+
+/** Another server holding the PC-wide sim-link claim, and the words for it. */
+export interface LinkHolder {
+  holder: "installed" | "source" | null;
+  data_folder: string | null;
+  text: string;
 }
 
 export interface TrackerStatus {
@@ -271,12 +296,18 @@ export interface TrackerStatus {
     max_alt_ft: number;
     fuel_used_lb: number | null;
   } | null;
-  pending: PendingLeg | null;
+  /** Legs waiting to be logged, oldest first; empty when none waits. */
+  pending: PendingLeg[];
   briefing: BriefingSummary | null;
   /** Casual mode: when it was switched on and the path's points; null while off. */
   casual: { since: string; points: number } | null;
   message: string | null;
   message_at: string | null;
+  sim_mode: SimMode;
+  /** The host of a sim on another PC the link reaches; null for a sim on this PC or no link. */
+  sim_host: string | null;
+  /** Another server holding the PC-wide sim-link claim; null otherwise. */
+  link_holder: LinkHolder | null;
 }
 
 export type HazardKind = "ICE" | "TURB" | "IFR" | "MT_OBSC" | "CONVECTIVE" | "VA" | "TC";

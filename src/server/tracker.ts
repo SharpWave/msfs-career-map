@@ -1,6 +1,8 @@
 import { EventEmitter } from "node:events";
-import { db } from "./db.ts";
+import { randomUUID } from "node:crypto";
+import { db, transaction } from "./db.ts";
 import { distanceNm, nearestAirport } from "./airports.ts";
+import { currentInputs } from "./inputs.ts";
 import type { SimAircraft, SimSample, Touchdown } from "./simconnect.ts";
 import type { BriefingSummary } from "./ofp.ts";
 
@@ -11,19 +13,23 @@ import type { BriefingSummary } from "./ofp.ts";
  * flag staying false for TAKEOFF_CONFIRM_MS; a landing is the flag coming back on, and the hop
  * closes once the aircraft has sat below STOP_KTS for STOP_MS (so a touch-and-go stays inside
  * one hop). Origin and destination are the nearest airports to where the wheels left and where
- * the aircraft stopped. The in-progress leg is checkpointed to `tracker_state` so a server
- * restart mid-flight loses nothing.
+ * the aircraft stopped. The whole state is checkpointed to `tracker_state` so a server restart
+ * mid-flight loses nothing; a leg restored in the air goes on only when the sim's first sample
+ * shows the same flight still flying.
  *
  * Each touchdown is rated from its descent rate and peak G (see rateLanding). The frame-rate
  * watcher in simconnect.ts supplies accurate numbers a moment after the wheels touch; until then
  * (and always with the fake feed) a provisional landing is derived from the 1 Hz samples.
  *
  * A finished leg is logged straight into `hops` (with track, landings, stats and any SimBrief
- * briefing imported for it) when the sim aircraft is bound to a fleet row and both airports are
- * known; otherwise it is parked as `pending` for the user to complete from the UI.
+ * briefing imported for it), in one transaction with the checkpoint that no longer holds it, when
+ * the sim aircraft is bound to a fleet row and both airports are known; otherwise it joins the
+ * list of pending legs, each with an id of its own, for the user to complete from the UI. A leg
+ * in the air when the sim's connection ends is kept as pending too, marked as ended in the air.
  *
- * Casual mode suspends all of that: no legs, only a path of the samples flown, kept in memory and
- * never checkpointed, broken into segments at a jump, a new flight or a disconnect.
+ * Casual mode suspends all of that: no legs, only a path of the samples flown, broken into
+ * segments at a jump, a new flight or a disconnect. Its switch is checkpointed; its path is kept
+ * in memory only.
  */
 
 /** `[lat, lon, alt_ft, unix_seconds, gs_kts, vs_fpm, ias_kts, fuel_lb]`; old rows have the first four only. */
@@ -49,6 +55,13 @@ const SAVE_MS = 5000;
 const TOUCHDOWN_MATCH_MS = 6000;
 /** On the ground below this, the aircraft is standing still and adds nothing to the casual path. */
 const STILL_KTS = 1;
+
+/** Why a leg in the air was kept as pending. */
+const DISCONNECTED = "the sim disconnected in flight";
+const NOT_RESUMED = "MSFS Career Map stopped in flight and the sim did not resume it";
+
+/** The farthest a sample may lie from the one `gapMs` before it and still be the same flight. */
+const jumpBoundNm = (gapMs: number) => TELEPORT_NM + (Math.max(0, gapMs) / 3600000) * 700;
 
 // ------------------------------------------------------------------ landings
 
@@ -130,6 +143,8 @@ interface Leg {
 }
 
 export interface PendingLeg {
+  /** A random UUID, unique for the life of the logbook and kept with the leg in the checkpoint. */
+  id: string;
   sim: SimAircraft;
   aircraft_id: number | null;
   origin: string | null;
@@ -143,14 +158,31 @@ export interface PendingLeg {
   briefing_id: number | null;
   /** Why it was not logged automatically. */
   reason: string;
+  /** Kept while airborne (a disconnect in flight, a restored leg not resumed) rather than closed after landing. */
+  ended_in_air: boolean;
 }
 
-interface Persisted {
+/** A pending leg as the status and the `pending` event list it: no track, its point count instead. */
+export type PendingLegStatus = Omit<PendingLeg, "track"> & { points: number };
+
+/** How the server reaches the sim: the sim link, the fake feed, or not at all. */
+export type SimMode = "link" | "fake" | "off";
+
+/** Another server holding the PC-wide sim-link claim, with the words the card shows for it. */
+export interface LinkHolder {
+  holder: "installed" | "source" | null;
+  data_folder: string | null;
+  text: string;
+}
+
+/** The tracker's state as it runs. Casual mode is held apart, with its path (Casual). */
+interface State {
   phase: Phase;
   sim: SimAircraft | null;
   aircraft_id: number | null;
   leg: Leg | null;
-  pending: PendingLeg | null;
+  /** Legs waiting for details, oldest first. */
+  pending: PendingLeg[];
   /** SimBrief plan imported for the flight being flown (or about to be); consumed by the next hop. */
   briefing: BriefingSummary | null;
   last: SimSample | null;
@@ -162,9 +194,20 @@ interface Persisted {
   message_at: string | null;
 }
 
+/** The checkpoint: the state with casual mode's switch and the time it went on (epoch ms), never its path. */
+interface Persisted extends State {
+  casual: { since: number } | null;
+}
+
 export interface TrackerStatus {
   connected: boolean;
   sim_name: string | null;
+  /** How the server reaches the sim; "off" until the server says otherwise. */
+  sim_mode: SimMode;
+  /** The host of a sim on another PC the link reaches; null for this PC or no link. */
+  sim_host: string | null;
+  /** Another server holding the sim-link claim; null unless one does. */
+  link_holder: LinkHolder | null;
   sim_running: boolean;
   paused: boolean;
   livery_supported: boolean;
@@ -192,7 +235,8 @@ export interface TrackerStatus {
     max_alt_ft: number;
     fuel_used_lb: number | null;
   } | null;
-  pending: (Omit<PendingLeg, "track"> & { points: number }) | null;
+  /** In the order kept, oldest first; empty when none waits. */
+  pending: PendingLegStatus[];
   briefing: BriefingSummary | null;
   /** Casual mode: when it was switched on and the path's points over all segments; null while off. */
   casual: { since: string; points: number } | null;
@@ -200,7 +244,7 @@ export interface TrackerStatus {
   message_at: string | null;
 }
 
-/** Casual mode's own state. Held in memory only: it never reaches the checkpoint. */
+/** Casual mode's own state: the switch and its time are checkpointed, the path never is. */
 interface Casual {
   since: number;
   path: TrackPoint[][];
@@ -215,6 +259,16 @@ export class CasualRefused extends Error {
       `${details.name} is flying a leg ${details.origin ? `from ${details.origin}` : "that started in the air"}; ` +
         "switching to casual mode would drop it",
     );
+  }
+}
+
+/** A user action the tracker turns down as asked: the request is at fault, not the server. */
+export class TrackerRefused extends Error {}
+
+/** A pilot's action that comes after the final checkpoint: nothing may change the state any more. */
+export class ShuttingDown extends Error {
+  constructor() {
+    super("MSFS Career Map is shutting down");
   }
 }
 
@@ -235,12 +289,19 @@ export interface LoggedHop {
   created_at: string;
 }
 
-const EMPTY: Persisted = {
+/** Payload of the tracker's "hop" event: the hop logged and the tracker's message for it. */
+export interface HopEvent {
+  hop: LoggedHop;
+  message: string;
+}
+
+/** The state of a tracker that has seen nothing. */
+const emptyState = (): State => ({
   phase: "idle",
   sim: null,
   aircraft_id: null,
   leg: null,
-  pending: null,
+  pending: [],
   briefing: null,
   last: null,
   lastGround: null,
@@ -249,13 +310,25 @@ const EMPTY: Persisted = {
   stopSince: null,
   message: null,
   message_at: null,
-};
+});
+
+const emptyStats = (): HopStats => ({
+  fuel_start_lb: null,
+  fuel_end_lb: null,
+  fuel_used_lb: null,
+  weight_start_lb: null,
+  weight_end_lb: null,
+  max_alt_ft: null,
+  max_gs_kts: null,
+  flown_nm: null,
+});
 
 const loadStmt = db.prepare(`SELECT json FROM tracker_state WHERE id = 1`);
 const saveStmt = db.prepare(
   `INSERT INTO tracker_state (id, json, updated_at) VALUES (1, ?, ?)
    ON CONFLICT(id) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at`,
 );
+const setAsideStmt = db.prepare(`INSERT INTO tracker_state_aside (json, set_aside_at) VALUES (?, ?)`);
 const bindLookup = db.prepare(
   `SELECT id FROM aircraft WHERE sim_title = ? AND (sim_livery = ? OR sim_livery IS NULL OR sim_livery = '')
    ORDER BY (sim_livery = ?) DESC, id LIMIT 1`,
@@ -272,28 +345,213 @@ const hopGet = db.prepare(`SELECT * FROM hops WHERE id = ?`);
 const briefingAttach = db.prepare(`UPDATE briefings SET hop_id = ?, aircraft_id = ? WHERE id = ?`);
 const briefingDropUnused = db.prepare(`DELETE FROM briefings WHERE id = ? AND hop_id IS NULL`);
 
-function load(): Persisted {
-  const row = loadStmt.get() as { json: string } | undefined;
-  if (!row) return { ...EMPTY };
-  try {
-    const p = { ...EMPTY, ...(JSON.parse(row.json) as Partial<Persisted>) };
-    // A leg checkpointed by an older version lacks the landing/stat fields.
-    if (p.leg) {
-      const defaults: Partial<Leg> = { landings: [], fuel_start_lb: null, weight_start_lb: null, max_alt_ft: 0, max_gs_kts: 0 };
-      p.leg = { ...defaults, ...(p.leg as Partial<Leg>) } as Leg;
-      // A leg that began at the main menu's null-island position is not a flight.
-      const first = p.leg.track[0];
-      if (first && !isRealPosition({ lat: first[0], lon: first[1], alt_ft: first[2] })) {
-        console.log("[tracker] dropped a checkpointed leg that started at the sim's menu position");
-        p.leg = null;
-        p.phase = "idle";
-      }
-    }
-    return p;
-  } catch {
-    return { ...EMPTY };
-  }
+// ------------------------------------------------------------------ restoring
+
+const PHASES: readonly string[] = ["idle", "ground", "airborne", "landed"];
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+const isNumber = (v: unknown) => typeof v === "number";
+const isString = (v: unknown) => typeof v === "string";
+const isSample = (v: unknown) => isObject(v) && isNumber(v.t) && isNumber(v.lat) && isNumber(v.lon);
+
+const isSim = (v: unknown) => isObject(v) && isString(v.title) && isString(v.livery);
+
+/** A track point: at least [lat, lon, alt_ft, unix_seconds] (0.7 rows have only those), every entry a finite number. */
+const isPoint = (v: unknown) => Array.isArray(v) && v.length >= 4 && v.every((x) => typeof x === "number" && Number.isFinite(x));
+/** A list of track points. */
+const isTrack = (v: unknown) => Array.isArray(v) && v.every(isPoint);
+/** A list of touchdowns, each with the time every reader of a leg's landings goes by. */
+const isLandings = (v: unknown) => Array.isArray(v) && v.every((l) => isObject(l) && isString(l.t));
+
+/** The first field of `v` that is present and not null but fails its shape, or undefined. */
+const misshapen = (v: Record<string, unknown>, shapes: [string, (x: unknown) => boolean][]) =>
+  shapes.find(([k, ok]) => v[k] != null && !ok(v[k]))?.[0];
+
+/**
+ * The shape each field of the checkpoint itself must have when it is present and not null. The leg
+ * in progress and each pending leg are judged on their own (legProblem, pendingProblem).
+ */
+const FIELD_SHAPES: [string, (v: unknown) => boolean][] = [
+  ["sim", isSim],
+  ["aircraft_id", isNumber],
+  // A list of legs, or the single leg an older version kept.
+  ["pending", (v) => Array.isArray(v) || isObject(v)],
+  ["briefing", (v) => isObject(v) && isNumber(v.id)],
+  ["casual", (v) => isObject(v) && isNumber(v.since)],
+  ["last", isSample],
+  ["lastGround", isSample],
+  ["lastAirborne", isSample],
+  ["airborneSince", isNumber],
+  ["stopSince", isNumber],
+  ["message", isString],
+  ["message_at", isString],
+];
+
+/** Why a parsed checkpoint cannot be read, or null when it can. Fields this version does not know never count. */
+function unreadable(v: unknown): string | null {
+  if (!isObject(v)) return "it is not a JSON object";
+  if (typeof v.phase !== "string" || !PHASES.includes(v.phase)) return "its phase is missing or unknown";
+  const bad = misshapen(v, FIELD_SHAPES);
+  return bad ? `its ${bad} has the wrong type` : null;
 }
+
+/** The leg in progress's fields this version needs, and those it reads when present and not null. */
+const LEG_NEEDS: [string, (v: unknown) => boolean][] = [
+  ["departed_at", isNumber],
+  ["track", isTrack],
+];
+const LEG_SHAPES: [string, (v: unknown) => boolean][] = [
+  ["landings", isLandings],
+  ["origin", isString],
+  ["touchdown_at", isNumber],
+  ["fuel_start_lb", isNumber],
+  ["weight_start_lb", isNumber],
+  ["max_alt_ft", isNumber],
+  ["max_gs_kts", isNumber],
+];
+
+/** Why a saved leg in progress cannot be read, or null when it can. */
+function legProblem(v: unknown): string | null {
+  if (!isObject(v)) return "it is not an object";
+  const missing = LEG_NEEDS.find(([k, ok]) => !ok(v[k]))?.[0];
+  if (missing) return `its ${missing} is missing or has the wrong type`;
+  const bad = misshapen(v, LEG_SHAPES);
+  return bad ? `its ${bad} has the wrong type` : null;
+}
+
+/** A pending leg's fields this version needs, and those it reads when present and not null. */
+const PENDING_NEEDS: [string, (v: unknown) => boolean][] = [
+  ["sim", isSim],
+  ["departed_at", isString],
+  ["arrived_at", isString],
+  ["duration_min", isNumber],
+  ["reason", isString],
+];
+const PENDING_SHAPES: [string, (v: unknown) => boolean][] = [
+  ["track", isTrack],
+  ["landings", isLandings],
+  ["stats", isObject],
+  ["ended_in_air", (v) => typeof v === "boolean"],
+];
+
+/** Why a saved pending leg cannot be read, or null when it can. */
+function pendingProblem(v: unknown): string | null {
+  if (!isObject(v)) return "it is not an object";
+  const missing = PENDING_NEEDS.find(([k, ok]) => !ok(v[k]))?.[0];
+  if (missing) return `its ${missing} is missing or has the wrong type`;
+  const bad = misshapen(v, PENDING_SHAPES);
+  return bad ? `its ${bad} has the wrong type` : null;
+}
+
+/** A part of a readable checkpoint that cannot be read itself, to be set aside alone. */
+interface AsidePart {
+  part: unknown;
+  /** The line written for it, once it has been set aside. */
+  line: string;
+}
+
+interface Restored {
+  state: State;
+  casual: { since: number } | null;
+  /** The checkpoint was brought up to date while being read (a pending leg given its id) and must be written back. */
+  migrated: boolean;
+  /** Parts set aside alone; the checkpoint is written back without them, in one transaction with their rows. */
+  aside: AsidePart[];
+}
+
+/**
+ * The checkpoint as this version runs it. A field this version does not know rides along on the
+ * object holding it, so every save writes it back. One it cannot read as a whole is set aside
+ * whole, in `tracker_state_aside`, and replaced by the empty state at once. A leg in progress or a
+ * pending leg it cannot read is only collected here, to be set aside alone by the constructor.
+ */
+// @spec LIVE-SAVE-002, LIVE-SAVE-007, LIVE-SAVE-012, LIVE-SAVE-013, LIVE-SAVE-014
+function load(): Restored {
+  const row = loadStmt.get() as { json: string } | undefined;
+  if (!row) return { state: emptyState(), casual: null, migrated: false, aside: [] };
+  let raw: unknown;
+  let problem: string | null = null;
+  try {
+    raw = JSON.parse(row.json);
+  } catch {
+    problem = "it is not JSON";
+  }
+  problem ??= unreadable(raw);
+  if (problem) {
+    const now = new Date().toISOString();
+    const empty: Persisted = { ...emptyState(), casual: null };
+    transaction(() => {
+      setAsideStmt.run(row.json, now);
+      saveStmt.run(JSON.stringify(empty), now);
+    });
+    console.error(`[tracker] set aside a checkpoint it cannot read (${problem}) in tracker_state_aside; starting empty`);
+    return { state: emptyState(), casual: null, migrated: false, aside: [] };
+  }
+
+  const { casual, pending, ...rest } = raw as Record<string, unknown>;
+  const state: State = { ...emptyState(), ...(rest as Partial<State>) };
+  const aside: AsidePart[] = [];
+
+  // A leg in progress it cannot read goes alone, and with it everything that belonged to the leg:
+  // tracking begins afresh from idle with the next sample.
+  const legBad = state.leg != null ? legProblem(state.leg) : null;
+  if (legBad) {
+    aside.push({ part: state.leg, line: `[tracker] set aside the leg in progress it cannot read (${legBad}) in tracker_state_aside; tracking starts afresh` });
+    Object.assign(state, { leg: null, phase: "idle", airborneSince: null, stopSince: null, lastGround: null, lastAirborne: null });
+  }
+
+  // A leg checkpointed by an older version lacks the landing/stat fields; a field saved as null gets its default.
+  if (state.leg) {
+    const l = state.leg;
+    state.leg = {
+      ...l,
+      origin: l.origin ?? null,
+      touchdown_at: l.touchdown_at ?? null,
+      landings: l.landings ?? [],
+      fuel_start_lb: l.fuel_start_lb ?? null,
+      weight_start_lb: l.weight_start_lb ?? null,
+      max_alt_ft: l.max_alt_ft ?? 0,
+      max_gs_kts: l.max_gs_kts ?? 0,
+    };
+    // A leg that began at the main menu's null-island position is not a flight.
+    const first = state.leg.track[0];
+    if (first && !isRealPosition({ lat: first[0], lon: first[1], alt_ft: first[2] })) {
+      console.log("[tracker] dropped a checkpointed leg that started at the sim's menu position");
+      state.leg = null;
+      state.phase = "idle";
+    }
+  }
+
+  // An older version kept a single pending leg, or null, in place of the list. Each leg it cannot
+  // read goes alone; the others keep their order and their ids.
+  const entries: unknown[] = Array.isArray(pending) ? pending : pending != null ? [pending] : [];
+  let migrated = entries.length > 0 && !Array.isArray(pending);
+  const legs: Partial<PendingLeg>[] = [];
+  for (const e of entries) {
+    const bad = pendingProblem(e);
+    if (bad) aside.push({ part: e, line: `[tracker] set aside a pending leg it cannot read (${bad}) in tracker_state_aside` });
+    else legs.push(e as Partial<PendingLeg>);
+  }
+  state.pending = legs.map((l) => {
+    if (typeof l.id !== "string") migrated = true;
+    return {
+      ...l,
+      id: typeof l.id === "string" ? l.id : randomUUID(),
+      aircraft_id: l.aircraft_id ?? null,
+      origin: l.origin ?? null,
+      dest: l.dest ?? null,
+      track: l.track ?? [],
+      landings: l.landings ?? [],
+      stats: l.stats ?? emptyStats(),
+      briefing_id: l.briefing_id ?? null,
+      // A leg saved before the mark existed ended in the air exactly when it was kept for one of these reasons.
+      ended_in_air: l.ended_in_air ?? (l.reason === DISCONNECTED || l.reason === NOT_RESUMED),
+    } as PendingLeg;
+  });
+
+  return { state, casual: isObject(casual) ? { since: casual.since as number } : null, migrated, aside };
+}
+
+// ------------------------------------------------------------------ helpers
 
 const iso = (ms: number) => new Date(ms).toISOString();
 
@@ -319,10 +577,24 @@ const point = (s: SimSample): TrackPoint => [
   Math.round(fin(s.fuel_lb)),
 ];
 
+/** The track ending at sample `s`: a copy with its point added, unless a point at that second is already last. */
+function withPoint(track: TrackPoint[], s: SimSample): TrackPoint[] {
+  const last = track[track.length - 1];
+  const p = point(s);
+  return !last || last[3] !== p[3] ? [...track, p] : track;
+}
+
 function fmtMin(min: number): string {
   const h = Math.floor(min / 60);
   const m = min % 60;
   return h ? `${h} h ${m.toString().padStart(2, "0")} min` : `${m} min`;
+}
+
+/** What the tracker reports for a hop it logs, from a closed leg or a pending one alike. */
+// @spec LIVE-HOP-006
+function loggedMessage(origin: string, dest: string, durationMin: number, landings: Landing[]): string {
+  const landing = shownTouchdown(landings);
+  return `Logged ${origin} → ${dest}, ${fmtMin(durationMin)}${landing ? `, ${landing.fpm} fpm ${landing.rating}` : ""}`;
 }
 
 function trackNm(track: TrackPoint[]): number {
@@ -330,6 +602,52 @@ function trackNm(track: TrackPoint[]): number {
   for (let i = 1; i < track.length; i++) nm += distanceNm(track[i - 1][0], track[i - 1][1], track[i][0], track[i][1]);
   return round(nm, 1);
 }
+
+/** A leg's statistics over `track`, ending at sample `end` (null when none is known). */
+function legStats(leg: Leg, track: TrackPoint[], end: SimSample | null): HopStats {
+  const fuelEnd = end ? Math.round(fin(end.fuel_lb)) || null : null;
+  return {
+    fuel_start_lb: leg.fuel_start_lb,
+    fuel_end_lb: fuelEnd,
+    fuel_used_lb: leg.fuel_start_lb != null && fuelEnd != null ? leg.fuel_start_lb - fuelEnd : null,
+    weight_start_lb: leg.weight_start_lb,
+    weight_end_lb: end ? Math.round(fin(end.weight_lb)) || null : null,
+    max_alt_ft: leg.max_alt_ft,
+    max_gs_kts: leg.max_gs_kts,
+    flown_nm: trackNm(track),
+  };
+}
+
+/** A pending leg's own fields; any this version does not know stay in the checkpoint only. */
+function known(p: PendingLeg): PendingLeg {
+  return {
+    id: p.id,
+    sim: p.sim,
+    aircraft_id: p.aircraft_id,
+    origin: p.origin,
+    dest: p.dest,
+    departed_at: p.departed_at,
+    arrived_at: p.arrived_at,
+    duration_min: p.duration_min,
+    track: p.track,
+    landings: p.landings,
+    stats: p.stats,
+    briefing_id: p.briefing_id,
+    reason: p.reason,
+    // @spec LIVE-HOP-007
+    ended_in_air: p.ended_in_air,
+  };
+}
+
+/** A pending leg as the status and the `pending` event list it. */
+function listed(p: PendingLeg): PendingLegStatus {
+  const { track, ...rest } = known(p);
+  return { ...rest, points: track.length };
+}
+
+const LINKED_ELSEWHERE = "The sim is linked to another copy";
+const linkHolderText = (holder: LinkHolder["holder"]) =>
+  holder === "installed" ? `${LINKED_ELSEWHERE} (the installed app)` : holder === "source" ? `${LINKED_ELSEWHERE} (run from source)` : LINKED_ELSEWHERE;
 
 interface HopDraft {
   origin: string;
@@ -365,32 +683,60 @@ function insertHop(aircraftId: number, h: HopDraft): LoggedHop {
 }
 
 export class Tracker extends EventEmitter {
-  private s: Persisted;
-  /** Off at every start, and kept out of `s` so no checkpoint carries it. */
-  // @spec LIVE-CASUAL-011
-  private casual: Casual | null = null;
+  private s: State;
+  private casual: Casual | null;
+  /** A leg restored in the air, until the sim's first sample shows whether it goes on. Never checkpointed. */
+  private restoredInAir: Leg | null;
+  /** Set by shutdown: no sample or sim event is taken after the final checkpoint. */
+  private stopped = false;
   private lastSave = 0;
+  private simMode: SimMode = "off";
+  private simHost: string | null = null;
+  private linkHolder: LinkHolder | null = null;
   connected = false;
   simName: string | null = null;
   simRunning = true;
   paused = false;
   liverySupported = true;
 
-  constructor() {
+  /**
+   * Restore the checkpoint. Casual mode comes back as it holds it, with an empty path, except on a
+   * fresh run, which starts it off and writes that before returning. A part it cannot read is set
+   * aside alone, its row and the checkpoint without it written in one transaction before returning.
+   */
+  // @spec LIVE-CASUAL-011, LIVE-CASUAL-015, LIVE-SAVE-013, LIVE-SAVE-014
+  constructor(opts: { freshRun?: boolean } = {}) {
     super();
-    this.s = load();
+    const { state, casual, migrated, aside } = load();
+    this.s = state;
+    const on = opts.freshRun ? null : casual;
+    this.casual = on ? { since: on.since, path: [], breakPending: false } : null;
+    this.restoredInAir = state.leg && state.phase === "airborne" ? state.leg : null;
+    if (aside.length) {
+      const at = new Date().toISOString();
+      transaction(() => {
+        for (const a of aside) setAsideStmt.run(JSON.stringify(a.part), at);
+        this.write();
+      });
+      for (const a of aside) console.error(a.line);
+    } else if (migrated || opts.freshRun) {
+      this.write();
+    }
   }
 
   // ------------------------------------------------------------------ status
 
+  // @spec LIVE-API-001, LIVE-API-013
   status(): TrackerStatus {
     const st = this.s;
     const l = st.last;
     const leg = st.leg;
-    const { track: pendingTrack, ...pendingRest } = st.pending ?? { track: [] as TrackPoint[] };
     return {
       connected: this.connected,
       sim_name: this.simName,
+      sim_mode: this.simMode,
+      sim_host: this.simHost,
+      link_holder: this.linkHolder,
       sim_running: this.simRunning,
       paused: this.paused,
       livery_supported: this.liverySupported,
@@ -422,7 +768,7 @@ export class Tracker extends EventEmitter {
             fuel_used_lb: leg.fuel_start_lb != null && l ? Math.round(leg.fuel_start_lb - fin(l.fuel_lb)) : null,
           }
         : null,
-      pending: st.pending ? { ...(pendingRest as Omit<PendingLeg, "track">), points: pendingTrack.length } : null,
+      pending: st.pending.map(listed),
       briefing: st.briefing,
       // @spec LIVE-API-010
       casual: this.casual
@@ -447,60 +793,169 @@ export class Tracker extends EventEmitter {
     return this.casual != null;
   }
 
+  /** That pending leg in full, its track included, or null. */
+  // @spec LIVE-API-007
+  pendingLeg(id: string): PendingLeg | null {
+    const p = this.s.pending.find((x) => x.id === id);
+    return p ? known(p) : null;
+  }
+
+  // ------------------------------------------------------------------ server
+
+  /** How the server reaches the sim, and the host of a sim on another PC (null for this PC or no link). */
+  // @spec LIVE-API-013
+  setSimMode(mode: SimMode, host: string | null = null): void {
+    this.simMode = mode;
+    this.simHost = host;
+    this.emitStatus();
+  }
+
+  /** Another server holding the PC-wide sim-link claim, as it describes itself; null when none does. */
+  // @spec LIVE-API-013
+  setLinkHolder(h: { holder: LinkHolder["holder"]; data_folder: string | null } | null): void {
+    this.linkHolder = h ? { holder: h.holder, data_folder: h.data_folder, text: linkHolderText(h.holder) } : null;
+    this.emitStatus();
+  }
+
+  /**
+   * Write the whole state to the checkpoint now and change nothing else (the server's save request).
+   * After the final checkpoint it writes nothing.
+   */
+  // @spec LIVE-SAVE-004, LIVE-SAVE-005
+  saveNow(): void {
+    if (this.stopped) return;
+    this.write();
+  }
+
+  /**
+   * The final checkpoint, written once the server has stopped the sim link. When the app is
+   * quitting, casual mode is switched off first. No sample or sim event is taken afterwards, and
+   * every pilot's action that would change the state throws ShuttingDown.
+   */
+  // @spec LIVE-SAVE-005, LIVE-CASUAL-013
+  shutdown(opts: { quitting: boolean }): void {
+    this.stopped = true;
+    if (opts.quitting && this.casual) {
+      this.casual = null;
+      this.emit("path", []);
+      this.emitStatus();
+    }
+    this.write();
+  }
+
+  /** Whether the final checkpoint has been written (shutdown has run). */
+  // @spec LIVE-SAVE-005, LIVE-API-016
+  isShutDown(): boolean {
+    return this.stopped;
+  }
+
+  /**
+   * Turn down a pilot's action once the final checkpoint is written, before it looks at anything:
+   * bind, setBriefing, setCasual, discardLeg, completeNow, savePending and discardPending.
+   */
+  // @spec LIVE-SAVE-005
+  private refuseAfterShutdown(): void {
+    if (this.stopped) throw new ShuttingDown();
+  }
+
   // ------------------------------------------------------------------ link events
 
-  setConnected(v: boolean, name: string | null = null) {
+  /**
+   * The sim link connected, or its connection ended: `quit` is SimConnect's quit event (MSFS closed
+   * normally); anything else is a crash, a close or a failure. A leg in the air is kept as pending,
+   * a restored one still waiting for the sim's first sample with the reason that it was not resumed.
+   */
+  // @spec LIVE-LEG-008, LIVE-CASUAL-014
+  setConnected(v: boolean, name: string | null = null, opts: { quit?: boolean } = {}) {
+    if (this.stopped) return;
     this.connected = v;
     this.simName = v ? name : null;
     if (!v) {
       this.simRunning = true;
       this.paused = false;
-      if (this.casual) this.casual.breakPending = true;
-      if (this.s.leg) {
+      if (this.casual && opts.quit) {
+        this.casual = null;
+        this.note("Casual mode off (MSFS closed): takeoffs and landings are logged again");
+        this.emit("path", []);
+        this.save(true);
+      } else if (this.casual) {
+        this.casual.breakPending = true;
+      }
+      // @spec LIVE-LEG-016
+      if (this.takeRestoredInAir()) this.keepLeg(NOT_RESUMED);
+      else if (this.s.leg) {
         if (this.s.phase === "landed" && this.s.last) this.complete(this.s.last);
-        else this.discardLeg("the sim disconnected mid-flight");
+        else this.keepLeg(DISCONNECTED);
       }
     }
     this.emitStatus();
   }
 
   setPaused(v: boolean) {
+    if (this.stopped) return;
     this.paused = v;
     this.emitStatus();
   }
 
   setSimRunning(v: boolean) {
+    if (this.stopped) return;
     this.simRunning = v;
     this.emitStatus();
   }
 
   setLiverySupported(v: boolean) {
+    if (this.stopped) return;
     this.liverySupported = v;
     this.emitStatus();
   }
 
+  /**
+   * A new flight was loaded: a landed leg closes at the last sample, as for any interruption after
+   * landing; an airborne one is discarded, unless it is a restored leg still waiting for the sim.
+   */
+  // @spec LIVE-LEG-010, LIVE-LEG-011
   flightLoaded(_file: string) {
+    if (this.stopped) return;
     if (this.casual) this.casual.breakPending = true;
-    if (this.s.leg && this.s.phase === "airborne") this.discardLeg("a new flight was loaded");
+    const st = this.s;
+    // @spec LIVE-LEG-016
+    if (this.takeRestoredInAir()) {
+      this.keepLeg(NOT_RESUMED);
+      this.emitStatus();
+    } else if (st.leg && st.phase === "landed" && st.last) {
+      this.complete(st.last);
+      this.emitStatus();
+    } else if (st.leg && st.phase === "airborne") {
+      this.discardLeg("a new flight was loaded");
+    }
   }
 
   // ------------------------------------------------------------------ user actions
 
-  /** Bind the sim aircraft currently being flown to a fleet row (and remember the pairing). */
+  /**
+   * Bind the sim aircraft currently being flown to a fleet row (and remember the pairing), and set
+   * that aircraft on every pending leg flown in the same title and livery that has none.
+   */
+  // @spec LIVE-BIND-003
   bind(aircraftId: number): void {
+    this.refuseAfterShutdown();
     const st = this.s;
-    if (!st.sim) throw new Error("no sim aircraft to bind yet");
-    if (!aircraftExists.get(aircraftId)) throw new Error(`aircraft ${aircraftId} not found`);
-    bindSet.run(st.sim.title, st.sim.livery, aircraftId);
+    const sim = st.sim;
+    if (!sim) throw new TrackerRefused("no sim aircraft to bind yet");
+    if (!aircraftExists.get(aircraftId)) throw new TrackerRefused(`aircraft ${aircraftId} not found`);
+    bindSet.run(sim.title, sim.livery, aircraftId);
     st.aircraft_id = aircraftId;
-    if (st.pending) st.pending.aircraft_id = aircraftId;
-    this.note(`Bound ${st.sim.title}${st.sim.livery ? ` (${st.sim.livery})` : ""} to fleet aircraft #${aircraftId}`);
+    for (const p of st.pending) {
+      if (p.aircraft_id == null && p.sim?.title === sim.title && p.sim?.livery === sim.livery) p.aircraft_id = aircraftId;
+    }
+    this.note(`Bound ${sim.title}${sim.livery ? ` (${sim.livery})` : ""} to fleet aircraft #${aircraftId}`);
     this.save(true);
     this.emitStatus();
   }
 
   /** Attach (or clear) the SimBrief plan for the flight being flown or about to be flown. */
   setBriefing(b: BriefingSummary | null): void {
+    this.refuseAfterShutdown();
     const prev = this.s.briefing;
     this.s.briefing = b;
     if (prev && (!b || b.id !== prev.id)) briefingDropUnused.run(prev.id);
@@ -510,6 +965,7 @@ export class Tracker extends EventEmitter {
   }
 
   discardLeg(reason: string): void {
+    this.refuseAfterShutdown();
     const st = this.s;
     if (!st.leg) return;
     st.leg = null;
@@ -528,49 +984,57 @@ export class Tracker extends EventEmitter {
    * is quit after touchdown. Only a leg whose wheels are down can be logged this way.
    */
   completeNow(): void {
+    this.refuseAfterShutdown();
     const st = this.s;
-    if (!st.leg) throw new Error("no leg is being flown");
-    if (st.phase !== "landed" || !st.last) throw new Error("the aircraft has not landed yet");
+    if (!st.leg) throw new TrackerRefused("no leg is being flown");
+    if (st.phase !== "landed" || !st.last) throw new TrackerRefused("the aircraft has not landed yet");
     this.complete(st.last);
   }
 
-  /** Log the pending leg as a hop, filling in whatever the tracker could not work out. */
-  savePending(o: { aircraft_id?: number | null; origin?: string | null; dest?: string | null }): LoggedHop {
-    const p = this.s.pending;
-    if (!p) throw new Error("there is no leg waiting to be logged");
+  /** Log that pending leg as a hop, filling in whatever the tracker could not work out. */
+  // @spec LIVE-HOP-004, LIVE-API-014
+  savePending(id: string, o: { aircraft_id?: number | null; origin?: string | null; dest?: string | null }): LoggedHop {
+    this.refuseAfterShutdown();
+    const p = this.s.pending.find((x) => x.id === id);
+    if (!p) throw new TrackerRefused("there is no leg waiting to be logged with that id");
     const aircraftId = o.aircraft_id ?? p.aircraft_id;
     const origin = o.origin ?? p.origin;
     const dest = o.dest ?? p.dest;
-    if (!aircraftId || !aircraftExists.get(aircraftId)) throw new Error("choose a fleet aircraft for this leg");
-    if (!origin) throw new Error("the departure airport is required");
-    if (!dest) throw new Error("the arrival airport is required");
-    const hop = insertHop(aircraftId, {
+    if (!aircraftId || !aircraftExists.get(aircraftId)) throw new TrackerRefused("choose a fleet aircraft for this leg");
+    if (!origin) throw new TrackerRefused("the departure airport is required");
+    if (!dest) throw new TrackerRefused("the arrival airport is required");
+    const draft: HopDraft = {
       origin,
       dest,
       departed_at: p.departed_at,
       arrived_at: p.arrived_at,
       duration_min: p.duration_min,
       track: p.track,
-      landings: p.landings ?? [],
+      landings: p.landings,
       stats: p.stats,
-      briefing_id: p.briefing_id ?? null,
+      briefing_id: p.briefing_id,
+    };
+    const message = loggedMessage(origin, dest, p.duration_min, p.landings);
+    const hop = this.logHop(aircraftId, draft, message, () => {
+      this.s.pending = this.s.pending.filter((x) => x !== p);
     });
-    this.s.pending = null;
-    this.note(`Logged ${origin} → ${dest}, ${fmtMin(p.duration_min)}`);
-    this.emit("hop", hop);
-    this.save(true);
+    this.emit("hop", { hop, message } satisfies HopEvent);
     this.emitStatus();
     return hop;
   }
 
-  discardPending(): void {
-    const p = this.s.pending;
-    if (!p) return;
-    if (p.briefing_id != null) briefingDropUnused.run(p.briefing_id);
-    this.s.pending = null;
+  /** Drop that pending leg, and its SimBrief briefing unless a hop uses it. False for an unknown id. */
+  // @spec LIVE-HOP-005
+  discardPending(id: string): boolean {
+    this.refuseAfterShutdown();
+    const p = this.s.pending.find((x) => x.id === id);
+    if (!p) return false;
+    this.s.pending = this.s.pending.filter((x) => x !== p);
     this.note("Discarded the unlogged leg");
     this.save(true);
+    if (p.briefing_id != null) briefingDropUnused.run(p.briefing_id);
     this.emitStatus();
+    return true;
   }
 
   /**
@@ -581,6 +1045,7 @@ export class Tracker extends EventEmitter {
    */
   // @spec LIVE-CASUAL-005, LIVE-CASUAL-006, LIVE-CASUAL-007, LIVE-CASUAL-008, LIVE-CASUAL-009, LIVE-CASUAL-012, LIVE-API-012
   setCasual(on: boolean, opts: { dropLeg?: boolean } = {}): void {
+    this.refuseAfterShutdown();
     const st = this.s;
     if (on === (this.casual != null)) return;
     if (!on) {
@@ -638,10 +1103,23 @@ export class Tracker extends EventEmitter {
   // ------------------------------------------------------------------ samples
 
   feed(s: SimSample): void {
+    if (this.stopped) return;
     const st = this.s;
     if (!this.simRunning || this.paused || !isRealPosition(s)) {
       this.emitStatus();
       return;
+    }
+    /** Checkpoint with this sample whatever the throttle says: a leg started, landed or measured, or the binding changed. */
+    let force = false;
+
+    // A leg restored in the air goes on only if this, the first sample taken, resumes it; otherwise
+    // it is kept as pending and this sample starts tracking afresh, from idle.
+    // @spec LIVE-LEG-016
+    if (this.takeRestoredInAir() && !this.resumes(s)) {
+      this.keepLeg(NOT_RESUMED);
+      st.phase = "idle";
+      st.lastGround = null;
+      st.lastAirborne = null;
     }
 
     // Which aircraft is being flown? A change mid-leg means the user loaded a different plane.
@@ -651,7 +1129,9 @@ export class Tracker extends EventEmitter {
         else this.discardLeg(`the aircraft changed to ${s.title}`);
       }
       st.sim = { title: s.title, livery: s.livery, atc_id: s.atc_id };
-      st.aircraft_id = this.lookupBinding(s.title, s.livery);
+      const bound = this.lookupBinding(s.title, s.livery);
+      if (bound !== st.aircraft_id) force = true;
+      st.aircraft_id = bound;
       // In casual mode an unbound aircraft is not worth a word: nothing is being logged to it.
       this.note(
         st.aircraft_id || this.casual
@@ -662,13 +1142,20 @@ export class Tracker extends EventEmitter {
       st.sim.atc_id = s.atc_id;
     }
 
-    // Slew, teleport, or a new flight loaded somewhere else.
+    // Slew, teleport, or a new flight loaded somewhere else. A landed leg closes at the last sample
+    // before the jump, without the jumping one, and with the measured touchdown the jumping sample
+    // carries, placed where the aircraft last was; an airborne leg is discarded.
+    // @spec LIVE-LEG-010, LIVE-LEG-011, LIVE-LAND-002
     if (st.last) {
-      const gapHours = Math.max(0, s.t - st.last.t) / 3600000;
       const d = distanceNm(st.last.lat, st.last.lon, s.lat, s.lon);
-      if (d > TELEPORT_NM + gapHours * 700) {
+      if (d > jumpBoundNm(s.t - st.last.t)) {
         if (this.casual) this.casual.breakPending = true;
-        if (st.leg) this.discardLeg(`the position jumped ${Math.round(d)} nm`);
+        if (st.leg && st.phase === "landed") {
+          if (s.touchdown) this.applyTouchdown(st.leg, s.touchdown, st.last);
+          this.complete(st.last);
+        } else if (st.leg) {
+          this.discardLeg(`the position jumped ${Math.round(d)} nm`);
+        }
         st.phase = "idle";
         st.lastGround = null;
         st.lastAirborne = null;
@@ -681,12 +1168,15 @@ export class Tracker extends EventEmitter {
     if (this.casual) {
       this.recordCasual(this.casual, s);
       st.last = s;
-      this.save(false);
+      this.save(force);
       this.emitStatus();
       return;
     }
 
-    if (s.touchdown && st.leg) this.applyTouchdown(st.leg, s.touchdown, s);
+    if (s.touchdown && st.leg) {
+      this.applyTouchdown(st.leg, s.touchdown, s);
+      force = true;
+    }
 
     switch (st.phase) {
       case "idle":
@@ -698,6 +1188,7 @@ export class Tracker extends EventEmitter {
           st.leg = this.newLeg(null, s.t, s, [point(s)]);
           this.note("Tracking started in the air: the departure airport is unknown");
           this.emit("track", st.leg.track);
+          force = true;
         }
         break;
 
@@ -715,6 +1206,7 @@ export class Tracker extends EventEmitter {
             st.airborneSince = null;
             this.note(ap ? `Took off from ${ap.ident}` : `Took off with no airport within ${NEAR_NM} nm`);
             this.emit("track", st.leg.track);
+            force = true;
           }
         }
         break;
@@ -732,6 +1224,7 @@ export class Tracker extends EventEmitter {
           const ap = nearestAirport(s.lat, s.lon, NEAR_NM);
           const last = leg.landings[leg.landings.length - 1];
           this.note(`${ap ? `Landed at ${ap.ident}` : "Landed away from any airport"}: ${last.fpm} fpm, ${last.rating}`);
+          force = true;
         }
         break;
       }
@@ -756,7 +1249,7 @@ export class Tracker extends EventEmitter {
 
     if (!s.on_ground) st.lastAirborne = s;
     st.last = s;
-    this.save(false);
+    this.save(force);
     this.emitStatus();
   }
 
@@ -765,6 +1258,29 @@ export class Tracker extends EventEmitter {
   private lookupBinding(title: string, livery: string): number | null {
     const row = bindLookup.get(title, livery, livery) as { id: number } | undefined;
     return row?.id ?? null;
+  }
+
+  /** The bound fleet aircraft, while it still exists. */
+  private boundAircraft(): number | null {
+    const id = this.s.aircraft_id;
+    return id && aircraftExists.get(id) ? id : null;
+  }
+
+  /**
+   * Whether a leg restored in the air is still the one in progress, waiting for the sim. Asked once:
+   * the first sample or flight load after the restore settles it either way.
+   */
+  private takeRestoredInAir(): boolean {
+    const restored = this.restoredInAir;
+    this.restoredInAir = null;
+    return restored != null && restored === this.s.leg && this.s.phase === "airborne";
+  }
+
+  /** Whether sample `s` shows the restored leg's flight going on: the same aircraft, in the air, within reach. */
+  private resumes(s: SimSample): boolean {
+    const { sim, last } = this.s;
+    if (!sim || sim.title !== s.title || sim.livery !== s.livery || s.on_ground || !last) return false;
+    return distanceNm(last.lat, last.lon, s.lat, s.lon) <= jumpBoundNm(s.t - last.t);
   }
 
   private newLeg(origin: string | null, departedAt: number, start: SimSample, track: TrackPoint[]): Leg {
@@ -860,55 +1376,42 @@ export class Tracker extends EventEmitter {
     this.note(`Touchdown ${fpm} fpm, ${g.toFixed(2)} G: ${landing.rating}`);
   }
 
-  /** Close the current leg at sample `s` (where the aircraft stopped) and log or park it. */
+  /** Close the current leg at sample `s` (where the aircraft stopped) and log it, or keep it as pending. */
   private complete(s: SimSample) {
     const st = this.s;
     const leg = st.leg;
     if (!leg) return;
     const touchdown = leg.touchdown_at ?? s.t;
-    const last = leg.track[leg.track.length - 1];
-    const p = point(s);
-    if (!last || last[3] !== p[3]) leg.track.push(p);
-
-    st.leg = null;
-    st.phase = "ground";
-    st.lastGround = s;
-    st.airborneSince = null;
-    st.stopSince = null;
-    this.emit("track", []);
+    const track = withPoint(leg.track, s);
+    const close = () => {
+      st.leg = null;
+      st.phase = "ground";
+      st.lastGround = s;
+      st.airborneSince = null;
+      st.stopSince = null;
+    };
 
     const durationMin = Math.round((touchdown - leg.departed_at) / 60000);
     if (durationMin < MIN_LEG_MIN) {
+      close();
+      this.emit("track", []);
       this.note("Dropped a leg under a minute long");
       this.save(true);
       return;
     }
 
-    const fuelEnd = Math.round(fin(s.fuel_lb)) || null;
-    const stats: HopStats = {
-      fuel_start_lb: leg.fuel_start_lb,
-      fuel_end_lb: fuelEnd,
-      fuel_used_lb: leg.fuel_start_lb != null && fuelEnd != null ? leg.fuel_start_lb - fuelEnd : null,
-      weight_start_lb: leg.weight_start_lb,
-      weight_end_lb: Math.round(fin(s.weight_lb)) || null,
-      max_alt_ft: leg.max_alt_ft,
-      max_gs_kts: leg.max_gs_kts,
-      flown_nm: trackNm(leg.track),
-    };
     const dest = nearestAirport(s.lat, s.lon, NEAR_NM)?.ident ?? null;
-    const aircraftId = st.aircraft_id && aircraftExists.get(st.aircraft_id) ? st.aircraft_id : null;
-    const briefingId = st.briefing?.id ?? null;
-    st.briefing = null;
+    const aircraftId = this.boundAircraft();
     const draft = {
       origin: leg.origin,
       dest,
       departed_at: iso(leg.departed_at),
       arrived_at: iso(touchdown),
       duration_min: durationMin,
-      track: leg.track,
+      track,
       landings: leg.landings,
-      stats,
-      briefing_id: briefingId,
+      stats: legStats(leg, track, s),
+      briefing_id: st.briefing?.id ?? null,
     };
     const reason = !aircraftId
       ? "no fleet aircraft is bound to this sim aircraft"
@@ -919,17 +1422,97 @@ export class Tracker extends EventEmitter {
           : null;
 
     if (!reason) {
-      const hop = insertHop(aircraftId!, draft as HopDraft);
-      // @spec LIVE-HOP-006
-      const landing = shownTouchdown(leg.landings);
-      this.note(`Logged ${draft.origin} → ${dest}, ${fmtMin(durationMin)}${landing ? `, ${landing.fpm} fpm ${landing.rating}` : ""}`);
-      this.emit("hop", hop);
+      // @spec LIVE-HOP-006, LIVE-API-014
+      const message = loggedMessage(draft.origin!, dest!, durationMin, leg.landings);
+      const hop = this.logHop(aircraftId!, draft as HopDraft, message, () => {
+        close();
+        st.briefing = null;
+      });
+      this.emit("track", []);
+      this.emit("hop", { hop, message } satisfies HopEvent);
     } else {
-      st.pending = { sim: st.sim ?? { title: s.title, livery: s.livery, atc_id: s.atc_id }, aircraft_id: aircraftId, ...draft, reason };
-      this.note(`Leg ${draft.origin ?? "?"} → ${dest ?? "?"} (${fmtMin(durationMin)}) needs details: ${reason}`);
-      this.emit("pending", st.pending);
+      close();
+      st.briefing = null;
+      this.emit("track", []);
+      this.keepPending(
+        { sim: { ...(st.sim ?? { title: s.title, livery: s.livery, atc_id: s.atc_id }) }, aircraft_id: aircraftId, ...draft, reason, ended_in_air: false },
+        `Leg ${draft.origin ?? "?"} → ${dest ?? "?"} (${fmtMin(durationMin)}) needs details: ${reason}`,
+      );
     }
+  }
+
+  /**
+   * Keep the leg in the air as a pending leg ending at the last sample, with no destination and the
+   * current briefing: after a disconnect in flight, or for a restored leg the sim did not resume.
+   */
+  private keepLeg(reason: string) {
+    const st = this.s;
+    const leg = st.leg;
+    if (!leg) return;
+    const end = st.last;
+    const arrived = end?.t ?? leg.departed_at;
+    const track = end ? withPoint(leg.track, end) : leg.track;
+    const durationMin = Math.round((arrived - leg.departed_at) / 60000);
+    const kept: Omit<PendingLeg, "id"> = {
+      sim: { ...(st.sim ?? { title: "", livery: "", atc_id: "" }) },
+      aircraft_id: this.boundAircraft(),
+      origin: leg.origin,
+      dest: null,
+      departed_at: iso(leg.departed_at),
+      arrived_at: iso(arrived),
+      duration_min: durationMin,
+      track,
+      landings: leg.landings,
+      stats: legStats(leg, track, end),
+      briefing_id: st.briefing?.id ?? null,
+      reason,
+      ended_in_air: true,
+    };
+    st.leg = null;
+    st.briefing = null;
+    st.phase = end?.on_ground ? "ground" : "idle";
+    st.lastGround = end?.on_ground ? end : null;
+    st.airborneSince = null;
+    st.stopSince = null;
+    this.emit("track", []);
+    this.keepPending(kept, `Leg ${leg.origin ?? "?"} → ? (${fmtMin(durationMin)}) needs details: ${reason}`);
+  }
+
+  /** Add a leg to the pending list under an id of its own, checkpoint it and send it on. */
+  // @spec LIVE-HOP-003, LIVE-API-014
+  private keepPending(leg: Omit<PendingLeg, "id">, message: string) {
+    const kept: PendingLeg = { id: randomUUID(), ...leg };
+    this.s.pending.push(kept);
+    this.note(message);
     this.save(true);
+    this.emit("pending", listed(kept));
+  }
+
+  /**
+   * Log a hop in one transaction with its briefing's link and the checkpoint that `change` leaves
+   * behind. If any of those writes fails, nothing is written, the state goes back to what it was
+   * and the error propagates: the flight stays in the checkpoint.
+   */
+  // @spec LIVE-SAVE-006
+  private logHop(aircraftId: number, draft: HopDraft, message: string, change: () => void): LoggedHop {
+    const before = { ...this.s };
+    const lastSave = this.lastSave;
+    change();
+    this.s.message = message;
+    this.s.message_at = new Date().toISOString();
+    try {
+      const hop = transaction(() => {
+        const h = insertHop(aircraftId, draft);
+        this.write();
+        return h;
+      });
+      console.log(`[tracker] ${message}`);
+      return hop;
+    } catch (e) {
+      Object.assign(this.s, before);
+      this.lastSave = lastSave;
+      throw e;
+    }
   }
 
   private note(message: string) {
@@ -938,11 +1521,18 @@ export class Tracker extends EventEmitter {
     console.log(`[tracker] ${message}`);
   }
 
+  /** Checkpoint the state: at once when `force`, otherwise at most every SAVE_MS. */
+  // @spec LIVE-SAVE-001
   private save(force: boolean) {
-    const now = Date.now();
-    if (!force && now - this.lastSave < SAVE_MS) return;
-    this.lastSave = now;
-    saveStmt.run(JSON.stringify(this.s), new Date().toISOString());
+    if (!force && Date.now() - this.lastSave < SAVE_MS) return;
+    this.write();
+  }
+
+  /** Write the whole state to the checkpoint, with casual mode's switch and time but never its path. */
+  private write() {
+    const cp: Persisted = { ...this.s, casual: this.casual ? { since: this.casual.since } : null };
+    saveStmt.run(JSON.stringify(cp), new Date().toISOString());
+    this.lastSave = Date.now();
   }
 
   private emitStatus() {
@@ -950,4 +1540,10 @@ export class Tracker extends EventEmitter {
   }
 }
 
-export const tracker = new Tracker();
+/**
+ * The server's tracker, restored from the checkpoint as it is loaded: casual mode off on a fresh
+ * run, and the sim mode the server was started in (startTracking sets it again, with the sim host).
+ */
+// @spec LIVE-API-013, LIVE-CASUAL-015
+export const tracker = new Tracker({ freshRun: currentInputs().freshRun });
+tracker.setSimMode(currentInputs().sim);

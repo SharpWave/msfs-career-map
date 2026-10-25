@@ -1,8 +1,16 @@
+/**
+ * A leg restored in the air after a server restart, with the sim link: it carries on when the link
+ * reconnects (LIVE-LEG-012); the sim's connection ending before the first sample keeps it as
+ * pending, ended in the air, while the server stopping the link leaves it restored in the final
+ * checkpoint (LIVE-LEG-016).
+ */
 import { open } from "node-simconnect";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { startSimLink } from "../../src/server/simconnect.ts";
 import { Tracker } from "../../src/server/tracker.ts";
-import { FakeSimHandle, settle } from "./fake-sim.ts";
+import { FakeSimHandle, answerOpen, linkTracker, settle } from "./fake-sim.ts";
+import { pilot, takeOff } from "./pilot.ts";
+import { readCheckpoint, resetLogbook } from "./state.ts";
 
 vi.mock("node-simconnect", async (importOriginal) => ({
   ...(await importOriginal<typeof import("node-simconnect")>()),
@@ -65,6 +73,88 @@ describe("a leg restored after a server restart", () => {
       expect(st.phase).toBe("airborne");
       expect(st.leg?.origin).toBe("KPVD");
       expect(st.sim).toMatchObject({ title: PLANE.title, livery: PLANE.livery });
+    } finally {
+      link.stop();
+    }
+  });
+});
+
+describe("a leg restored in the air whose sim link ends before the first sample", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-12T11:59:00Z"));
+    resetLogbook();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /**
+   * An airborne leg from KPVD checkpointed, then a server restart: a new tracker restored from that
+   * checkpoint and linked to the (fake) sim, which connects but sends no sample yet.
+   */
+  async function restoreAndLink() {
+    const before = new Tracker();
+    before.setConnected(true, "Fake MSFS");
+    const p = pilot(before);
+    takeOff(p);
+    p.air(70);
+    before.saveNow();
+    const written = readCheckpoint()!;
+    expect(written).toMatchObject({ phase: "airborne", leg: { origin: "KPVD" }, pending: [] });
+
+    const after = new Tracker();
+    expect(after.status().phase).toBe("airborne");
+    const hd = new FakeSimHandle();
+    answerOpen(hd);
+    const link = linkTracker(after);
+    await settle();
+    expect(after.status().connected).toBe(true);
+    return { written, after, hd, link };
+  }
+
+  // @spec LIVE-LEG-016
+  it("stays restored in the final checkpoint when the server stops the link", async () => {
+    const { written, after, hd, link } = await restoreAndLink();
+
+    link.stop();
+    hd.lose();
+    await settle();
+    after.shutdown({ quitting: false });
+
+    const cp = readCheckpoint()!;
+    expect(cp.phase).toBe("airborne");
+    expect(cp.leg).toEqual(written.leg);
+    expect(cp.pending).toEqual([]);
+
+    const again = new Tracker().status();
+    expect(again.phase).toBe("airborne");
+    expect(again.leg).toMatchObject({ origin: "KPVD", departed_at: new Date(written.leg.departed_at).toISOString() });
+    expect(again.pending).toEqual([]);
+  });
+
+  // @spec LIVE-LEG-016, LIVE-HOP-007
+  it.each([
+    ["the connection closes", (hd: FakeSimHandle) => hd.lose()],
+    ["MSFS quits", (hd: FakeSimHandle) => hd.quit()],
+  ])("is kept as pending, ended in the air and not resumed, when %s", async (_, end) => {
+    const { written, after, hd, link } = await restoreAndLink();
+    try {
+      end(hd);
+      await settle();
+
+      const st = after.status();
+      expect(st.connected).toBe(false);
+      expect(st.leg).toBeNull();
+      expect(st.pending).toHaveLength(1);
+      expect(st.pending[0]).toMatchObject({
+        origin: "KPVD",
+        dest: null,
+        departed_at: new Date(written.leg.departed_at).toISOString(),
+        arrived_at: new Date(written.last.t).toISOString(),
+        reason: "MSFS Career Map stopped in flight and the sim did not resume it",
+        ended_in_air: true,
+      });
     } finally {
       link.stop();
     }

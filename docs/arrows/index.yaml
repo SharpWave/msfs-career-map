@@ -1,7 +1,9 @@
 schema_version: 2
-last_updated: 2026-10-21
+last_updated: 2026-10-24
 
-# Flat depth-2 mapping: every segment sits directly under docs/high-level-design.md.
+# Depth-2 mapping with one sub-HLD: every node sits directly under docs/high-level-design.md except
+# shell, start-lists and distribution, the segments under the desktop sub-HLD
+# (docs/intent/desktop/desktop-design.md, owning no EARS); dependencies are recorded on those leaves.
 arrows:
   logbook:
     status: MAPPED
@@ -12,7 +14,7 @@ arrows:
     blocks: [tour-map, planner, live-tracking, flight-panel]
     blockedBy: [fleet, airports]
     detail: logbook.md
-    next: "Add tests for the 31 implemented LOG specs that have none, then close the 7 gaps (atomic renumber, server-side time checks, tracked-hop corrections, sim-clock times, card errors)"
+    next: "Add tests for the 34 implemented LOG specs that have none, first those the desktop app relies on (LOG-REC-013 to 016, LOG-FORM-008), then close the 7 gaps (atomic renumber, server-side time checks, tracked-hop corrections, sim-clock times, card errors)"
     drift: null
 
   fleet:
@@ -24,8 +26,8 @@ arrows:
     blocks: [logbook, tour-map, planner, live-tracking, flight-panel, simbrief]
     blockedBy: []
     detail: fleet.md
-    next: "Add tests for the 38 implemented FLEET specs, then close the 4 gaps (unique name + livery, icon file and SimBrief plans removed on delete, visibility-toggle errors)"
-    drift: null
+    next: "Cite FLEET-LOOK-006 in the upload API test (tests/app-shell/api.test.ts) and add its removal of every file named for the id, since app-shell's backups and import rely on it (APP-BAK-003, APP-IMP-003); close the 5 gaps test-first (the icon address rule and icon files removed on delete first, then unique name + livery, the hops' SimBrief plans removed on delete, visibility-toggle errors); then tests for the other implemented FLEET specs (3 of 38 tested)"
+    drift: "HLD revised 2026-10-23 for the desktop app: uploaded icons travel with the logbook (APP-BAK-003, APP-BAK-011 and APP-IMP-003 rely on FLEET-LOOK-006); the code does not yet remove icon files on delete (FLEET-REC-017) or refuse icon addresses on this PC (FLEET-REC-018)"
 
   airports:
     status: MAPPED
@@ -33,11 +35,11 @@ arrows:
     sampled: 2026-10-09
     audited: null
     audited_sha: null
-    blocks: [logbook, tour-map, planner, live-tracking, flight-panel]
+    blocks: [logbook, tour-map, planner, live-tracking, flight-panel, shell, distribution]
     blockedBy: []
     detail: airports.md
-    next: "Add tests for the 40 implemented APT specs, then close the 10 gaps (keep referenced airports across re-imports, monthly refresh, nearest across 180°, Wikipedia fallback, search ordering, blurb cut)"
-    drift: null
+    next: "Close the must-fix gaps test-first, which the desktop app's first release relies on: airport preparation after the server listens and before the sim link, downloading only a list an import needs (APT-DATA-001, 002, 017, 018, 020 to 026), bounded downloads under temporary names (APT-DATA-019) and the official-site link (APT-POP-007); then keep airports that hops reference across re-imports (APT-DATA-007 to 009), landing with or before the daily check and monthly refresh (APT-DATA-003 to 005); then the other 5 gaps (nearest across 180°, Wikipedia fallback on network errors, latest search results only, expired METAR entries, blurb cut at a sentence) and tests for the 38 implemented APT specs"
+    drift: "LLD and specs cascaded 2026-10-23 from the desktop app's HLD, design and edge audit; the code lags them: it prepares airport data before listening and exits when an offline first run cannot download a list, seeds nothing, records no download times, cannot turn downloads off, imports in one synchronous step, never refreshes the lists, downloads with no time limit straight into place, links the raw home_link and keeps expired METAR entries (APT-DATA-001 to 005, 017 to 026, APT-POP-007, APT-WX-010)"
 
   tour-map:
     status: MAPPED
@@ -48,7 +50,7 @@ arrows:
     blocks: [planner, live-tracking, simbrief]
     blockedBy: [logbook, fleet, airports]
     detail: tour-map.md
-    next: "Close the 2 gaps (arc zoom, partial hazard outages) test-first, and add tests for the 28 implemented MAP specs that have none"
+    next: "Put the basemap-tiles question (LLD Open Questions 1: OpenStreetMap's tile usage policy, Esri's terms) to the user before the first public release; close the 6 gaps test-first — the earlier hazard set served as fetched, bounded to 3 hours, flagged and timed, and the all-failed set shown as unavailable (MAP-HAZ-004, MAP-HAZ-011, MAP-HAZ-012), attribution links in a new tab (MAP-VIEW-008), then arc zoom (MAP-GEO-012) and partial hazard outages (MAP-HAZ-009); add tests for the 27 implemented MAP specs that have none and for MAP-ZOOM-008's repeat and replacement clauses"
     drift: null
 
   planner:
@@ -60,7 +62,7 @@ arrows:
     blocks: []
     blockedBy: [logbook, fleet, airports, tour-map, simbrief, live-tracking]
     detail: planner.md
-    next: "Add tests for the 56 implemented PLAN specs, then close the 8 gaps (12,500 ft oxygen altitude, METARs for small ICAO fields, full result total, cruise-altitude label)"
+    next: "Add tests for the 53 implemented PLAN specs that have none, then close the 12 gaps (12,500 ft oxygen altitude, METARs for small ICAO fields, full result total, cruise-altitude label, terrain cache bounded without dropping a point in use, METAR freshness test for a page left open, keep the plan across a reconnect but drop it and the handed destination when the reload brings a new hop — after LIVE-API-005 and app-shell's reload on a different logbook); settle LLD Open 1 (credit Copernicus/Open-Meteo on the terrain line, awaiting the user)"
     drift: null
 
   live-tracking:
@@ -69,11 +71,11 @@ arrows:
     sampled: 2026-10-09
     audited: null
     audited_sha: null
-    blocks: [planner, flight-panel, simbrief]
+    blocks: [planner, flight-panel, simbrief, shell, distribution]
     blockedBy: [logbook, fleet, airports, tour-map]
     detail: live-tracking.md
-    next: "Close the 16 gaps test-first (pending-leg list, keep legs on disconnect, landed-leg interruptions, paused time, parked-airport tie-break, sim-clock times, live statistics and pending-leg profiles for the flight panel), and add tests for the 42 implemented LIVE specs that have none"
-    drift: null
+    next: "Close the 26 gaps test-first: first the PC-wide sim-link claim with link_holder and its release at shutdown, the sim's clock and the remaining leg rules — legs under a minute, paused time, the parked-airport tie-break, the live leg's statistics (LIVE-LINK-001, 008, 010, 011, 014, 015, LIVE-API-006, 013, LIVE-REC-003, 004, LIVE-LEG-013, 014, LIVE-NAME-002); then pausing tracking for an import and the merged checkpoint, with app-shell's import (LIVE-LINK-017, LIVE-API-015, 016, LIVE-SAVE-008 to 011, 015, LIVE-HOP-007, LIVE-CASUAL-013); the page's reload on a reconnect (LIVE-API-005) and the pending-leg hand-off (LIVE-CARD-015); settle whether PANEL-OPEN-002 gates merging (live-tracking.md Key Findings 1); then tests for the 29 implemented LIVE specs that have none"
+    drift: "The code does the LLD but for the PC-wide sim-link claim (so link_holder is always null and nothing stops two servers on the sim link at once), the sim's clock, legs under a minute, paused time, the parked-airport tie-break, the live leg's statistics, the import pause and merged checkpoint, and the page's reload on a reconnect; a pending-leg profile waits on flight-panel's PANEL-OPEN-002"
 
   flight-panel:
     status: MAPPED
@@ -84,7 +86,7 @@ arrows:
     blocks: []
     blockedBy: [logbook, fleet, airports, live-tracking]
     detail: flight-panel.md
-    next: "Add tests for the 21 implemented PANEL specs that have none, then close the 7 gaps (pending legs in the panel, live flight card, live header after touchdown, scale wording)"
+    next: "Close the 12 gaps test-first — pending legs in the panel (PANEL-OPEN-002, PANEL-OPEN-006, PANEL-HEAD-005, PANEL-STAT-003), opening the flight named in the page's address (PANEL-OPEN-009 to 011, with app-shell's fragment route), the live-panel guard (PANEL-OPEN-013, PANEL-OPEN-014), the live flight card, the live header after touchdown and the scale wording — then add tests for the 23 implemented PANEL specs that have none, PANEL-CHART-009 and PANEL-OPEN-012 first"
     drift: null
 
   simbrief:
@@ -93,13 +95,63 @@ arrows:
     sampled: 2026-10-09
     audited: null
     audited_sha: null
-    blocks: [planner]
+    blocks: [planner, shell, distribution]
     blockedBy: [fleet, live-tracking, tour-map]
     detail: simbrief.md
-    next: "Add tests for the 23 implemented SB specs that have none, then close the 11 gaps (sanitise OFP HTML, preview-and-confirm everywhere, hop plan replace/delete, pending-leg plan, registration test, card polish)"
+    next: "Close the OFP-text gate test-first (SB-CARD-006, SB-CARD-009 to 011: allowlist cleaning, links resolved against the page's address and kept only to other origins, nothing loaded, no inline !important, the plan clipped to its box), which the desktop app's first release waits for (DESK-DIST-REL-012); then add tests for the 24 implemented SB specs that have none and close the other 9 gaps (preview-and-confirm everywhere, hop plan replace/delete, pending-leg plan, registration test, card polish)"
     drift: null
 
-  # Foundation: every segment relies on the shell's conventions, so its dependencies are not listed.
+  # Grouping node (sub-HLD): owns no EARS and no arrow doc; dependencies are recorded on its leaves.
+  desktop:
+    status: MAPPED
+    parent: null
+    children: [shell, start-lists, distribution]
+    sampled: 2026-10-23
+    audited: null
+    audited_sha: null
+    blocks: []
+    blockedBy: []
+    detail: ../intent/desktop/desktop-design.md
+    next: null
+    drift: null
+
+  shell:
+    status: MAPPED
+    parent: desktop
+    sampled: 2026-10-23
+    audited: null
+    audited_sha: null
+    blocks: [start-lists, distribution]
+    blockedBy: [live-tracking, airports, simbrief]
+    detail: desktop/shell.md
+    next: "Review the LLD and specs (226 DESK-SHELL specs, none implemented, 1 deferred) with the segments its Relies On cites; then build the desktop shell test-first, unit tests first, once the server work it relies on has landed in app-shell, live-tracking and airports"
+    drift: "Tour-map's open basemap question (its LLD Open Questions 1) may change what the window loads (DESK-SHELL-WIN-011, DESK-SHELL-WIN-012)"
+
+  start-lists:
+    status: MAPPED
+    parent: desktop
+    sampled: 2026-10-23
+    audited: null
+    audited_sha: null
+    blocks: [distribution]
+    blockedBy: [shell]
+    detail: desktop/start-lists.md
+    next: "Review the LLD and specs (76 DESK-START specs, none implemented, 1 deferred); then build the EXE.xml editor and the Run and StartupApproved writer test-first against the fixtures, once the desktop shell's tray and settings exist"
+    drift: null
+
+  distribution:
+    status: MAPPED
+    parent: desktop
+    sampled: 2026-10-23
+    audited: null
+    audited_sha: null
+    blocks: []
+    blockedBy: [shell, start-lists, live-tracking, simbrief, airports]
+    detail: desktop/distribution.md
+    next: "Review the LLD and specs (110 DESK-DIST specs, none implemented, 3 deferred) with the segments its Relies On cites; then tests first: the packaging-names and program-path unit tests, the packaged smoke test once the desktop shell runs, then the installer, its include and the release workflow; the first release waits for SB-CARD-006 and SB-CARD-009 to 011 (the open part of DESK-DIST-REL-012) and a hand check of a start by the Store edition of MSFS"
+    drift: null
+
+  # Foundation: every segment relies on app-shell's conventions, so its dependencies are not listed.
   app-shell:
     status: MAPPED
     parent: null
@@ -109,5 +161,5 @@ arrows:
     blocks: []
     blockedBy: []
     detail: app-shell.md
-    next: "Launcher rebuild and version check (APP-RUN-006/008), one version from package.json (APP-API-005); tests for the 15 implemented APP specs that have none"
-    drift: null
+    next: "Tests first, then code, for the logbook's side of the desktop app's server work: the start-up worker off the event loop (APP-SRV-010); the logbook's id, upgrade detection in one transaction and the older-server test (APP-DATA-004 to 006, 009; APP-API-004, 008); backups with the private channel's backup request (APP-BAK-001 to 011; APP-SRV-014, 022); bringing in a logbook with exit 12 and its shutdown steps (APP-IMP-001 to 005; APP-SRV-001, 015, 016, 023); then airport preparation in detail with airports (APP-SRV-001, 008, 012; APP-API-009, 010) and one User-Agent (APP-API-005); then the page (APP-UI-030 to 042). Remove start.cmd and scripts/install-shortcut.ps1 once the installed app exists; add tests for the five implemented specs that have none."
+    drift: "The server process is built (inputs, listening first behind the start-up stand-in, /api/status from memory, request checks, the lock, the private channel's save and shutdown, the shutdown order, stop signals, exits, the development scripts and harness); not yet the start-up worker, the logbook's id, upgrade detection, backups, bringing in a logbook, airport preparation in detail, the User-Agent or the page's starting, hand-off and reload states (47 gaps)"

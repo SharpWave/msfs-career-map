@@ -133,17 +133,25 @@ export function trackerStatus(over: Partial<TrackerStatus> = {}): TrackerStatus 
     phase: "ground",
     position: null,
     leg: null,
-    pending: null,
+    pending: [],
     briefing: null,
     casual: null,
     message: null,
     message_at: null,
+    sim_mode: "link",
+    sim_host: null,
+    link_holder: null,
     ...over,
   };
 }
 
+/**
+ * A pending leg as the tracker status lists it, with its id (LIVE-HOP-003). Give each leg of a
+ * list its own `id`.
+ */
 export function pendingLeg(over: Partial<PendingLeg> = {}): PendingLeg {
   return {
+    id: "6f1c2b9e-4d3a-4c7b-9e2f-1a2b3c4d5e6f",
     sim: { title: "Comanche 250", livery: "Blue Stripe", atc_id: "N6229P" },
     aircraft_id: null,
     origin: "KBOS",
@@ -159,6 +167,7 @@ export function pendingLeg(over: Partial<PendingLeg> = {}): PendingLeg {
     },
     briefing_id: null,
     reason: "The landing airport could not be named.",
+    ended_in_air: false,
     ...over,
   };
 }

@@ -1,32 +1,24 @@
 import express from "express";
-import fs from "node:fs";
-import path from "node:path";
-import { ROOT, IMAGES_DIR } from "./db.ts";
+import { IMAGES_DIR } from "./db.ts";
 import { api } from "./routes.ts";
+import { requestChecks } from "./checks.ts";
+import { currentInputs } from "./inputs.ts";
+import { serveImages, servePage } from "./standin.ts";
+import { statusRoute } from "./status.ts";
 
 /**
- * Everything the server serves: the API, uploaded icons and, when built, the page. Building it
- * starts nothing — no listening, no sim link, no data loading — so tests can run it as is.
+ * Everything the server serves once its start-up work is done: the request checks, the API,
+ * uploaded icons and, when built, the page from the inputs' page folder. Building it starts
+ * nothing — no listening, no sim link, no data loading — so tests can run it as is.
  */
-// @spec APP-SRV-002, APP-SRV-003, APP-SRV-004
+// @spec APP-SRV-002, APP-SRV-003, APP-SRV-004, APP-API-011, APP-API-012
 export function createApp(): express.Express {
   const app = express();
+  app.use(requestChecks);
   app.use(express.json({ limit: "8mb" }));
+  app.get("/api/status", statusRoute);
   app.use("/api", api);
-  app.use("/images", express.static(IMAGES_DIR, { maxAge: "1y", immutable: true }));
-
-  const dist = path.join(ROOT, "dist");
-  if (fs.existsSync(path.join(dist, "index.html"))) {
-    app.use(express.static(dist));
-    app.get("*", (_req, res) => res.sendFile(path.join(dist, "index.html")));
-  } else {
-    app.get("/", (_req, res) =>
-      res.type("text").send(
-        "MSFS Career Map API is running.\n" +
-          "No client build found: run `npm run dev` for the dev UI on http://localhost:5173, " +
-          "or `npm run build` then restart to serve it from here.\n",
-      ),
-    );
-  }
+  serveImages(app, IMAGES_DIR);
+  servePage(app, currentInputs().pageFolder);
   return app;
 }

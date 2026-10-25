@@ -5,6 +5,11 @@ Design: [tour-map-design.md](tour-map-design.md). Prefix `MAP`; facets `GEO` (ma
 markers), `HL` (highlighting), `ZOOM` (zoom requests), `VIEW` (basemaps and view preferences),
 `NIGHT` (day/night shading), `HAZ` (weather hazard overlay).
 
+Unless a spec names its scope, it holds wherever the page is shown — the installed app's window or a
+test-mode copy's, a browser tab on the installed app or on a copy run from source, the browser
+tests — and, for the server's part, in every mode (the installed app, its test mode, a copy run from
+source).
+
 `[x]` implemented · `[ ]` intended, not yet implemented · `[D]` deferred
 
 ## Map Geometry
@@ -58,27 +63,28 @@ markers), `HL` (highlighting), `ZOOM` (zoom requests), `VIEW` (basemaps and view
 
 ## Zooming
 
-- [x] **MAP-ZOOM-001**: When the map state first loads, the system shall fit the view to every hop.
+- [x] **MAP-ZOOM-001**: When the map state first loads after the page loads (a page opened, reloaded, or opened again in the installed app's window), the system shall fit the view to every hop; when the same page loads the map state again (after any change the page makes or hears of — a hop logged, edited or deleted, an aircraft changed — or when its event stream reconnects, live-tracking), it shall leave the view as it is.
 - [x] **MAP-ZOOM-002**: When the user clicks **Fit all**, the system shall fit the view to every hop.
 - [x] **MAP-ZOOM-003**: When an aircraft becomes highlighted, the system shall fit the view to that aircraft's hops.
-- [x] **MAP-ZOOM-004**: When a hop is opened, from its path or its hop row, the system shall fit the view to that hop.
+- [x] **MAP-ZOOM-004**: When a hop is opened in the flight panel, from anywhere the page opens one — its path, its hop row, a hop named in the page's address (app-shell) — the system shall fit the view to that hop.
 - [x] **MAP-ZOOM-005**: When a new planner result arrives, the system shall fit the view to the plan's range ring.
 - [x] **MAP-ZOOM-006**: When the user focuses a planner candidate, the system shall zoom to that candidate.
 - [x] **MAP-ZOOM-007**: When a zoom request's points, once gathered (MAP-ZOOM-011), all lie at one place, the system shall fly there at zoom 9 or the current zoom if closer; otherwise it shall fly to the points' bounds with 60 px padding, no closer than zoom 11, over 0.6 s; either way it shall centre the view in the clear part of the map the page supplies (APP-UI-020), or in the whole window when that part is smaller than 240 × 160 px.
-- [x] **MAP-ZOOM-008**: When a zoom request has no points, the system shall ignore it; when an identical request is repeated, the system shall zoom again.
+- [x] **MAP-ZOOM-008**: When a zoom request has no points, the system shall ignore it; when an identical request is repeated, the system shall zoom again; when a zoom request arrives while an earlier one is still under way, the system shall carry out the new one in its place.
 - [x] **MAP-ZOOM-009**: When a zoom request names its zoom (the live card's **Zoom**, the `?view=` option), the system shall show its point at that zoom, centred in the clear part of the map (APP-UI-020), or in the whole window when that part is smaller than 240 × 160 px.
-- [x] **MAP-ZOOM-010**: While the browser asks for reduced motion, the system shall jump to a zoom request's view instead of flying there.
+- [x] **MAP-ZOOM-010**: While the page is asked for reduced motion (`prefers-reduced-motion`, which follows Windows' Animation effects setting in the installed app's window as in a browser), the system shall jump to a zoom request's view instead of flying there.
 - [x] **MAP-ZOOM-011**: When carrying out a zoom request, the system shall gather its points onto the narrowest band of longitude that holds them all — across the 180° meridian when that is narrower — and shift the band by whole turns of 360° so its middle lies within 180° of the centre of the clear part of the map (APP-UI-020), or of the whole window when that part is smaller than 240 × 160 px, an exact tie going east.
 
 ## Basemaps and View Preferences
 
 - [x] **MAP-VIEW-001**: The system shall offer three keyless basemaps — Dark (Esri dark gray with a label overlay), Light (OpenStreetMap) and Satellite (Esri imagery) — each zoomable to level 19 by over-zooming past its native maximum.
-- [x] **MAP-VIEW-002**: The system shall remember in the browser the chosen basemap (default Dark), whether night shading is on (default on), and which hazard toggles are on (default none).
-- [x] **MAP-VIEW-003**: When the page is opened with `?view=lat,lon,zoom`, `?wx=1` or `?wx=A,B`, or `?night=1` (any other value: off), the system shall apply them once after the first load without changing the remembered preferences.
+- [x] **MAP-VIEW-002**: The page shall remember the chosen basemap (default Dark), whether night shading is on (default on) and which hazard toggles are on (default none) in its origin's local storage, using the defaults when that storage holds none or cannot be read (each origin keeps its own: the installed app's window, whose fixed port (HLD System Design) keeps its origin from one start and one update to the next; the window of a test-mode copy, apart from it; a tab in the pilot's browser; a copy run from source; and the browser tests, which start every test with empty storage).
+- [x] **MAP-VIEW-003**: When the page is loaded with `?view=lat,lon,zoom`, `?wx=1` or `?wx=A,B`, or `?night=1` (any other value: off) — a development and testing aid typed into a browser tab's address, since the installed app's window has no address bar — the system shall apply them once after the first load without changing the remembered choices (MAP-VIEW-002).
 - [x] **MAP-VIEW-004**: The system shall open the map over the continental US at zoom 4 until the first fit, allow zooming out to level 2, and let the user pan across the antimeridian onto any world copy without jumping back to the first.
 - [x] **MAP-VIEW-005**: When the window changes size, the system shall resize the map to fill it; panels opening or closing over the map shall not move it.
 - [x] **MAP-VIEW-006**: The map toolbar shall offer **Layers**, which opens a menu holding the basemap choice (Dark, Light or Satellite), night shading on or off, and the four hazard toggles with what each covers and their source; a choice shall apply at once and leave the menu open.
 - [x] **MAP-VIEW-007**: While night shading or any hazard toggle is on, the **Layers** button shall mark it: a moon for night shading, and a dot in its hazard color for each hazard toggle that is on.
+- [ ] **MAP-VIEW-008**: The map shall credit the shown basemap's providers at its bottom right (kept above the flight panel, APP-UI-021) — Esri's sources for Dark and Satellite, "© OpenStreetMap contributors" linked to OpenStreetMap's copyright page for Light, after Leaflet's own link — with every link there opening in a new tab (outside links open in the pilot's default browser from the installed app's window, HLD System Design).
 
 ## Night Shading
 
@@ -90,10 +96,12 @@ markers), `HL` (highlighting), `ZOOM` (zoom requests), `VIEW` (basemaps and view
 - [x] **MAP-HAZ-001**: When hazard areas are requested, the system shall fetch G-AIRMETs, US SIGMETs and international SIGMETs from aviationweather.gov in parallel and serve the normalised set, cached for 10 minutes.
 - [x] **MAP-HAZ-002**: When hazard reports are normalised, the system shall classify each by label as icing, turbulence, IFR, mountain obscuration, convective, volcanic ash or tropical cyclone, and drop reports of any other kind, G-AIRMETs that are not areas, SIGMET outlooks, and polygons with fewer than three points.
 - [x] **MAP-HAZ-003**: When G-AIRMET altitudes are normalised, the system shall read them as hundreds of feet, with "SFC" as 0.
-- [x] **MAP-HAZ-004**: If some hazard sources fail, then the system shall serve the others with the failed sources listed; if all three fail and an earlier set exists, then the system shall serve the earlier set.
+- [ ] **MAP-HAZ-004**: If some hazard sources fail, then the server shall serve the others with the failed sources listed; if all three fail, then it shall serve the earlier set (the last it fetched with at least one source answering) as it was fetched — its areas, fetch time and failed sources — flagged as earlier, when that set was fetched less than 3 hours before the request it answers, and otherwise a set with no areas and all three sources listed as failed, caching neither, so the next request asks the sources again.
 - [x] **MAP-HAZ-005**: The Layers menu shall offer four hazard toggles — Ice (icing), Turb (turbulence), IFR (IFR and mountain obscuration), Storms (convective, volcanic ash, tropical cyclones) — each shown in its hazard color while on.
 - [x] **MAP-HAZ-006**: While any hazard toggle is on, the system shall fetch hazard areas and refresh them every 10 minutes, keep the G-AIRMET forecast snapshot whose valid time is nearest now and every SIGMET, and draw the enabled kinds as shaded polygons, outlined solid for G-AIRMETs and dashed for SIGMETs.
 - [x] **MAP-HAZ-007**: When the user hovers a hazard area, the system shall show its kind and severity, label and FIR, altitude band ("SFC" or "above" for open ends, or "altitudes not given"), validity with "G-AIRMET +Nh" for forecast snapshots, and up to 220 characters of the raw report.
-- [x] **MAP-HAZ-008**: While any hazard toggle is on, the map toolbar shall show the number of areas drawn, each counted once however many world copies show it, or "hazards unavailable" when fetching failed, with the fetch time on hover.
-- [ ] **MAP-HAZ-009**: When one or two hazard sources failed, the map toolbar shall say which are unavailable alongside the number of areas drawn.
+- [x] **MAP-HAZ-008**: While any hazard toggle is on, the map toolbar shall show the number of areas drawn, each counted once however many world copies show it, or "hazards unavailable" when the page's request for the hazard set failed, with the set's fetch time on hover; a hazard set served that lists all three sources as failed is shown as MAP-HAZ-011 says.
+- [ ] **MAP-HAZ-009**: While any hazard toggle is on and the hazard set served lists one or two sources as failed, the map toolbar shall say which are unavailable alongside the number of areas drawn.
 - [x] **MAP-HAZ-010**: The system shall place each hazard area vertex to vertex (MAP-GEO-015) and draw it on every world copy in view, so an area that straddles the antimeridian is whole on both sides of it.
+- [ ] **MAP-HAZ-011**: While any hazard toggle is on and the hazard set served lists all three sources as failed (served when every source failed and no earlier set under 3 hours old was at hand, MAP-HAZ-004), the map toolbar shall show "hazards unavailable" in place of the number of areas.
+- [ ] **MAP-HAZ-012**: While any hazard toggle is on and the hazard set served is an earlier set (served as it was fetched after every source failed, MAP-HAZ-004), the map toolbar shall show beside the number of areas the time that set was fetched, in the PC's local time as the page shows its other times (e.g. "N areas · as of 14:20"), alongside any note of the sources that set lists as failed (MAP-HAZ-009).

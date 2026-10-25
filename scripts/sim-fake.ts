@@ -1,39 +1,35 @@
 /**
  * Flies a synthetic leg through the tracker so the whole pipeline can be tested without the sim.
- * The server must be started with TRACKER_FAKE=1 (which also skips the real SimConnect link).
+ * The server it feeds must be on the fake feed: started with --sim=fake (for example
+ * `npm run dev:server -- --sim=fake`), which also leaves the real SimConnect link alone.
  *
  *   npm run sim-fake -- KBOS KPVD
  *   npm run sim-fake -- KBOS KPVD --speed 60 --title "Cessna 172 Skyhawk" --livery "N123AB" --atc N123AB
+ *   npm run sim-fake -- --base http://127.0.0.1:<port> KBOS KPVD
  *
- * Options: --speed N (virtual seconds per real second, default 30), --cruise KTS (150),
- * --alt FT (6500), --base URL (http://localhost:3080), --touch-and-go (bounce once at the
- * destination before the full stop), --start-airborne (begin mid-flight, no departure airport),
- * --fpm N (touchdown descent rate, default 180), --g N (peak G at touchdown, default 1.4).
+ * Options, as `--name value` or `--name=value`: --speed N (virtual seconds per real second,
+ * default 30), --cruise KTS (150), --alt FT (6500), --base URL (the server, default
+ * http://127.0.0.1:3080), --title, --livery and --atc (the livery, else N000FK), --fpm N
+ * (touchdown descent rate, default 180), --g N (peak G at touchdown, default 1.4). Flags:
+ * --touch-and-go (bounce once at the destination before the full stop), --start-airborne (begin
+ * mid-flight, no departure airport). The two airports can come anywhere among them.
  */
+import { parseSimFakeArgs } from "./sim-fake-args.ts";
 
-const args = process.argv.slice(2);
-const opt = (name: string, def: string): string => {
-  const i = args.indexOf(`--${name}`);
-  return i >= 0 && i + 1 < args.length ? args[i + 1] : def;
-};
-const flag = (name: string) => args.includes(`--${name}`);
-const positional = args.filter((a, i) => !a.startsWith("--") && (i === 0 || !args[i - 1].startsWith("--") || flag(args[i - 1].slice(2))));
-
-const [fromCode, toCode] = positional;
-if (!fromCode || !toCode) {
-  console.error("usage: npm run sim-fake -- <origin> <destination> [--speed 30] [--title ...] [--livery ...]");
+// @spec LIVE-TOOL-003, LIVE-TOOL-005
+const args = parseSimFakeArgs(process.argv.slice(2));
+if (!args.from || !args.to) {
+  console.error("usage: npm run sim-fake -- <origin> <destination> [--base http://127.0.0.1:3080] [--speed 30] [--title ...] [--livery ...]");
   process.exit(1);
 }
 
-const base = opt("base", "http://localhost:3080").replace(/\/$/, "");
-const speed = Number(opt("speed", "30"));
-const cruiseKts = Number(opt("cruise", "150"));
-const cruiseAlt = Number(opt("alt", "6500"));
-const title = opt("title", "Fake Aircraft");
-const livery = opt("livery", "");
-const atc = opt("atc", livery || "N000FK");
-const landingFpm = Number(opt("fpm", "180"));
-const landingG = Number(opt("g", "1.4"));
+const fromCode = args.from;
+const toCode = args.to;
+const { base, speed, title, livery, atc } = args;
+const cruiseKts = args.cruise;
+const cruiseAlt = args.alt;
+const landingFpm = args.fpm;
+const landingG = args.g;
 /** Fuel on board at the start and a flat burn, pounds. */
 const FUEL_START_LB = 300;
 const BURN_LB_PER_HOUR = 60;
@@ -133,15 +129,15 @@ function buildFlight(from: Airport, to: Airport): Sample[] {
     out.push(s);
   };
 
-  if (!flag("start-airborne")) {
+  if (!args.startAirborne) {
     for (let i = 0; i < 20; i++) push(from.lat, from.lon, fromElev, true, 0); // parked
     for (let i = 0; i < 20; i++) push(from.lat, from.lon, fromElev, true, 15); // taxi
     for (let i = 0; i < 20; i++) push(from.lat, from.lon, fromElev, true, (70 * i) / 20); // takeoff roll
   }
 
   // Airborne: climb at 700 fpm, cruise, descend at 500 fpm to arrive at field elevation.
-  let flown = flag("start-airborne") ? dist * 0.5 : 0;
-  let alt = flag("start-airborne") ? cruiseAlt : fromElev;
+  let flown = args.startAirborne ? dist * 0.5 : 0;
+  let alt = args.startAirborne ? cruiseAlt : fromElev;
   const nmPerSec = cruiseKts / 3600;
   const descentNm = ((cruiseAlt - toElev) / 500) * (cruiseKts / 60);
   while (flown < dist) {
@@ -153,7 +149,7 @@ function buildFlight(from: Airport, to: Airport): Sample[] {
     push(lat, lon, alt, false, cruiseKts);
   }
 
-  if (flag("touch-and-go")) {
+  if (args.touchAndGo) {
     for (let i = 0; i < 5; i++) push(to.lat, to.lon, toElev, true, 60); // wheels on
     for (let i = 0; i < 90; i++) push(to.lat, to.lon, toElev + 300, false, 90); // around the pattern
   }

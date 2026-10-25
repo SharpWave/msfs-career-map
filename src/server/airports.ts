@@ -1,5 +1,6 @@
 import fs from "node:fs";
-import { db, AIRPORTS_CSV, RUNWAYS_CSV, airportCount, runwayCount } from "./db.ts";
+import { db, AIRPORTS_CSV, RUNWAYS_CSV, airportCount, runwayCount, reportCounts } from "./db.ts";
+import { setAirportData } from "./status.ts";
 
 const DATA_BASE = "https://davidmegginson.github.io/ourairports-data";
 export const AIRPORTS_URL = `${DATA_BASE}/airports.csv`;
@@ -112,6 +113,7 @@ export function importAirportsCsv(): number {
     db.exec("ROLLBACK");
     throw e;
   }
+  reportCounts();
   return n;
 }
 
@@ -190,22 +192,45 @@ export function importRunwaysCsv(): number {
     db.exec("ROLLBACK");
     throw e;
   }
+  reportCounts();
   return n;
 }
 
-/** On startup: make sure airports and runways are loaded, downloading the CSVs if needed. */
-export async function ensureReferenceData(): Promise<void> {
-  if (airportCount() === 0) {
-    if (!fs.existsSync(AIRPORTS_CSV)) await downloadAirportsCsv();
-    console.log("[data] importing airports ...");
-    console.log(`[data] imported ${importAirportsCsv()} airports`);
+/** Download a list when it is missing and downloads are on, then import it, reporting each step. */
+async function prepareList(
+  list: "airports" | "runways",
+  file: string,
+  fetchList: () => Promise<void>,
+  importList: () => number,
+  downloads: boolean,
+): Promise<void> {
+  if (!fs.existsSync(file)) {
+    if (!downloads) throw new Error(`${list}.csv is missing and airport downloads are off`);
+    setAirportData({ state: "downloading", list });
+    await fetchList();
   }
-  const withHeadings = (db.prepare(`SELECT COUNT(*) AS n FROM runways WHERE le_heading IS NOT NULL`).get() as { n: number }).n;
-  if (runwayCount() === 0 || withHeadings === 0) {
-    if (!fs.existsSync(RUNWAYS_CSV)) await downloadRunwaysCsv();
-    console.log("[data] importing runways ...");
-    console.log(`[data] imported ${importRunwaysCsv()} runways`);
+  setAirportData({ state: "importing", list });
+  console.log(`[data] importing ${list} ...`);
+  console.log(`[data] imported ${importList()} ${list}`);
+}
+
+/**
+ * On startup: make sure airports and runways are loaded, downloading a missing list only when
+ * downloads are on, and report each step in the status. A failure is reported, then rethrown.
+ */
+// @spec APP-API-010, APP-SRV-023
+export async function ensureReferenceData(o: { downloads: boolean }): Promise<void> {
+  try {
+    if (airportCount() === 0) await prepareList("airports", AIRPORTS_CSV, downloadAirportsCsv, importAirportsCsv, o.downloads);
+    const withHeadings = (db.prepare(`SELECT COUNT(*) AS n FROM runways WHERE le_heading IS NOT NULL`).get() as { n: number }).n;
+    if (runwayCount() === 0 || withHeadings === 0) {
+      await prepareList("runways", RUNWAYS_CSV, downloadRunwaysCsv, importRunwaysCsv, o.downloads);
+    }
+  } catch (e) {
+    setAirportData({ state: "failed", error: e instanceof Error ? e.message : String(e) });
+    throw e;
   }
+  setAirportData({ state: "done" });
 }
 
 // ---------------------------------------------------------------- queries

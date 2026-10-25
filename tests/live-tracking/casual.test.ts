@@ -1,8 +1,12 @@
+/**
+ * Casual mode in the tracker: LIVE-CASUAL-001 to LIVE-CASUAL-015 (switching, the path, restarts,
+ * shutdown, a clean MSFS quit and a fresh run), with LIVE-API-010 to LIVE-API-012 and LIVE-LEG-002/003.
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "../../src/server/db.ts";
 import { CasualRefused, Tracker, type TrackPoint } from "../../src/server/tracker.ts";
 import type { BriefingSummary } from "../../src/server/ofp.ts";
-import { KPVD, OTHER, PLANE, fleetAircraft, pilot, takeOff } from "./pilot.ts";
+import { KPVD, OTHER, PLANE, fleetAircraft, flyCircuit, pilot, takeOff } from "./pilot.ts";
 
 const hopCount = () => (db.prepare(`SELECT COUNT(*) AS n FROM hops`).get() as { n: number }).n;
 const checkpoint = () => JSON.parse((db.prepare(`SELECT json FROM tracker_state WHERE id = 1`).get() as { json: string }).json);
@@ -37,7 +41,7 @@ describe("casual mode in the tracker", () => {
     const st = tr.status();
     expect(st.leg).toBeNull();
     expect(st.phase).toBe("idle");
-    expect(st.pending).toBeNull();
+    expect(st.pending).toEqual([]);
     expect(hops).toEqual([]);
     expect(hopCount()).toBe(0);
     const saved = checkpoint();
@@ -53,7 +57,8 @@ describe("casual mode in the tracker", () => {
     p.home();
     p.ground(5, 30);
     p.ground(35);
-    expect(tr.status().pending?.reason).toMatch(/no fleet aircraft/);
+    expect(tr.status().pending).toHaveLength(1);
+    expect(tr.status().pending[0].reason).toMatch(/no fleet aircraft/);
     const plan = { id: 4242, origin: { icao: "KPVD" }, dest: { icao: "KBOS" } } as unknown as BriefingSummary;
     tr.setBriefing(plan);
 
@@ -64,7 +69,8 @@ describe("casual mode in the tracker", () => {
     expect(st.sim).toMatchObject({ title: PLANE.title, livery: PLANE.livery });
     expect(st.aircraft_id).toBe(id);
     expect(st.position).toMatchObject({ gs_kts: 12, on_ground: true });
-    expect(st.pending?.sim.title).toBe(OTHER.title);
+    expect(st.pending).toHaveLength(1);
+    expect(st.pending[0].sim.title).toBe(OTHER.title);
     expect(st.briefing?.id).toBe(4242);
 
     const before = structuredClone(tr.path());
@@ -194,7 +200,7 @@ describe("casual mode in the tracker", () => {
     tr.setCasual(true, { dropLeg: true });
     let st = tr.status();
     expect(st.leg).toBeNull();
-    expect(st.pending).toBeNull();
+    expect(st.pending).toEqual([]);
     expect(hopCount()).toBe(0);
     expect(tr.path()).toEqual([track]);
     // The flight carries on into the same segment.
@@ -287,19 +293,27 @@ describe("casual mode in the tracker", () => {
     expect(tr.path()).toHaveLength(1);
   });
 
-  // @spec LIVE-CASUAL-011, LIVE-SAVE-001
-  it("starts with casual mode off after a restart, and never saves casual mode or its path", () => {
+  // @spec LIVE-CASUAL-011
+  it("comes back on after a restart with the time it was switched on and an empty path, still detecting no legs, and stays off once switched off", () => {
     const p = pilot(tr);
+    const on = p.t;
     tr.setCasual(true);
     p.air(30);
     expect(points(tr.path())).toBeGreaterThan(0);
-    const saved = checkpoint();
-    expect(Object.keys(saved).filter((k) => /casual|path/i.test(k))).toEqual([]);
-    expect(saved.leg).toBeNull();
 
     const after = new Tracker();
-    expect(after.status().casual).toBeNull();
+    expect(after.status().casual).toEqual({ since: new Date(on).toISOString(), points: 0 });
     expect(after.path()).toEqual([]);
+
+    // Leg detection stays suspended after the restart.
+    p.use(after);
+    takeOff(p);
+    expect(after.status().leg).toBeNull();
+    expect(hopCount()).toBe(0);
+
+    // Switched off before the next restart, it stays off.
+    after.setCasual(false);
+    expect(new Tracker().status().casual).toBeNull();
   });
 
   // @spec LIVE-CASUAL-012
@@ -317,6 +331,95 @@ describe("casual mode in the tracker", () => {
     expect(tr.status().leg?.origin).toBeNull();
     tr.setCasual(true);
     expect(tr.status().message).toBe("Casual mode on: nothing is logged; dropped the leg from ?");
+  });
+
+  // @spec LIVE-CASUAL-013
+  it("switches casual mode off and drops the path before the final checkpoint when the app is quitting, so the next start finds it off", () => {
+    const p = pilot(tr);
+    tr.setCasual(true);
+    p.air(12);
+    // Without the shutdown, the checkpoint would bring casual mode back on.
+    expect(new Tracker().status().casual).not.toBeNull();
+
+    tr.shutdown({ quitting: true });
+    expect(tr.status().casual).toBeNull();
+    expect(tr.path()).toEqual([]);
+    expect(new Tracker().status().casual).toBeNull();
+  });
+
+  // @spec LIVE-CASUAL-013
+  it("leaves casual mode on in the final checkpoint when the server stops without the app quitting", () => {
+    const p = pilot(tr);
+    const on = p.t;
+    tr.setCasual(true);
+    p.air(12);
+
+    tr.shutdown({ quitting: false });
+    expect(new Tracker().status().casual?.since).toBe(new Date(on).toISOString());
+  });
+
+  // @spec LIVE-CASUAL-014
+  it("keeps casual mode and its path through a connection that closed or failed, and switches it off when MSFS quits cleanly", () => {
+    const p = pilot(tr);
+    const on = p.t;
+    tr.setCasual(true);
+    p.air(12);
+
+    // A sim crash or a lost connection: the session goes on, the next point starts a new segment.
+    const kept = structuredClone(tr.path());
+    tr.setConnected(false, null, { quit: false });
+    expect(tr.status().casual?.since).toBe(new Date(on).toISOString());
+    expect(tr.path()).toEqual(kept);
+    tr.setConnected(true, "Fake MSFS");
+    p.air(1);
+    expect(tr.path()).toHaveLength(2);
+    expect(tr.path()[0]).toEqual(kept[0]);
+
+    // SimConnect's quit event: MSFS closed normally.
+    const sent: TrackPoint[][][] = [];
+    tr.on("path", (x: TrackPoint[][]) => sent.push(structuredClone(x)));
+    tr.setConnected(false, null, { quit: true });
+    const st = tr.status();
+    expect(st.casual).toBeNull();
+    expect(tr.path()).toEqual([]);
+    expect(sent.at(-1)).toEqual([]);
+    expect(st.message).toBe("Casual mode off (MSFS closed): takeoffs and landings are logged again");
+    expect(new Tracker().status().casual).toBeNull();
+  });
+
+  // @spec LIVE-CASUAL-015
+  it("starts with casual mode off on a fresh run whatever the checkpoint holds, and has saved that before the start is done", () => {
+    const p = pilot(tr);
+    tr.setCasual(true);
+    p.air(12);
+    // Without the fresh run, the checkpoint would bring casual mode back on.
+    expect(new Tracker().status().casual).not.toBeNull();
+
+    const fresh = new Tracker({ freshRun: true });
+    expect(fresh.status().casual).toBeNull();
+    expect(fresh.path()).toEqual([]);
+    // A later start of the same run, made without the fresh-run input, finds it off too.
+    expect(new Tracker().status().casual).toBeNull();
+
+    p.use(fresh);
+    takeOff(p);
+    expect(fresh.status().leg).not.toBeNull();
+  });
+
+  // @spec LIVE-CASUAL-015
+  it("still restores a leg in progress and the pending legs on a fresh run", () => {
+    const p = pilot(tr, OTHER);
+    flyCircuit(p); // unbound: kept as pending
+    const waiting = tr.status().pending.map((l) => l.id);
+    expect(waiting).toHaveLength(1);
+    takeOff(p);
+    const departed = tr.status().leg?.departed_at;
+    expect(departed).toBeTruthy();
+
+    const fresh = new Tracker({ freshRun: true });
+    const st = fresh.status();
+    expect(st.leg?.departed_at).toBe(departed);
+    expect(st.pending.map((l) => l.id)).toEqual(waiting);
   });
 
   // @spec LIVE-API-010

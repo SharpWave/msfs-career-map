@@ -206,7 +206,9 @@ test.describe("the look", () => {
     });
     expect(mono).toMatch(/^"?B612 Mono"?,/);
     expect(fontRequests.length).toBeGreaterThan(0);
-    for (const url of fontRequests) expect(new URL(url).hostname).toBe("localhost");
+    // Served by the page's own server (127.0.0.1:5183), never by a font service elsewhere.
+    const pageHost = new URL(test.info().project.use.baseURL!).host;
+    for (const url of fontRequests) expect(new URL(url).host).toBe(pageHost);
   });
 
   // @spec APP-UI-027

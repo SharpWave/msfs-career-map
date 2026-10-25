@@ -14,35 +14,36 @@ optionally the SimBrief plan it was flown from.
 
 ## Quick start
 
-Requires Node 22.13 or newer (uses Node's built-in SQLite, no native modules to compile).
+Requires Node 22.16 or newer (uses Node's built-in SQLite, no native modules to compile).
 
 ```powershell
 npm install
-npm run dev
+npm run dev       # the server and the page's dev server, tracking off
+npm run dev:sim   # the same, with the server linked to the sim
 ```
 
-Then open http://localhost:5173. On first start the server downloads the
+Then open http://127.0.0.1:5173. On first start the server downloads the
 [OurAirports](https://ourairports.com/data/) airport and runway lists (about 20 MB) into `data/`
 and imports them into the database. That takes a few seconds once.
 
 For everyday use without the dev tooling:
 
 ```powershell
-npm run build   # bundles the client into dist/
-npm start       # serves API + client on http://localhost:3080
+npm run build              # bundles the client into dist/
+npm start -- --sim=link    # serves API + client on http://127.0.0.1:3080, linked to the sim
 ```
 
 Or double-click **`start.cmd`**: it installs dependencies and builds on first run, starts the
-server (or reuses one that is already up), and opens the app in your browser. Close its window to
-stop the server. `powershell -File scripts\install-shortcut.ps1` puts a **MSFS Career Map**
+server linked to the sim (or reuses one that is already up), and opens the app in your browser.
+Close its window to stop the server. `powershell -File scripts\install-shortcut.ps1` puts a **MSFS Career Map**
 shortcut with the app icon on your desktop that does the same thing.
 
 After updating the code, close the launcher window (that stops the server), run `npm run build`,
 and launch again: the launcher only builds when there is no bundle yet, and a page built for a
 newer version will not get along with a server still running the old one.
 
-With MSFS running on the same PC the app talks to it through SimConnect on its own (nothing to
-install in the sim); see **Live tracking** below.
+Started linked to the sim, with MSFS running on the same PC, the app talks to it through
+SimConnect on its own (nothing to install in the sim); see **Live tracking** below.
 
 ## Using it
 
@@ -72,19 +73,25 @@ picks the basemap, night shading and weather hazards; **Fit all** zooms to every
   track sampled every five seconds (a **Log now** button on the card skips the wait, for a sim that
   froze or was quit after touchdown). A touch-and-go stays inside the one leg. Legs the tracker
   cannot finish by itself (unbound aircraft, tracking started in the air, stopped away from any
-  airport) wait in the card for you to fill in and log, or discard. Loading a new flight, changing
-  aircraft, slewing far away or closing the sim mid-flight drops the leg being flown; an app
-  restart does not. Nothing is tracked while the sim sits in its menus or a loading screen (it
+  airport) wait in the card, each in a block of its own, oldest first, for you to fill in and log,
+  or discard; however many wait, none replaces another. Loading a new flight, changing aircraft or
+  slewing far away drops a leg still in the air; a leg that has already landed is logged where it
+  stopped, or waits in the card when it cannot be. Closing the sim or losing it mid-flight keeps the leg
+  waiting to be logged, ending where the sim last reported it. A restart of the app mid-flight
+  carries the leg on when the sim is still flying it, and otherwise keeps it waiting to be logged
+  too. Nothing is tracked while the sim sits in its menus or a loading screen (it
   reports a bogus position there). Tracked hops are drawn with their real path (hover shows the
   distance flown) instead of a great circle, still tied to the airport dots at both ends.
   `npm run sim-probe` prints what the sim reports, for checking the connection.
 - **Casual mode**: for flying that is not part of the career, slide the **Casual** switch on the
   live card (it sits in the folded strip too, so you can always see it is on). The path you fly
   is drawn dashed behind the aircraft and nothing is logged: no legs, no pending legs, no fleet
-  aircraft needed. The path is kept only while the app runs, split wherever you slew, load a new
-  flight or reconnect; **Clear** starts it afresh and switching casual mode off throws it away.
-  Switching on mid-flight in a fleet aircraft asks first, since that leg will not be logged; a
-  leg already landed is logged as usual. The app always starts with casual mode off.
+  aircraft needed. The path is split wherever you slew, load a new flight or reconnect; **Clear**
+  starts it afresh and switching casual mode off throws it away. Switching on mid-flight in a fleet
+  aircraft asks first, since that leg will not be logged; a leg already landed is logged as usual.
+  Casual mode stays on until you switch it off or close MSFS (a sim crash or a lost connection only
+  breaks the path), and a restart of the app keeps it on, though the path, kept in memory only,
+  starts again empty.
 - **Landing rate**: a few variables are watched every frame, so the moment the wheels touch the
   tracker records the descent rate on the last airborne frame, the peak G over the next second,
   the touchdown airspeed, pitch and bank, and the sim's own touchdown velocity for comparison
@@ -178,22 +185,28 @@ or city to search.
 
 ## Where the data lives
 
-Everything is in `data/` (git-ignored), or beside the database named by `CAREER_DB`:
+Everything is in `data/` (git-ignored), or in the folder the server's `--data` argument names, or
+beside the database named by `CAREER_DB`:
 
 | File | Contents |
 | --- | --- |
 | `data/career.db` | SQLite database: aircraft, hops (with tracks, landings and stats), archived SimBrief briefings, settings, the live tracker's checkpoint, imported airports and runways |
 | `data/airports.csv`, `data/runways.csv` | OurAirports source lists, re-importable with `npm run import-airports` |
 | `data/images/` | Uploaded aircraft icons |
+| `data/career.db.lock` | The running server's process id and port, there while it runs: a second server started on the same folder refuses to start, and one left by a server that is gone is taken over at the next start |
 
-Back up `career.db` and `images/` and you have everything. Set `CAREER_DB` to use a different
-database path, `PORT` to change the server port (default 3080). The icons and airport lists live
+Back up `career.db` and `images/` and you have everything. Start the server with
+`--data=<folder>` (for example `npm start -- --data=D:\career`) to use another data folder, or set
+`CAREER_DB` to a database path; `PORT` (or `--port=<n>`) changes the server port (default 3080). The icons and airport lists live
 in the same folder as the database in use, so a copy for testing belongs in a folder of its own
 (copy `images/` along with it to see the icons).
 
-Live tracking: `TRACKER=0` turns it off. `SIMCONNECT_HOST` and `SIMCONNECT_PORT` reach a sim on
-another PC (enable TCP in that PC's `SimConnect.xml`). `TRACKER_FAKE=1` replaces the sim with
-`npm run sim-fake -- KBOS KPVD`, a synthetic flight for trying the feature without MSFS.
+Live tracking: the server's `--sim=link|fake|off` argument chooses it. `link` talks to MSFS, `fake`
+takes synthetic samples from `npm run sim-fake -- KBOS KPVD` (a flight for trying the feature
+without MSFS), and `off`, a copy run from source's default, tracks nothing; the card then says
+tracking is off. A copy run from source started without `--sim` takes the fake feed from
+`TRACKER_FAKE=1`. On the sim link, `SIMCONNECT_HOST` and `SIMCONNECT_PORT` reach a sim on another
+PC (enable TCP in that PC's `SimConnect.xml`).
 
 ## Tests
 
@@ -212,6 +225,7 @@ All JSON, under `/api`:
 
 | Method | Path | Purpose |
 | --- | --- | --- |
+| GET | `/status` | The server itself: app, version, process id, data folder, sim mode, start-up step, airport-data report, `ready`, airport and runway counts (answered while the server starts too) |
 | GET | `/state` | Aircraft, hops, and every airport they reference, in one call |
 | GET | `/airports/search?q=` | Search by code, name or city (includes a runway summary) |
 | GET | `/airports/:code` | Look up one airport by any code, with its runway list |
@@ -222,16 +236,17 @@ All JSON, under `/api`:
 | GET | `/hazards` | Current G-AIRMET / SIGMET areas, normalised, cached 10 min |
 | GET | `/terrain?from=lat,lon&to=lat,lon` | Terrain profile along a leg with a suggested minimum altitude |
 | GET | `/plan?aircraft_id=&max_minutes=` | Airports in range of where the aircraft is parked; optional `types=`, `paved=1`, `min_runway_ft=`, `from=`, `cruise_alt_ft=`, `limit=` |
-| GET | `/tracker` | Live tracker status: connection, sim aircraft, bound fleet row, phase, position, leg, pending leg |
-| GET | `/tracker/events` | Server-sent events: `status`, `track`, `point`, `path`, `path-point`, `hop`, `pending` |
-| POST | `/tracker/bind` | Bind the sim aircraft being flown to a fleet row: `{ aircraft_id }` |
-| POST | `/tracker/pending` | Log the pending leg, supplying any of `{ aircraft_id, origin, dest }` it lacked |
-| DELETE | `/tracker/pending` | Discard the pending leg |
+| GET | `/tracker` | Live tracker status: sim mode, connection, sim aircraft, bound fleet row, phase, position, leg, pending legs (each with its id, without its track) |
+| GET | `/tracker/events` | Server-sent events: `status`, `track`, `point`, `path`, `path-point`, `hop` (`{ hop, message }`), `pending` (the leg as the status lists it) |
+| POST | `/tracker/bind` | Bind the sim aircraft being flown to a fleet row: `{ aircraft_id }`; also fills in that aircraft on waiting legs flown in the same sim aircraft and livery |
+| GET | `/tracker/pending/:id` | One pending leg in full: track, landings, statistics and briefing; 404 for an unknown id |
+| POST | `/tracker/pending/:id` | Log that pending leg, supplying any of `{ aircraft_id, origin, dest }` it lacked; 404 for an unknown id |
+| DELETE | `/tracker/pending/:id` | Discard that pending leg; 404 for an unknown id |
 | POST | `/tracker/complete` | Log the landed leg now, without waiting for the 30 s stop timer (frozen or quit sim) |
 | DELETE | `/tracker/leg` | Discard the leg being flown |
 | PUT | `/tracker/casual` | Switch casual mode: `{ on, drop_leg? }`; 409 with the leg's details while a fleet aircraft's leg is airborne, unless `drop_leg` |
 | DELETE | `/tracker/path` | Clear the casual path |
-| POST | `/tracker/sample` | Feed one synthetic position sample (only with `TRACKER_FAKE=1`) |
+| POST | `/tracker/sample` | Feed one synthetic position sample (only on the fake feed, `--sim=fake`) |
 | POST/DELETE | `/tracker/briefing` | Attach your latest SimBrief OFP to the flight being flown (or the next one; 409 in casual mode) / detach it |
 | GET/PUT | `/settings` | `{ simbrief_username }` |
 | GET | `/simbrief/latest` | Preview your latest SimBrief OFP without storing it; optional `?username=` |
@@ -257,6 +272,8 @@ them.
 
 ```
 src/server/   Express API, SQLite schema, airport + runway import, planner query (TypeScript via tsx)
+  server.ts      reads the inputs and starts the server in order; shutdown.ts stops it in order
+  tracking.ts    starts the sim link, the fake feed or nothing, by the --sim mode
   simconnect.ts  SimConnect link (node-simconnect, pure TypeScript): samples, touchdown watcher, system events
   tracker.ts     turns samples into hops: takeoff/landing detection, landing rating, track + stats, pending legs
   ofp.ts         SimBrief OFP fetch + parse

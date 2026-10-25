@@ -24,20 +24,21 @@ if not exist dist\index.html (
 )
 
 rem Already running? Just open the browser.
-curl -s -o nul http://localhost:%PORT%/api/status 2>nul && (
-  if not defined CAREER_NO_BROWSER start "" http://localhost:%PORT%/
+curl -s -o nul http://127.0.0.1:%PORT%/api/status 2>nul && (
+  if not defined CAREER_NO_BROWSER start "" http://127.0.0.1:%PORT%/
   exit /b 0
 )
 
-echo Starting MSFS Career Map on http://localhost:%PORT% ...
+echo Starting MSFS Career Map on http://127.0.0.1:%PORT% ...
 echo Keep this window open while you use the app ^(close it to stop the server^).
-start "" /b node --no-warnings=ExperimentalWarning --import tsx src/server/index.ts
+start "" /b node --no-warnings=ExperimentalWarning --import tsx src/server/index.ts --sim=link
 
-rem Wait for the server, then open the browser.
+rem Wait for the server to finish starting (its status then says "startup":"done"; it answers
+rem while it starts, but the app's own requests wait until then), then open the browser.
 set /a tries=0
 :wait
 set /a tries+=1
-curl -s -o nul http://localhost:%PORT%/api/status 2>nul && goto up
+curl -s http://127.0.0.1:%PORT%/api/status 2>nul | findstr /c:"startup\":\"done" >nul && goto up
 if %tries% geq 60 (
   echo The server did not come up in time. Check the output above.
   pause
@@ -47,7 +48,7 @@ timeout /t 1 /nobreak >nul
 goto wait
 
 :up
-if not defined CAREER_NO_BROWSER start "" http://localhost:%PORT%/
+if not defined CAREER_NO_BROWSER start "" http://127.0.0.1:%PORT%/
 rem Keep the console alive so the background node process keeps running.
 echo.
 echo Running. Close this window to stop the server.

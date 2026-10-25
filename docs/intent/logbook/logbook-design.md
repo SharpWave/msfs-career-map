@@ -7,24 +7,28 @@ prefix: LOG
 
 ## Context and Design Philosophy
 
-The logbook is the ordered list of hops each fleet aircraft has flown. The career premise is that
-every aircraft + livery resumes where it last parked, so the logbook is also the record of where
-each plane *is*: an aircraft is parked at the destination of its last hop. Everything else that
+This segment keeps each fleet aircraft's hops: the ordered list of legs it has flown. The career
+premise is that every aircraft + livery resumes where it last parked, so its hops are also the record
+of where each plane *is*: an aircraft is parked at the destination of its last hop. Everything else that
 shows a tour (the map's paths and parked icons, the planner's starting point, the "parked at" line
 on an aircraft card, the tracker's choice of departure airport) reads that position from here.
 
 Hops enter the logbook two ways:
 
-- **Hand-logged** through the "Log a hop" card or an inline edit — owned by this segment.
+- **Hand-logged** through the Log a hop drawer or an inline edit — owned by this segment.
 - **Auto-logged** by the live tracker when a flown leg completes — the tracker writes the row
-  ([tracker.ts:332-351](../../../src/server/tracker.ts#L332-L351)) and must follow this segment's
+  ([tracker.ts:346-365](../../../src/server/tracker.ts#L346-L365)) and must follow this segment's
   record rules (sequence, canonical idents, time fields). What it records inside the hop (track,
   landings, stats) belongs to live-tracking.
 
 This segment owns the hop record and its invariants, the rules for correcting a hop, the
 hand-logging form, and the hop list inside each aircraft card. It does not own how hops are drawn
 (tour-map), the flight panel a hop opens (flight-panel), the SimBrief plan linked to a hop
-(simbrief), or the aircraft rows hops belong to (fleet; deleting an aircraft deletes its hops).
+(simbrief), the aircraft rows hops belong to (fleet; deleting an aircraft deletes its hops), or the
+logbook database as a whole (app-shell): the SQLite file in the data folder that holds the hops
+beside the fleet, the tracker's checkpoint and the airport tables, with its location, backups, schema
+upgrades and bringing in a logbook from another data folder. Here, as in the HLD, "the logbook" is
+that database file; this segment owns the hops in it.
 
 ## The Hop Record
 
@@ -33,6 +37,7 @@ place at [db.ts:177-179](../../../src/server/db.ts#L177-L179)).
 
 | Field | Meaning | Written by |
 |---|---|---|
+| `id` | The hop's own id, never given to a second hop in the same logbook (below) | the database, on insert |
 | `aircraft_id` | Owning fleet aircraft | logbook, tracker |
 | `seq` | Position in that aircraft's tour, 1..n | logbook (renumbering), tracker (append) |
 | `origin`, `dest` | Canonical OurAirports idents; may be the same airport | logbook, tracker |
@@ -42,10 +47,38 @@ place at [db.ts:177-179](../../../src/server/db.ts#L177-L179)).
 | `notes` | Free text, `''` when empty | logbook |
 | `track`, `landings`, `stats` | JSON payloads of a flown leg; null on hand-logged hops | tracker only |
 | `briefing_id` | Archived SimBrief plan | tracker, simbrief |
+| `created_at` | When the hop was logged, ISO 8601 UTC — not when it was flown; the one time every hop has, hand-logged hops without times included | the database, on insert; never changed, the hop edited, moved, reordered or brought in with its logbook included |
 
-Hand edits never touch `track`, `landings` or `stats`: `PUT /hops/:id` updates only the logbook
-columns ([routes.ts:407-409](../../../src/server/routes.ts#L407-L409)). Readers of those payloads
-must tolerate null.
+Edits from the hop form (`PUT /hops/:id`) never touch `track`, `landings`, `stats` or `briefing_id`,
+since that route updates only the columns it names
+([routes.ts:407-409](../../../src/server/routes.ts#L407-L409)); the plan link changes only through
+simbrief's attach and remove. Readers of those payloads must tolerate null.
+
+**Hop ids.** A hop's id is SQLite's `AUTOINCREMENT` key ([db.ts:114](../../../src/server/db.ts#L114)),
+so no id is ever given to a second hop in the same logbook, even after the first is deleted. Whatever
+names a hop by its id therefore finds that hop or none, never another: the flight panel, a SimBrief
+plan's link, and the page's `#hop=<id>` address, which a hop notification opens
+([desktop shell › Notifications](../desktop/shell/shell-design.md#notifications)) and which may be
+clicked days later from Windows' notification centre; if the hop was deleted meanwhile, the page says
+it no longer exists (app-shell). The counter belongs to the logbook database, so a link made in one
+logbook may name another hop in whichever logbook replaces it: a backup restored by hand, a logbook
+brought in from another data folder (which arrives whole, through SQLite's own backup, with its hops'
+ids and its own counter), or a new logbook started in place of a deleted data folder. Hops accept
+that, since opening a hop only shows it; a pending leg's link leads to Log or Discard, so its id is
+one that no restore can rewind (live-tracking, desktop shell).
+
+**Where hops live.** Hops are rows of the logbook database in the data folder, whose location,
+backups and schema upgrades app-shell owns. The `hops` table only ever gains columns, added in place,
+each nullable or with a default, as SQLite requires of a column added in place — the sim-clock
+columns arrive that way — and hops logged before them, or by an older version since, have none;
+readers tolerate null. A column added to `hops` holds a value of its own, never one worked out from
+fields an older version may edit; such values are derived when read, as a missing flight time is.
+Every insert and update names the columns it sets, so a version older than the logbook's schema — an
+older release run on a logbook a newer one upgraded, or the installed app on a logbook brought in
+from a copy run from source that is ahead of it — leaves the fields it does not know as they were
+when it edits a hop, and at their defaults when it logs one. Bringing in a logbook from another data
+folder never replaces a logbook that holds hops, not even one whose first hop was logged while the
+copy was being made; that copy is discarded (app-shell checks again just before the swap).
 
 ## Ordering and the Parked Position
 
@@ -89,7 +122,8 @@ the continuous case the default instead (below).
   IATA, local code). The server resolves each to the canonical OurAirports `ident` and stores that;
   a blank code is `400 "<label> is required"`, an unknown one `400 "<label>: unknown airport \"X\""`
   ([routes.ts:343-350](../../../src/server/routes.ts#L343-L350)). Origin and destination may be
-  the same airport, for pattern work and local flights.
+  the same airport, for pattern work and local flights. A stored ident keeps resolving: the airport
+  lists' refreshes never drop an airport a hop uses (airports).
 - **Two clocks.** A hop records when it was flown in the real world and when it happened in the
   sim's world, which runs its own date and time of day. Real-world times are the ones in use today;
   sim-clock times are intended and not yet stored. Flight time (`duration_min`) is real-world
@@ -98,10 +132,13 @@ the continuous case the default instead (below).
 - **Real-world times.** `departed_at` / `arrived_at` are optional. Blank is stored as null; anything
   `Date` cannot parse is `400 "<label>: invalid date/time"`; otherwise the value is stored as
   ISO 8601 UTC ([routes.ts:352-358](../../../src/server/routes.ts#L352-L358)). The form edits them
-  as `datetime-local` in the browser's local time and converts both ways
-  ([format.ts:48-62](../../../src/client/format.ts#L48-L62)). Arrival before departure and negative
-  flight times are rejected by the form ([HopForm.tsx:84-86](../../../src/client/components/HopForm.tsx#L84-L86))
-  and are meant to be rejected by the API too, which today accepts them
+  as `datetime-local` in the page's own time zone and converts both ways
+  ([format.ts:48-62](../../../src/client/format.ts#L48-L62)), and the hop list shows them in that
+  time zone through app-shell's shared formatting. That zone is the pilot's PC's: app-shell has the
+  server answer only on 127.0.0.1, so the page — in the app's window or a browser tab — is shown only
+  on the PC the server runs on. Arrival before departure and negative flight times are rejected by the form
+  ([HopForm.tsx:84-86](../../../src/client/components/HopForm.tsx#L84-L86)) and are meant to be
+  rejected by the API too, which today accepts them
   ([routes.ts:379-381](../../../src/server/routes.ts#L379-L381)).
 - **Duration.** `duration_min` is optional and rounded to whole minutes on write. When a hop has no
   stored duration but has both real-world times, its displayed duration is the rounded difference,
@@ -161,8 +198,15 @@ trimmed ([88-96](../../../src/client/components/HopForm.tsx#L88-L96)).
 **After a successful create** the form rolls forward for the next leg: origin becomes the
 destination just logged; destination, times, duration and notes clear; a "Logged ORIG → DEST"
 confirmation shows ([102-113](../../../src/client/components/HopForm.tsx#L102-L113)). In edit mode
-it saves and closes. Server errors show inline with the entered values kept; the buttons disable
-while a save is in flight.
+it saves and closes. The buttons disable while a save is in flight.
+
+**A failed save** shows its error inline with the entered values kept
+([114-118](../../../src/client/components/HopForm.tsx#L114-L118)), whatever the cause: the server
+refusing the hop or failing while handling it, a server still doing its start-up work (which answers
+503), or no answer at all from a server restarting behind an open page (the desktop shell restarting
+it, or a copy run from source restarting on a code change). The pilot saves again; the form never
+resends by itself, since a save whose answer was lost may already be in the logbook. A hop logged
+twice that way shows as two rows in the aircraft card, where one is deleted.
 
 ## The Hop List in an Aircraft Card
 
@@ -199,8 +243,10 @@ Expanding an aircraft card (the chevron with its hop count) lists its hops in se
 | DELETE | `/api/hops/:id` | Delete and renumber the aircraft → 204 | 400; 404 |
 | PUT | `/api/aircraft/:id/hops/order` | `{ids}` → the aircraft's hops in the new order | 400 not an array / not exactly this aircraft's hops; 404 |
 
-Handlers are at [routes.ts:368-443](../../../src/server/routes.ts#L368-L443); errors are
-`{error}` bodies via the shared error middleware.
+Handlers are at [routes.ts:368-443](../../../src/server/routes.ts#L368-L443). They follow
+app-shell's conventions for API routes: errors are `{error}` bodies via the shared error middleware,
+they answer 503 while the server's start-up work runs, and they accept no change from another site's
+page.
 
 ## Decisions & Alternatives
 
@@ -214,11 +260,14 @@ Handlers are at [routes.ts:368-443](../../../src/server/routes.ts#L368-L443); er
 | Origin equal to destination | Allowed | Reject | Pattern work and local flights leave from and return to the same field. |
 | Correcting a tracked hop's airports | Allow a change only to an airport within 5 nm of the track end that vouched for the old one; other ends unrestricted | Allow any change; refuse all changes; clear the track on change | Nearest-airport naming can pick the wrong one of two close fields, so plausible corrections must be possible; a change the recorded track contradicts is a mistake, not a correction. 5 nm matches the tracker's naming radius. |
 | Clocks recorded | Both real-world and sim-clock departure and arrival | Real-world only; sim only | Real-world time records when the user flew; the sim's clock is the career's own calendar and time of day. Each answers a different question about a hop. |
-| Time storage | ISO 8601 UTC; real-world times entered and shown in local time | Store local time | [inferred] An unambiguous stored form that sorts lexically; the browser handles the user's zone. |
+| Time storage | ISO 8601 UTC; real-world times entered and shown in the page's local time zone | Store local time | [inferred] An unambiguous stored form that sorts lexically; the page converts to and from its own time zone, which is the pilot's PC's because the server answers only on 127.0.0.1 (app-shell). |
+| Hop ids | SQLite's `AUTOINCREMENT` key: an id is never given to a second hop in the same logbook | The plain row id, which hands the id of a deleted newest hop to the next one; random or time-based ids, which no restore or import could repeat | A link to a hop — a hop notification can wait days in Windows' notification centre — must find that hop or none, never another logged since. `AUTOINCREMENT` gives that with the existing integer ids and no change to the table. Its counter belongs to the logbook database, so a link made in one logbook may name another hop in whichever logbook replaces it (a backup restored by hand, a logbook brought in, a new one started in place of a deleted data folder). Opening a hop only shows it, so that stale link is harmless and ids that survive a replaced logbook are not worth a change to the table; a pending leg's link leads to Log or Discard, which is why its id is one no restore can rewind (live-tracking). |
+| Writes to `hops` | Every insert and update names the columns it sets | Read-modify-write of the whole row; inserts that give every value without naming columns | The `hops` table only gains columns, and an older release may run on a logbook a newer one upgraded, or the installed app on one brought in from a copy run from source that is ahead of it. Naming columns leaves the fields it does not know as they were on an edit and at their defaults on an insert; a whole-row write would clear them, and an insert that named no columns would fail outright on a table wider than it knows, losing a tracked flight. |
 | Duration | Optional real-world minutes; stored only when typed or measured, otherwise derived at display from real-world times | Compute and store on every write; make it required | [inferred] A typed flight time stays authoritative over the clock difference, and hops with no times at all remain valid. |
 | Moving a hop between aircraft | Append at the end of the target's sequence, renumber the source | Insert by time; refuse the move | [inferred] The simplest well-defined position; the user can reorder afterwards. |
 | Reorder request | Full id list, validated as exactly the aircraft's hops, applied in one transaction | A per-hop "move up/down" endpoint | [inferred] One atomic request; no partially applied order. |
 | Create form after saving | Rolls forward: next origin = the destination just logged | Clear the form | Logging consecutive legs of a tour is the main use. |
+| A failed save from the hop form | The error shown with the entered values kept; the pilot saves again | Resending by itself until the server answers, as the page retries its first loads while the server starts; a key chosen by the form, so a resent hop write is stored once; a warning on an unanswered save that the hop may already be logged | A save whose answer was lost — the server ended by a crash or a restart just after writing — may already be in the logbook, and resending it would log the hop twice. A read is safe to repeat; a hop write is not. Losing the answer needs the server to end between storing the hop and answering; an unanswered save is nearly always one sent while the server was down, which never reached it, so a warning would almost always be wrong. A key would add a column and server bookkeeping against a rare case whose cost is a second row in the aircraft card, deleted there with one click. Kept values make saving again one click. |
 | Flown-leg payloads | `track`, `landings`, `stats` written only by the tracker; hand edits never change them | Allow editing them | They are measurements, not user input. |
 
 ## Open Questions & Future Decisions
@@ -246,6 +295,17 @@ Handlers are at [routes.ts:368-443](../../../src/server/routes.ts#L368-L443); er
    ([Fleet.tsx:250-251](../../../src/client/components/Fleet.tsx#L250-L251)), correct only
    while the sequence is contiguous.
 
+## Relies On
+
+- **app-shell** — the page's own retry of a 503 during the server's start-up work covers its loads
+  only and never resends a write, so a hop save is sent once; the page opens `#hop=<id>` and says
+  when that hop no longer exists; the server answers only on 127.0.0.1, so the page's time zone is
+  the pilot's PC's; a logbook brought in from another data folder arrives whole, through SQLite's own
+  backup, and never replaces one that holds hops; schema changes to `hops` go through
+  `addColumnIfMissing()`, so every added column is nullable or has a default.
+- **airports** — the airport lists' refreshes never drop an airport a hop uses, so a stored ident
+  keeps resolving.
+
 ## References
 
 - Code: [src/server/routes.ts](../../../src/server/routes.ts) (hops section 313-443, `/state` 826-840),
@@ -254,7 +314,18 @@ Handlers are at [routes.ts:368-443](../../../src/server/routes.ts#L368-L443); er
   [src/client/components/Fleet.tsx](../../../src/client/components/Fleet.tsx) (`AircraftCard` hop list),
   [src/client/App.tsx](../../../src/client/App.tsx) (the Log a hop drawer, the planner hand-off `pickCandidate`),
   [src/client/format.ts](../../../src/client/format.ts) (`hopDurationMin`, datetime conversion)
-- Writes from other segments: live-tracking `insertHop` ([tracker.ts:332-351](../../../src/server/tracker.ts#L332-L351)),
+- HLD: [docs/high-level-design.md](../../high-level-design.md) — System Design (the data folder; the
+  server listening only on 127.0.0.1) and Rules every segment follows (Order and position, Airport
+  codes, Time, Schema changes)
+- Writes from other segments: live-tracking `insertHop` ([tracker.ts:346-365](../../../src/server/tracker.ts#L346-L365)),
   which is also to capture sim-clock times; simbrief `POST /hops/:id/briefing`
 - Consumers of the parked position and hop order: tour-map (`paths.ts`), planner (`Planner.tsx`,
   `/plan`), live-tracking (takeoff airport tie-break)
+- Consumers of hop ids: flight-panel, simbrief (a plan's hop), the page's `#hop=<id>` address
+  (app-shell), opened by the desktop shell's hop notifications
+  ([shell-design.md](../desktop/shell/shell-design.md#notifications))
+- Readers of a whole logbook's hops: app-shell's first-run offer, which names each offered logbook
+  with its hop count and newest hop, and brings a logbook in only over one that holds none
+  ([desktop-design.md](../desktop/desktop-design.md#relies-on))
+- The logbook database as a whole — data folder, backups, schema upgrades, bringing in a logbook:
+  [app-shell-design.md](../app-shell/app-shell-design.md)

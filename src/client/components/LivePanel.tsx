@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { api, ApiError } from "../api";
 import { aircraftLabel, fmtDuration, fmtTimeShort } from "../format";
 import { shownTouchdown } from "../landing";
@@ -15,6 +15,8 @@ interface Props {
   onFocusLive: () => void;
   /** Open the live leg in the flight panel. */
   onOpenLive: () => void;
+  /** Open a pending leg, by its id, in the flight panel. */
+  onOpenPending: (id: string) => void;
   onSelect: (id: number) => void;
   /** Open the new-aircraft form prefilled from what the sim reports. */
   onNewFromSim: (sim: SimAircraft) => void;
@@ -186,12 +188,12 @@ function CasualSwitch({ on, busy, onSwitch }: { on: boolean; busy: boolean; onSw
 
 /**
  * Sidebar card for the live tracker: connection state, the sim aircraft and which fleet row it is
- * bound to, the leg in progress, and any finished leg waiting for details before it is logged.
- * Collapsed, it is a one-line status strip; its body stays mounted, so nothing typed is lost.
- * The Casual switch sits in both, so casual mode is never on unseen.
+ * bound to, the leg in progress, and the finished legs waiting for details before they are logged,
+ * one block each, oldest first. Collapsed, it is a one-line status strip; its body stays mounted,
+ * so nothing typed is lost. The Casual switch sits in both, so casual mode is never on unseen.
  */
-// @spec LIVE-CARD-001, LIVE-CARD-003, LIVE-CARD-005, LIVE-CARD-006, LIVE-CARD-011, LIVE-CARD-012, LIVE-CARD-013, LIVE-CARD-014
-export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onSelect, onNewFromSim, open, onToggle }: Props) {
+// @spec LIVE-CARD-001, LIVE-CARD-003, LIVE-CARD-005, LIVE-CARD-006, LIVE-CARD-008, LIVE-CARD-010, LIVE-CARD-011, LIVE-CARD-012, LIVE-CARD-013, LIVE-CARD-014
+export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onOpenPending, onSelect, onNewFromSim, open, onToggle }: Props) {
   const { status: s, online } = live;
   const [bindId, setBindId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -230,6 +232,8 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
 
   let pill: { cls: string; text: string };
   if (!online) pill = { cls: "", text: "no connection to the app server" };
+  else if (s?.sim_mode === "off") pill = { cls: "", text: "tracking off" };
+  else if (s?.link_holder) pill = { cls: "warn", text: "linked to another copy" };
   else if (!s || !s.connected) pill = { cls: "", text: "sim not running" };
   else if (s.paused) pill = { cls: "warn", text: "paused" };
   else if (!s.sim_running) pill = { cls: "warn", text: "in menus" };
@@ -238,6 +242,20 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
   else if (s.phase === "landed") pill = { cls: "air", text: "landed" };
   else if (s.phase === "ground") pill = { cls: "on", text: "on the ground" };
   else pill = { cls: "on", text: "connected" };
+
+  // Why no flight is being tracked: while casual mode is off, the first that applies. In casual
+  // mode its note says what happens instead.
+  let linkHint: ReactNode = null;
+  if (s && !casual) {
+    if (s.sim_mode === "off")
+      linkHint = (
+        <>
+          This copy does not link to the sim. Start it with <code>npm run dev:sim</code> to track flights from MSFS.
+        </>
+      );
+    else if (s.link_holder) linkHint = `${s.link_holder.text}. Flights are logged there; this copy links once it lets go.`;
+    else if (!s.connected) linkHint = "Start MSFS and the tracker connects by itself. Takeoffs and landings are logged as hops with the flown track.";
+  }
 
   const p = s?.position;
   // As in the open card, the position is shown only while the sim is connected.
@@ -259,7 +277,7 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
           <h2 className="sr-only">Live from the sim</h2>
           <span className={`pill ${pill.cls}`}>{pill.text}</span>
           {readout && <span className="readout code">{readout}</span>}
-          {s?.pending && <span className="caution">Leg waiting to be logged</span>}
+          {s && s.pending.length > 0 && <span className="caution">Leg waiting to be logged</span>}
           {casualSwitch}
           <IconButton icon="chevron-right" label="Expand Live from the sim" aria-expanded={false} />
         </div>
@@ -268,7 +286,7 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
       <div className="card-body live-body" hidden={!open}>
         {casual && (
           <p className="muted small casual-note">
-            Casual mode: the path you fly is drawn on the map and nothing is logged. Switching casual mode off, or stopping the app, clears it.
+            Casual mode: the path you fly is drawn on the map and nothing is logged until you switch casual mode off, quit the app or close MSFS.
           </p>
         )}
 
@@ -401,10 +419,9 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
         {s && s.connected && s.sim && <SimbriefControls status={s} busy={busy} run={run} />}
 
         {s && s.connected && !s.sim && <p className="muted small">Connected to {s.sim_name ?? "the sim"}; waiting for the aircraft to load.</p>}
-        {s && !s.connected && !casual && (
-          <p className="muted small">
-            Start MSFS and the tracker connects by itself. Takeoffs and landings are logged as hops with the flown track.
-          </p>
+        {linkHint && <p className="muted small">{linkHint}</p>}
+        {s?.sim_host && (
+          <p className="muted small">{`Linked to the sim on ${s.sim_host}: a copy of MSFS Career Map on that PC is not checked, so run only one.`}</p>
         )}
         {!s && online && <p className="muted small">Waiting for the tracker…</p>}
 
@@ -416,17 +433,41 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onS
         )}
         {error && <div className="error">{error}</div>}
 
-        {s?.pending && <PendingForm key={s.pending.departed_at} p={s.pending} aircraft={aircraft} reload={reload} />}
+        {/* Keyed by the leg's id, so each block keeps what was typed into it as the list changes. */}
+        {s?.pending.map((p) => <PendingForm key={p.id} p={p} aircraft={aircraft} reload={reload} onOpen={() => onOpenPending(p.id)} />)}
       </div>
     </>
   );
 }
 
-/** A finished leg the tracker could not log by itself: fill in what it lacked and save, or drop it. */
-function PendingForm({ p, aircraft, reload }: { p: PendingLeg; aircraft: Aircraft[]; reload: () => Promise<void> }) {
-  const [aircraftId, setAircraftId] = useState(p.aircraft_id ? String(p.aircraft_id) : "");
-  const [origin, setOrigin] = useState(p.origin ?? "");
-  const [dest, setDest] = useState(p.dest ?? "");
+const DASH = "—";
+const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
+const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+/** A time the leg carries, short, or — when it is not a string that reads as a date. */
+const shortTime = (v: unknown): string => (typeof v === "string" && !Number.isNaN(Date.parse(v)) ? fmtTimeShort(v) : DASH);
+
+/**
+ * A finished leg the tracker could not log by itself: look at its profile, fill in what it lacked
+ * and save, or drop it. Every action names the leg by its id. A field the leg lacks, or carries with
+ * the wrong type, reads "—" (or leaves its input empty), so one odd leg never breaks the others.
+ */
+// @spec LIVE-BIND-003, LIVE-CARD-008
+function PendingForm({ p, aircraft, reload, onOpen }: { p: PendingLeg; aircraft: Aircraft[]; reload: () => Promise<void>; onOpen: () => void }) {
+  const sim = p.sim != null && typeof p.sim === "object" ? p.sim : null;
+  const title = str(sim?.title) ?? DASH;
+  const livery = str(sim?.livery);
+  const legAircraftId = num(p.aircraft_id);
+  const duration = num(p.duration_min);
+  const points = num(p.points);
+
+  const [aircraftId, setAircraftId] = useState(legAircraftId != null ? String(legAircraftId) : "");
+  // Binding can set the leg's aircraft after the block is shown (LIVE-BIND-003): fill it in,
+  // unless the pilot has already chosen one.
+  useEffect(() => {
+    if (legAircraftId != null) setAircraftId((cur) => cur || String(legAircraftId));
+  }, [legAircraftId]);
+  const [origin, setOrigin] = useState(str(p.origin) ?? "");
+  const [dest, setDest] = useState(str(p.dest) ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -434,7 +475,7 @@ function PendingForm({ p, aircraft, reload }: { p: PendingLeg; aircraft: Aircraf
     setBusy(true);
     setError(null);
     try {
-      await api.trackerSavePending({ aircraft_id: aircraftId ? Number(aircraftId) : null, origin: origin || null, dest: dest || null });
+      await api.trackerSavePending(p.id, { aircraft_id: aircraftId ? Number(aircraftId) : null, origin: origin || null, dest: dest || null });
       await reload();
     } catch (e) {
       setError(errMsg(e));
@@ -447,7 +488,7 @@ function PendingForm({ p, aircraft, reload }: { p: PendingLeg; aircraft: Aircraf
     if (!window.confirm("Discard this leg? Its recorded track will be lost.")) return;
     setBusy(true);
     try {
-      await api.trackerDiscardPending();
+      await api.trackerDiscardPending(p.id);
     } catch (e) {
       setError(errMsg(e));
     } finally {
@@ -458,12 +499,16 @@ function PendingForm({ p, aircraft, reload }: { p: PendingLeg; aircraft: Aircraf
   return (
     <div className="pending">
       <div>
-        <b>Leg waiting to be logged</b> · {p.sim.title}
-        {p.sim.livery && <> · {p.sim.livery}</>}
+        <b>Leg waiting to be logged</b> · {title}
+        {livery && <> · {livery}</>}
       </div>
-      <div className="why">{p.reason}</div>
+      <div className="why">{str(p.reason) ?? DASH}</div>
       <div className="muted small">
-        off {fmtTimeShort(p.departed_at)} · down {fmtTimeShort(p.arrived_at)} · {fmtDuration(p.duration_min)} · {p.points} track points
+        off {shortTime(p.departed_at)} · {p.ended_in_air === true ? "last seen" : "down"} {shortTime(p.arrived_at)} ·{" "}
+        {duration != null ? fmtDuration(duration) : DASH} · {points ?? DASH} track points{" "}
+        <button type="button" className="small" onClick={onOpen} title="Open this leg's profile in the flight panel">
+          Profile
+        </button>
       </div>
       <label>
         <span>Aircraft</span>

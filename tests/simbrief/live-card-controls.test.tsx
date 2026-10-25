@@ -21,7 +21,7 @@ function plan(over: Partial<BriefingSummary> = {}): BriefingSummary {
 
 function card(status: TrackerStatus) {
   return (
-    <LivePanel live={liveState(status)} aircraft={[aircraft()]} reload={async () => {}} onFocusLive={() => {}} onOpenLive={() => {}}
+    <LivePanel live={liveState(status)} aircraft={[aircraft()]} reload={async () => {}} onFocusLive={() => {}} onOpenLive={() => {}} onOpenPending={() => {}}
       onSelect={() => {}} onNewFromSim={() => {}} open onToggle={() => {}} />
   );
 }

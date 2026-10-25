@@ -7,6 +7,7 @@ import type {
   Hop,
   HopInput,
   Metar,
+  PendingLegDetail,
   PlanQuery,
   PlanResult,
   Briefing,
@@ -72,9 +73,10 @@ export const api = {
 
   tracker: () => req<TrackerStatus>("GET", "/api/tracker"),
   trackerBind: (aircraftId: number) => req<TrackerStatus>("POST", "/api/tracker/bind", { aircraft_id: aircraftId }),
-  trackerSavePending: (o: { aircraft_id?: number | null; origin?: string | null; dest?: string | null }) =>
-    req<Hop>("POST", "/api/tracker/pending", o),
-  trackerDiscardPending: () => req<TrackerStatus>("DELETE", "/api/tracker/pending"),
+  trackerPending: (id: string) => req<PendingLegDetail>("GET", `/api/tracker/pending/${encodeURIComponent(id)}`),
+  trackerSavePending: (id: string, o: { aircraft_id?: number | null; origin?: string | null; dest?: string | null }) =>
+    req<Hop>("POST", `/api/tracker/pending/${encodeURIComponent(id)}`, o),
+  trackerDiscardPending: (id: string) => req<TrackerStatus>("DELETE", `/api/tracker/pending/${encodeURIComponent(id)}`),
   trackerDiscardLeg: () => req<TrackerStatus>("DELETE", "/api/tracker/leg"),
   trackerCompleteLeg: () => req<TrackerStatus>("POST", "/api/tracker/complete"),
   /** Refused with a 409 ApiError naming the leg while a fleet aircraft's leg is airborne, unless `dropLeg`. */

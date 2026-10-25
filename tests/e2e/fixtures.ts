@@ -16,7 +16,10 @@ export const test = base.extend<{ isolated: void }>({
       await context.route((url) => !isTestServer(url), (route) => route.abort("blockedbyclient"));
       await request.put("/api/tracker/casual", { data: { on: false } });
       await request.delete("/api/tracker/leg");
-      await request.delete("/api/tracker/pending");
+      // Every pending leg, by its id (LIVE-API-003); a server without ids holds at most one.
+      const st = (await (await request.get("/api/tracker")).json()) as { pending: unknown };
+      const waiting = (Array.isArray(st.pending) ? st.pending : st.pending ? [st.pending] : []) as { id?: string }[];
+      for (const p of waiting) await request.delete(p.id ? `/api/tracker/pending/${p.id}` : "/api/tracker/pending");
       await use();
     },
     { auto: true },

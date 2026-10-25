@@ -68,7 +68,7 @@ test.describe("casual mode", () => {
 
     const st = (await (await request.get("/api/tracker")).json()) as { leg: unknown; pending: unknown; casual: { points: number } };
     expect(st.leg).toBeNull();
-    expect(st.pending).toBeNull();
+    expect(st.pending).toEqual([]);
     expect(st.casual.points).toBeGreaterThan(5);
     expect(((await (await request.get("/api/state")).json()) as { hops: unknown[] }).hops).toHaveLength(hopsBefore);
 

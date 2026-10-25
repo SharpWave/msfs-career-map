@@ -389,6 +389,8 @@ export function App() {
               live={live}
               onFocusLive={focusLive}
               onOpenLive={() => setPanel({ kind: "live" })}
+              // The flight panel cannot show a pending leg yet, so a pending leg's Profile opens nothing.
+              onOpenPending={() => {}}
               onNewFromSim={newFromSim}
             />
           }

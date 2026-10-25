@@ -10,8 +10,9 @@ import {
 /**
  * Thin SimConnect link: opens a connection to the sim (retrying quietly while it is not running),
  * asks for the user aircraft's state once a second, watches a few variables every frame to catch
- * the exact moment of touchdown, and hands samples plus system events to the caller. It knows
- * nothing about hops; see tracker.ts for that.
+ * the exact moment of touchdown, and hands samples plus system events to the caller. A record it
+ * cannot read is dropped and written out, never passed on. It knows nothing about hops; see
+ * tracker.ts for that.
  */
 
 export interface SimAircraft {
@@ -62,7 +63,11 @@ export interface SimSample extends SimAircraft {
 export interface SimLinkHandlers {
   onSample(s: SimSample): void;
   onConnect(appName: string): void;
-  onDisconnect(reason: string): void;
+  /**
+   * The connection ended. `quit` is true only for SimConnect's quit event (MSFS closing normally);
+   * a connection that closed or failed (a sim crash, a lost connection) gives false.
+   */
+  onDisconnect(reason: string, quit: boolean): void;
   onPause?(paused: boolean): void;
   /** `Sim` system event: false while the sim sits in menus or a loading screen. */
   onSimRunning?(running: boolean): void;
@@ -95,16 +100,37 @@ const G_WINDOW_MS = 1000;
 /** How long a new connection holds samples waiting for the first livery reading. */
 const LIVERY_WAIT_MS = 5000;
 
-/** Start the link. It keeps reconnecting until `stop()` is called. */
+/** Each data definition, as the lines about records the link cannot read name it. */
+type RecordKind = "position" | "livery" | "per-frame";
+
+/**
+ * Start the link. It keeps reconnecting until `stop()` is called; from then on it calls no handler,
+ * whatever the old connection still sends.
+ */
 export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop(): void; connected(): boolean } {
   const retryMs = o.retryMs ?? 10000;
-  const log = h.log ?? (() => {});
   const options = o.host ? { remote: { host: o.host, port: o.port ?? 500 } } : undefined;
 
   let stopped = false;
   let handle: SimConnectConnection | null = null;
   let timer: NodeJS.Timeout | null = null;
   let attempts = 0;
+  /** The open connection's count of the records it dropped, written once when it ends or the link stops. */
+  let writeDropped: (() => void) | null = null;
+
+  // @spec LIVE-LINK-016
+  // Every call into the caller goes through here. An error in the caller's handling of one sample
+  // or event is written out and goes no further: thrown from a SimConnect listener it would end the
+  // server, and thrown while connecting it would be taken for an unreachable sim and retried.
+  const call = (what: string, fn: () => void) => {
+    if (stopped) return;
+    try {
+      fn();
+    } catch (e) {
+      console.error(`[sim] ${what} failed:`, e);
+    }
+  };
+  const log = (msg: string) => call("log", () => h.log?.(msg));
 
   const schedule = () => {
     if (stopped) return;
@@ -116,10 +142,60 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
     if (stopped) return;
     open(o.appName ?? "MSFS Career Map", Protocol.FSX_SP2, options)
       .then(({ recvOpen, handle: hd }) => {
+        if (stopped) {
+          // Stopped while this attempt was opening: close it unseen.
+          try {
+            hd.close();
+          } catch {
+            /* already closed */
+          }
+          return;
+        }
         handle = hd;
         attempts = 0;
         let livery = "";
         let closed = false;
+        /** Whether what this connection sends still goes anywhere: not once it ended or the link stopped. */
+        const live = () => !closed && !stopped;
+        const pass = (s: SimSample) => call("onSample", () => h.onSample(s));
+
+        // @spec LIVE-LINK-018
+        // A record the reader cannot read (one shorter than its definition) is dropped whole: the
+        // first of each definition on this connection is written out with its bytes, later ones
+        // only counted, and the counts written when the connection ends or the link stops.
+        const dropped = new Map<RecordKind, number>();
+        const drop = (kind: RecordKind, e: unknown, data: { buffer?: unknown }) => {
+          const n = (dropped.get(kind) ?? 0) + 1;
+          dropped.set(kind, n);
+          if (n > 1) return;
+          // The RawBuffer's own buffer is the whole record (its length is the reader's limit);
+          // getBuffer() would give only the part read before the read that threw.
+          let hex = "(record bytes unavailable)";
+          try {
+            const bytes = data.buffer;
+            if (Buffer.isBuffer(bytes)) hex = bytes.toString("hex");
+          } catch {
+            /* the record cannot give its bytes either */
+          }
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error("[sim] dropped a " + kind + " record the link cannot read (" + msg + "): " + hex);
+        };
+        const writeCounts = () => {
+          for (const [kind, n] of dropped) {
+            console.error("[sim] dropped " + n + " " + kind + " record" + (n === 1 ? "" : "s") + " the link could not read on that connection");
+          }
+          dropped.clear();
+        };
+        writeDropped = writeCounts;
+        /** The record's values, read by `fn`, or null when it cannot be read (and is dropped). */
+        const readRecord = <T>(kind: RecordKind, data: unknown, fn: () => T): T | null => {
+          try {
+            return fn();
+          } catch (e) {
+            drop(kind, e, data as { buffer?: unknown });
+            return null;
+          }
+        };
 
         // @spec LIVE-LEG-012, LIVE-LINK-009
         // The livery comes in its own request, so the first samples of a connection can arrive
@@ -131,7 +207,7 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
           liveryKnown = true;
           const out = held;
           held = [];
-          for (const s of out) h.onSample({ ...s, livery });
+          for (const s of out) pass({ ...s, livery });
         };
 
         // sendId → datum name, so a rejected variable can be named in the log.
@@ -182,17 +258,24 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
         let pending: Touchdown | null = null;
 
         hd.on("simObjectData", (d) => {
+          if (!live()) return;
           if (d.requestID === REQ_LIVERY) {
-            livery = d.data.readString128().trim();
+            const read = readRecord("livery", d.data, () => d.data.readString128().trim());
+            if (read == null) return;
+            livery = read;
             if (!liveryKnown) release();
             return;
           }
           if (d.requestID === REQ_FRAME) {
             const now = Date.now();
-            const ground = d.data.readInt32() !== 0;
-            const vs = d.data.readFloat64();
-            const g = d.data.readFloat64();
-            const ias = d.data.readFloat64();
+            const frame = readRecord("per-frame", d.data, () => ({
+              ground: d.data.readInt32() !== 0,
+              vs: d.data.readFloat64(),
+              g: d.data.readFloat64(),
+              ias: d.data.readFloat64(),
+            }));
+            if (!frame) return;
+            const { ground, vs, g, ias } = frame;
             if (capture) {
               capture.g = Math.max(capture.g, g);
               if (now >= capture.until) {
@@ -211,22 +294,26 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
             return;
           }
           if (d.requestID !== REQ_POSITION) return;
-          const lat = d.data.readFloat64();
-          const lon = d.data.readFloat64();
-          const alt_ft = d.data.readFloat64();
-          const on_ground = d.data.readInt32() !== 0;
-          const gs_kts = d.data.readFloat64();
-          const hdg_deg = d.data.readFloat64();
-          const vs_fpm = d.data.readFloat64();
-          const ias_kts = d.data.readFloat64();
-          const g = d.data.readFloat64();
-          const fuel_lb = d.data.readFloat64();
-          const weight_lb = d.data.readFloat64();
-          const tdNormalFps = d.data.readFloat64();
-          const tdPitch = d.data.readFloat64();
-          const tdBank = d.data.readFloat64();
-          const title = d.data.readString128().trim();
-          const atc_id = d.data.readString32().trim();
+          const rec = readRecord("position", d.data, () => ({
+            lat: d.data.readFloat64(),
+            lon: d.data.readFloat64(),
+            alt_ft: d.data.readFloat64(),
+            on_ground: d.data.readInt32() !== 0,
+            gs_kts: d.data.readFloat64(),
+            hdg_deg: d.data.readFloat64(),
+            vs_fpm: d.data.readFloat64(),
+            ias_kts: d.data.readFloat64(),
+            g: d.data.readFloat64(),
+            fuel_lb: d.data.readFloat64(),
+            weight_lb: d.data.readFloat64(),
+            tdNormalFps: d.data.readFloat64(),
+            tdPitch: d.data.readFloat64(),
+            tdBank: d.data.readFloat64(),
+            title: d.data.readString128().trim(),
+            atc_id: d.data.readString32().trim(),
+          }));
+          if (!rec) return;
+          const { lat, lon, alt_ft, on_ground, gs_kts, hdg_deg, vs_fpm, ias_kts, g, fuel_lb, weight_lb, tdNormalFps, tdPitch, tdBank, title, atc_id } = rec;
           if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(alt_ft)) return;
           const sample: Omit<SimSample, "livery"> = {
             t: Date.now(),
@@ -254,7 +341,7 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
             pending = null;
           }
           if (liveryKnown) {
-            h.onSample({ ...sample, livery });
+            pass({ ...sample, livery });
             return;
           }
           held.push(sample);
@@ -265,15 +352,18 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
         });
 
         hd.on("event", (e) => {
-          if (e.clientEventId === EV_PAUSE) h.onPause?.(e.data === 1);
-          else if (e.clientEventId === EV_SIM) h.onSimRunning?.(e.data === 1);
+          if (!live()) return;
+          if (e.clientEventId === EV_PAUSE) call("onPause", () => h.onPause?.(e.data === 1));
+          else if (e.clientEventId === EV_SIM) call("onSimRunning", () => h.onSimRunning?.(e.data === 1));
         });
         hd.on("eventFilename", (e) => {
-          if (e.clientEventId === EV_FLIGHT_LOADED) h.onFlightLoaded?.(e.fileName);
+          if (!live()) return;
+          if (e.clientEventId === EV_FLIGHT_LOADED) call("onFlightLoaded", () => h.onFlightLoaded?.(e.fileName));
         });
         hd.on("exception", (ex) => {
+          if (!live()) return;
           if (ex.sendId === liverySendId) {
-            h.onLiveryUnsupported?.();
+            call("onLiveryUnsupported", () => h.onLiveryUnsupported?.());
             if (!liveryKnown) release();
           } else {
             const datum = datumBySend.get(ex.sendId);
@@ -281,25 +371,32 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
           }
         });
 
-        const gone = (reason: string) => {
-          if (closed) return;
+        // @spec LIVE-LINK-007
+        // The connection ending, told apart by how: only SimConnect's quit event is MSFS closing
+        // normally. After `stop()` none of them is passed on: closing the handle is not the sim's doing.
+        const gone = (reason: string, quit: boolean) => {
+          if (!live()) return;
           closed = true;
           handle = null;
+          writeDropped = null;
+          writeCounts();
           try {
             hd.close();
           } catch {
             /* already closed */
           }
-          h.onDisconnect(reason);
+          call("onDisconnect", () => h.onDisconnect(reason, quit));
           schedule();
         };
-        hd.on("quit", () => gone("the simulator quit"));
-        hd.on("close", () => gone("the connection closed"));
-        hd.on("error", (e: unknown) => gone(`error: ${e instanceof Error ? e.message : String(e)}`));
+        // Listeners stay on after the end, so a late "error" from the old handle never goes unheard.
+        hd.on("quit", () => gone("the simulator quit", true));
+        hd.on("close", () => gone("the connection closed", false));
+        hd.on("error", (e: unknown) => gone(`error: ${e instanceof Error ? e.message : String(e)}`, false));
 
-        h.onConnect(recvOpen.applicationName);
+        call("onConnect", () => h.onConnect(recvOpen.applicationName));
       })
       .catch((e: unknown) => {
+        if (stopped) return;
         attempts++;
         const msg = e instanceof Error ? e.message : String(e);
         if (attempts === 1) log(`sim not reachable (${msg}); retrying every ${Math.round(retryMs / 1000)} s`);
@@ -310,15 +407,25 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
   connect();
 
   return {
+    // @spec LIVE-LINK-011
+    // Marked stopped before the handle closes, so the close it brings on, and anything else the old
+    // handle still sends (data, the per-frame watcher's, sim events), reaches no handler and no
+    // reconnect follows: the caller is left as it was before the stop, not told of a disconnect.
     stop() {
       stopped = true;
       if (timer) clearTimeout(timer);
+      timer = null;
+      const hd = handle;
+      handle = null;
+      // @spec LIVE-LINK-018
+      const counts = writeDropped;
+      writeDropped = null;
+      if (hd) counts?.();
       try {
-        handle?.close();
+        hd?.close();
       } catch {
         /* ignore */
       }
-      handle = null;
     },
     connected: () => handle !== null,
   };

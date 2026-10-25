@@ -30,6 +30,16 @@ segment places them and draws them on every world copy in view like its own laye
 popup opened from a dot is airports'. Hops, their order and where an aircraft is parked
 come from logbook; aircraft color, icon and visibility from fleet.
 
+**Where the map runs.** The map is part of the page, so it behaves the same wherever the page is
+shown: in the installed app's window or a test-mode copy's, in a browser tab on the installed app or
+on a copy run from source, and in the browser tests (HLD tenet The page stays a web page). Its
+drawing, the night shading's minute refresh and the hazards' 10-minute refresh run only while a page
+shows the map. The installed app's window discards its page when it is closed, so a window opened
+again, like any page loaded or reloaded, fits the view afresh (MAP-ZOOM-001) and, with a hazard
+toggle on, fetches hazards again. The hazard set the server serves lives as long as the server,
+which in the installed app runs for days behind the tray icon, so the server bounds the age of a set
+it serves after its sources fail (MAP-HAZ-004).
+
 ## Map Geometry
 
 All positions a layer draws come from one pass over the state
@@ -153,17 +163,23 @@ marker is drawn on top ([MapView.tsx:30](../../../src/client/components/MapView.
 
 | Trigger | Zooms to |
 |---|---|
-| First load of the map state | Every path |
+| The page's first load of the map state | Every path |
 | **Fit all** | Every path |
 | Highlighting an aircraft | That aircraft's paths |
-| Opening a hop (path click, hop row) | That hop |
+| Opening a hop in the flight panel, from anywhere the page opens one (path click, hop row, a hop named in the page's address) | That hop |
 | A new planner result | The plan's ring |
 | Focusing a planner candidate | The candidate |
+
+Of the page's loads of the map state, only the first fits the view to every path. Later loads —
+after any change the page makes or hears of (a hop logged, edited or deleted, an aircraft changed)
+and when its event stream reconnects (live-tracking) — leave the view where the pilot left it.
 
 A request whose points collapse to one place flies there at zoom 9 or closer; otherwise the map
 flies to the points' bounds with 60 px padding, no closer than zoom 11, over 0.6 s. A request that
 names its zoom — the live card's **Zoom** (zoom 10) and `?view=` — goes to that point at that zoom.
-An empty request is ignored. Repeating the same request still zooms.
+An empty request is ignored. Repeating the same request still zooms. A request replaces any zoom
+still under way (MAP-ZOOM-008), so a `?view=` option or a hop named in the page's address ends where
+it asks, though it comes while the first load's fit may still be flying.
 
 Every request lands on the world copy nearest the view. Its points are first gathered onto the
 narrowest band of longitude that holds them all — across the 180° meridian when that is narrower —
@@ -176,23 +192,46 @@ the same as one close by.
 Panels float over the map (app-shell), so every request lands in the part of the map they leave
 clear: the point, or the bounds with their 60 px padding, are centred in that part rather than in
 the window. The page supplies the clear part with each request; when it is smaller than 240 × 160
-px, the request uses the whole window. While the browser asks for reduced motion, the map jumps to
-the request's view instead of flying.
+px, the request uses the whole window. While the page is asked for reduced motion
+(`prefers-reduced-motion`, which follows Windows' Animation effects setting in the installed app's
+window as in a browser), the map jumps to the request's view instead of flying.
 
 ## Basemaps and View Preferences
 
 - **Basemaps** ([MapView.tsx:44-63](../../../src/client/components/MapView.tsx#L44-L63)): Dark
   (Esri dark gray with a label overlay), Light (OpenStreetMap), Satellite (Esri imagery), all
-  keyless. Every basemap zooms to 19, over-zooming tiles past their native maximum.
+  keyless. Every basemap zooms to 19, over-zooming tiles past their native maximum. The page loads
+  tiles straight from their hosts, in the installed app's window as in a browser tab (HLD System
+  Design). Whether each provider's terms allow its tiles in an app distributed to anyone who
+  installs it is open (Open Questions).
+- **Attribution.** The map credits the shown basemap's providers at its bottom right, which the
+  page keeps above the flight panel (app-shell): Esri's sources for Dark and Satellite,
+  "© OpenStreetMap contributors" linked to OpenStreetMap's copyright page for Light, after Leaflet's
+  own link. Every link there opens in a new tab, like the page's other outside links; from the
+  installed app's window, outside links open in the pilot's default browser (HLD System Design).
 - **Initial view** centres on the continental US at zoom 4 until the first fit; minimum zoom 2;
   panning carries on across the antimeridian onto the next world copy, without limit.
-- **Remembered in the browser**: basemap (default Dark), night shading (default on) and the hazard
-  toggles (default off) ([App.tsx:29-89](../../../src/client/App.tsx#L29-L89),
-  [prefs.ts:3-18](../../../src/client/prefs.ts#L3-L18)).
-- **URL options**, applied once after the first load ([App.tsx:292-301](../../../src/client/App.tsx#L292-L301)):
-  `?view=lat,lon,zoom` sets the view; `?wx=1` turns on every hazard toggle and `?wx=A,B` the listed
-  ones; `?night=1` (or anything else) sets night shading on (off). URL options do not change the
-  remembered preferences.
+- **Remembered choices**: basemap (default Dark), night shading (default on) and the hazard toggles
+  (default off), kept in the page's local storage; storage that is empty or cannot be read gives the
+  defaults ([App.tsx:29-89](../../../src/client/App.tsx#L29-L89),
+  [prefs.ts:3-18](../../../src/client/prefs.ts#L3-L18)). Local storage belongs to an origin —
+  scheme, host and port — in one browser, so each place the page is shown remembers its own:
+  - the installed app's window, on `http://127.0.0.1:3380`, a fixed port of the installed app's
+    own (HLD System Design), so the choices last from one start and one update to the next. The
+    window keeps them in Electron's own folder (desktop); losing them only brings back the defaults;
+  - the window of a test-mode copy of the installed app (`--test-data=<folder>`), on port 3280,
+    keeping its choices in `<folder>\desktop`, apart from the installed window's;
+  - a tab in the pilot's browser, apart from the window even on the same address, since each
+    browser keeps its own storage, and apart again for `localhost` and `127.0.0.1`, which are
+    different hosts;
+  - a copy run from source, on its development ports (`:5173` through Vite, `:3080` from
+    `npm start`);
+  - the browser tests, which start every test with empty storage.
+- **URL options** — a development and testing aid, typed into a browser tab's address; the installed
+  app's window has no address bar and never loads them. They are applied once after the first load
+  ([App.tsx:292-301](../../../src/client/App.tsx#L292-L301)): `?view=lat,lon,zoom` sets the view;
+  `?wx=1` turns on every hazard toggle and `?wx=A,B` the listed ones; `?night=1` (or anything else)
+  sets night shading on (off). URL options do not change the remembered choices.
 - The map fills the window and resizes with it; panels opening or closing over it never move it.
 
 **Map toolbar** ([MapToolbar.tsx](../../../src/client/components/MapToolbar.tsx)), at the top right:
@@ -230,9 +269,16 @@ parallel and normalised to one polygon shape with kind, label, severity, base an
 validity, forecast hour (G-AIRMET), FIR and raw text. Labels map to seven kinds — icing,
 turbulence, IFR, mountain obscuration, convective, volcanic ash, tropical cyclone — and anything
 else is dropped, as are G-AIRMETs that are not areas, SIGMET outlooks, and polygons with fewer than
-three points. G-AIRMET altitudes are hundreds of feet ("SFC" = 0). `GET /api/hazards` serves the
-set cached for 10 minutes; a source that fails is listed in the set's errors while the others are
-served; when all three fail, the previous set is served if there is one.
+three points. G-AIRMET altitudes are hundreds of feet ("SFC" = 0). The requests carry the server's
+own User-Agent (app-shell). `GET /api/hazards` serves the set cached for 10 minutes; a source that
+fails is listed in the set's errors while the others are served.
+
+When all three sources fail, the server serves the earlier set — the last one it fetched with at
+least one source answering — as it was fetched, with its areas, its fetch time and the sources that
+had failed then, flagged as earlier (`earlier: true`), but only while that set was fetched less than
+3 hours before the request it answers; otherwise it serves no areas, with all three sources listed as
+failed. An earlier set therefore never lists all three sources as failed. Nothing served after such
+a failure is cached, so the next request asks the sources again.
 
 **Display** ([HazardLayer.tsx](../../../src/client/components/HazardLayer.tsx)):
 
@@ -248,8 +294,16 @@ served; when all three fail, the previous set is served if there is one.
 - Tooltip: kind and severity in the kind's color; label and FIR; "base – top" ("SFC" / "above" for
   open ends) or "altitudes not given"; validity, with "G-AIRMET +Nh" for forecast snapshots; the
   raw text up to 220 characters.
-- The toolbar shows "N areas" for what is drawn — each area once, however many world copies show
-  it — or "hazards unavailable" when the fetch failed, with the fetch time on hover.
+- The toolbar shows what is drawn:
+  - "N areas" — each area once, however many world copies show it — with the set's fetch time on
+    hover;
+  - beside the count, which sources are unavailable when the set lists one or two as failed;
+  - "N areas · as of 14:20" while the set is an earlier one the server served after every source
+    failed, the time being when that set was fetched, in the PC's local time as the page shows its
+    other times ([format.ts](../../../src/client/format.ts)), beside any note of the sources that
+    set lists as failed;
+  - "hazards unavailable" when the page's own request for the set failed, or when the set lists all
+    three sources as failed.
 
 ## Decisions & Alternatives
 
@@ -266,15 +320,50 @@ served; when all three fail, the previous set is served if there is one.
 | Airport dots | One per airport, drawn on every world copy in view, colored by the sole visitor or white | One per airport per world copy a chain reaches | Every copy shows every path, so one dot per airport meets them all; a dot per copy reached would stack copies of the same dot, each with part of the airport's visits. |
 | Several aircraft parked together | Fan out around the dot | Stack | Every parked aircraft stays visible and clickable. |
 | Highlight | Fade every other aircraft rather than hide it | Hide others; no highlight | [inferred] Keeps the whole fleet in context while one tour stands out. |
-| Basemaps | Esri and OpenStreetMap tiles, no API keys | Keyed providers (Mapbox etc.) | [inferred] Nothing to sign up for or configure in a local hobby tool. |
+| Basemaps | Esri and OpenStreetMap tiles, no API keys | Keyed providers (Mapbox etc.) | Nothing to sign up for or configure (HLD tenet Keyless and local). Whether each provider's terms allow its tiles in a distributed app is open (Open Questions). |
+| Attribution links | Opened in a new tab, like the page's other outside links | Leaflet's default, a link that navigates the page itself | Navigating away throws the page away — open panels, a half-typed form — in a browser tab. In the installed app's window outside links open in the pilot's default browser either way (HLD System Design), so the new tab costs nothing there. |
 | Night shading | Two overlapping layers at 0° and −6° sun elevation, every world copy in view, minute refresh | One terminator line; no shading | [inferred] Shows dusk and full night apart, which matters for VFR planning, without visual noise. |
 | Hazard sources | aviationweather.gov G-AIRMET and SIGMETs, cached 10 minutes | A commercial weather API; none | [inferred] Free and keyless; the same areas SimBrief briefs. |
+| Hazards when every source fails | The earlier set while it is under 3 hours old, its fetch time shown in the toolbar; after that no areas and "hazards unavailable" | Any earlier set, however old; no areas at once; a 1-hour bound; the earlier set listing the sources failing now | The installed app's server runs for days behind the tray icon, so after a night offline or a long outage of aviationweather.gov an unbounded earlier set would be drawn as current weather. Blanking the overlay at once would lose it to every brief outage. G-AIRMET snapshots are 3 hours apart and most SIGMETs run for up to 4 hours, so a set under 3 hours old still describes the weather roughly; with its time in the toolbar, it is worth more than the empty overlay a 1-hour bound would show for most outages. The set is served as it was fetched, its failed sources included, so its time and any partial outage describe the same moment; listing the sources failing now would name all three and read as "hazards unavailable" over areas still drawn. |
 | Hazard toggles | Four groups instead of seven kinds | A toggle per kind | [inferred] Mountain obscuration, ash and cyclones are rare and belong with IFR and storms respectively. |
-| View preferences | Basemap, night and hazard toggles remembered in the browser; URL options apply to one load | Server-side settings | [inferred] Per-browser display choices; URLs for bookmarks and testing. |
+| View preferences | Basemap, night and hazard toggles remembered in the page's local storage, per origin; URL options apply to one load, as a development and testing aid | Server-side settings; a bridge from the page to settings kept by the desktop shell | Display choices belong to whoever is looking, not to the career: kept with the server they would travel with the logbook's backups and with a logbook brought in elsewhere. Local storage is what a web page has, so the choices work alike in the installed app's window and a browser tab with no bridge (HLD tenet The page stays a web page); the installed app's fixed port keeps its window's origin, and so its choices, from one start to the next. URL options let the browser tests and a developer set the view without touching the remembered choices. |
+| When the view is fitted to every path | At the page's first load of the map state only | Again at every load of the map state | The map state loads again after any change the page makes or hears of (a hop logged, edited or deleted, an aircraft changed) and whenever the event stream reconnects; refitting then would throw away the part of the map the pilot was looking at. A page opened afresh — the installed app's window opened again included — fits every path. |
 | Layer controls | One Layers menu; its button marks what is on | A row of toggle buttons along the top of the map | Layers are set once a session and left alone; a row of eight toggles crowded the top of the map for choices rarely changed. The marks on the button keep what is on visible without opening it. |
 | Zooms under floating panels | Centre each request in the part the panels leave clear | Centre in the window; shrink the map to the uncovered part | Centring in the window would put a fitted hop under the sidebar or the flight panel; the map keeps its full size so the glass panels have it behind them. |
 
 ## Open Questions & Future Decisions
+
+### Open
+
+1. **Basemap tiles in a distributed app.** The app is published on GitHub Releases for anyone to
+   install, and every installed copy loads its basemap tiles straight from their hosts, keyless.
+   Whether each provider's terms allow that is unsettled:
+   - **OpenStreetMap** (Light, `tile.openstreetmap.org`): its tile usage policy names distributing
+     an app that uses those tiles as heavy use that needs its Operations Working Group's permission.
+     The app meets the policy's other asks: the credit on the map (MAP-VIEW-008) and, from the
+     installed app's window, a valid referrer and a User-Agent naming the app and the project's
+     address (desktop shell).
+   - **Esri** (Dark and Satellite, ArcGIS Online's tile services): whether Esri's terms allow
+     these services, used without an account or key, in a distributed app has not been checked; the
+     same question decides Esri's Light Gray Canvas below.
+
+   The choices for Light: (A) keep OpenStreetMap's tiles, accepting the policy's risk for a hobby
+   app with a handful of pilots; (B) serve Light from a keyless light layer whose terms allow use in
+   a distributed app — Esri's Light Gray Canvas, the twin of the Dark basemap, is the candidate;
+   (C) ask the Operations Working Group. B is the suggestion, if Esri's terms allow it. If they do
+   not, Dark and Satellite need another keyless source as well, and B falls with them. It matters
+   from the first public release, when every installed copy starts loading these tiles.
+
+### Known gaps
+
+Shortfalls of the code against the design above, each an active gap in the specs. The other gaps
+(MAP-VIEW-008, MAP-HAZ-004, MAP-HAZ-011, MAP-HAZ-012) are behaviour the sections above describe.
+
+1. **Zoom to a long great circle** uses only its endpoints, so a poleward arc can be clipped
+   (MAP-GEO-012; [paths.ts:297](../../../src/client/paths.ts#L297)).
+2. **Partial hazard outages are not shown** — the toolbar says "N areas" even when the set lists one
+   or two of the three sources as failed (MAP-HAZ-009;
+   [MapToolbar.tsx:60-64](../../../src/client/components/MapToolbar.tsx#L60-L64)).
 
 ### Resolved
 
@@ -284,22 +373,25 @@ served; when all three fail, the previous set is served if there is one.
 
 1. **Cost of copies zoomed out** — at the minimum zoom, with its margin, a 2560 px window touches up
    to five world copies and a 3840 px one up to seven, and every layer, several thousand planner
-   candidates included, is drawn on each.
-2. **Zoom to a long great circle** uses only its endpoints, so a poleward arc can be clipped
-   ([paths.ts:297](../../../src/client/paths.ts#L297)).
-3. **Partial hazard outages are not shown** — the toolbar says "N areas" even when one or two of the
-   three sources failed; only a failed fetch shows "hazards unavailable"
-   ([MapToolbar.tsx:60-64](../../../src/client/components/MapToolbar.tsx#L60-L64)).
-4. **Which clock tooltips show** — hop and airport tooltips show real-world times; how sim-clock
+   candidates included, is drawn on each. The desktop design's open question on the app's memory
+   with the map page loaded will measure part of this.
+2. **Which clock tooltips show** — hop and airport tooltips show real-world times; how sim-clock
    times appear is the logbook's open question.
-5. **Fan-out repeats** after six aircraft at one airport ([paths.ts:199](../../../src/client/paths.ts#L199)).
-6. **Chevron position** is the middle sample of the path, not its middle distance, so on a tracked
+3. **Fan-out repeats** after six aircraft at one airport ([paths.ts:199](../../../src/client/paths.ts#L199)).
+4. **Chevron position** is the middle sample of the path, not its middle distance, so on a tracked
    hop it sits wherever half the samples fall ([MapView.tsx:298](../../../src/client/components/MapView.tsx#L298)).
-7. **Shapes around a pole** — a hazard area that encircles a pole is placed vertex to vertex like
+5. **Shapes around a pole** — a hazard area that encircles a pole is placed vertex to vertex like
    any other, so its closing edge runs the width of the map; the range ring is Leaflet's circle,
    which near a pole departs from the true range.
-8. **Dusk uses 0° sun elevation**, not the −0.833° of published sunset, so shading starts a few
+6. **Dusk uses 0° sun elevation**, not the −0.833° of published sunset, so shading starts a few
    minutes late ([NightLayer.tsx:17](../../../src/client/components/NightLayer.tsx#L17)).
+7. **Hazards past their time** — an earlier set the server serves (under 3 hours old) may hold
+   SIGMETs whose validity has ended, and they stay drawn, with the set's time in the toolbar; each
+   area carries its validity, so hiding those past it would be a small change in the layer. When
+   the page's own request for hazards fails, it keeps drawing the set it last received, whatever its
+   age, while the toolbar says "hazards unavailable"; that happens only while the page's requests to
+   its server fail (the server unreachable, still starting, or answering with an error)
+   ([HazardLayer.tsx:56-73](../../../src/client/components/HazardLayer.tsx#L56-L73)).
 
 ## References
 
@@ -317,7 +409,11 @@ served; when all three fail, the previous set is served if there is one.
   [src/client/App.tsx](../../../src/client/App.tsx) (selection, focus (`requestFocus`), basemap and
   overlay preferences, URL view options), [src/server/routes.ts](../../../src/server/routes.ts)
   (`/state` 826-840, `/hazards` 800)
-- External: Esri ArcGIS Online and OpenStreetMap tiles; aviationweather.gov G-AIRMET / AIRMET-SIGMET
-  / ISIGMET APIs
+- External: Esri ArcGIS Online and OpenStreetMap tiles (OpenStreetMap's tile usage policy, Esri's
+  terms of use);
+  aviationweather.gov G-AIRMET / AIRMET-SIGMET / ISIGMET APIs
+- Context: [Desktop](../desktop/desktop-design.md) — details behind the HLD's System Design: the
+  installed app's fixed port (3380), test mode's port (3280) and Electron's own folder, where the
+  window's page keeps its local storage
 - Hosted layers: planner (ring, candidates, candidate popup), live-tracking (`LiveLayer`), simbrief
   (`BriefingLayer`)
