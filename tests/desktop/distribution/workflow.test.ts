@@ -120,6 +120,13 @@ describe("its steps", () => {
   });
 
   // @spec DESK-DIST-REL-002
+  it("keep the tests' temp files on the runner's own temp folder, set before anything is installed", () => {
+    const temp = stepWith('echo "TEMP=$RUNNER_TEMP"');
+    expect(steps[temp].run).toContain('echo "TMP=$RUNNER_TEMP" >> "$GITHUB_ENV"');
+    expect(temp).toBeLessThan(stepWith("npm ci"));
+  });
+
+  // @spec DESK-DIST-REL-002
   it("install the browser for the Playwright tests before they run", () => {
     expect(stepWith("playwright install")).toBeLessThan(stepWith("npm run test:e2e"));
   });
