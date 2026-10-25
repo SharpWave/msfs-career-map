@@ -1171,10 +1171,13 @@ What the desktop parts share from other segments is in
 
 ### Open
 
-1. **Notifications** — clicks with no window open and from the notification centre have not yet been
-   seen working on Electron 45, nor which registry keys Electron 45 writes for them, nor which switch
-   its notification activation adds to the command line of a start it makes (Notifications, One Running
-   Copy).
+1. **Notifications** — Electron 45 takes every click through `Notification.handleActivation`, a start
+   by one included, carrying the toast's launch string, and writes the ToastActivatorCLSID's
+   `LocalServer32` registration under `HKCU\Software\Classes\CLSID` itself. Still to be seen on the
+   installed app: clicks from the notification centre and ones that start the app, which switch such a
+   start carries (the command line ignores it either way, so it starts as a start with no switch), any
+   AppUserModelId key Electron writes, whether Electron makes a Start-menu shortcut of its own, and a
+   closed toast leaving the notification centre (Notifications, One Running Copy).
 2. **Session end on the hidden window**, and how long Windows waits for the clean shutdown, have not yet
    been seen on Electron 45. Should Windows end the processes first, no server is left behind: a main
    process ended outright, by `taskkill /F` or `process.kill`, takes its server's utility process with

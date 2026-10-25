@@ -23,6 +23,10 @@ function setup() {
   const statuses: TrayTracker[] = [];
   const order: string[] = [];
   const lines: string[] = [];
+  /** onSubscribed's pending legs, one entry per call (m5a contract §5). */
+  const subscribed: unknown[][] = [];
+  /** onEvent's calls, as [name, data]. */
+  const events: [string, unknown][] = [];
   const state = { running: true, activity: 0 };
   const feed = new TrackerFeed({
     port: PORT,
@@ -37,10 +41,12 @@ function setup() {
       state.activity++;
       order.push("activity");
     },
+    onSubscribed: (s: { pending: unknown[] }) => subscribed.push(s.pending),
+    onEvent: (name: string, data: unknown) => events.push([name, data]),
     log: (line: string) => lines.push(line),
   });
   const reads = () => http.calls.filter((c) => c.path === TRACKER).length;
-  return { clock, http, feed, statuses, order, lines, state, reads };
+  return { clock, http, feed, statuses, order, lines, state, reads, subscribed, events };
 }
 
 /** A reply the test releases later. */
@@ -486,5 +492,137 @@ describe("toTrayTracker", () => {
     expect(s!.pending.map((p: { id: string }) => p.id)).toEqual(["keep"]);
     expect(s!.casual).toBeNull();
     expect(toTrayTracker({ leg: "KBOS", connected: 1 })).toMatchObject({ leg: null, connected: false });
+  });
+});
+
+/** A pending leg as the status lists it (LIVE-API-014), with `o` over it. */
+function pendingLeg(id: string, o: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id,
+    sim: { title: "Cessna 172 Skyhawk G1000", livery: "Asobo Blue", atc_id: "N172SP" },
+    origin: "KBOS",
+    dest: "KPVD",
+    reason: "No aircraft in the fleet matches this sim aircraft",
+    points: 540,
+    ...o,
+  };
+}
+const AS_NOTICE = { id: "a", sim: { title: "Cessna 172 Skyhawk G1000", livery: "Asobo Blue" }, reason: "No aircraft in the fleet matches this sim aircraft" };
+
+describe("what the notifications follow (m5a)", () => {
+  // @spec DESK-SHELL-NOTE-007, DESK-SHELL-NOTE-008
+  it("hands each successful read's pending legs to onSubscribed, before the stream opens, at every subscription", async () => {
+    const t = setup();
+    t.http.on(PORT, TRACKER, trackerAnswer({ pending: [pendingLeg("a")] }));
+    t.feed.subscribe();
+    await flush();
+    expect(t.subscribed).toEqual([[AS_NOTICE]]);
+    expect(t.http.streams).toHaveLength(1);
+
+    t.http.on(PORT, TRACKER, trackerAnswer({ pending: [pendingLeg("a"), pendingLeg("b", { sim: null, reason: "Disconnected in flight" })] }));
+    t.http.streams[0].end();
+    await t.clock.advance(2_000);
+    expect(t.subscribed).toEqual([
+      [AS_NOTICE],
+      [AS_NOTICE, { id: "b", sim: null, reason: "Disconnected in flight" }],
+    ]);
+  });
+
+  // @spec DESK-SHELL-NOTE-008
+  it("calls onSubscribed for no read that failed: no answer, an answer other than 200, or none in 10 s", async () => {
+    const t = setup();
+    t.http.on(PORT, TRACKER, { status: 503, body: "" });
+    t.feed.subscribe();
+    await flush();
+    t.http.on(PORT, TRACKER, () => never());
+    await t.clock.advance(2_000);
+    await t.clock.advance(10_000);
+    expect(t.subscribed).toEqual([]);
+  });
+
+  // @spec DESK-SHELL-NOTE-001, DESK-SHELL-NOTE-007
+  it("reads each listed leg's id, sim aircraft and reason, defaulting each, and passes over a leg with no id", async () => {
+    const t = setup();
+    t.http.on(
+      PORT,
+      TRACKER,
+      trackerAnswer({
+        pending: [
+          pendingLeg("a"),
+          pendingLeg("b", { sim: { title: 5, livery: null } }),
+          pendingLeg("c", { reason: 7 }),
+          { reason: "no id" },
+          pendingLeg("d", { sim: "Cessna" }),
+          "x",
+        ],
+      }),
+    );
+    t.feed.subscribe();
+    await flush();
+    expect(t.subscribed).toEqual([
+      [
+        AS_NOTICE,
+        { id: "b", sim: { title: "", livery: "" }, reason: "No aircraft in the fleet matches this sim aircraft" },
+        { id: "c", sim: { title: "Cessna 172 Skyhawk G1000", livery: "Asobo Blue" }, reason: "" },
+        { id: "d", sim: null, reason: "No aircraft in the fleet matches this sim aircraft" },
+      ],
+    ]);
+  });
+
+  // @spec DESK-SHELL-NOTE-001, DESK-SHELL-NOTE-002
+  it("passes `pending` and `hop` events on as they come, and nothing for other events", async () => {
+    const t = setup();
+    t.http.on(PORT, TRACKER, trackerAnswer());
+    t.feed.subscribe();
+    await flush();
+    const stream = t.http.streams[0];
+    stream.chunk(
+      sseEvent("track", { points: [] }) +
+        sseEvent("pending", pendingLeg("a")) +
+        sseEvent("hop", { hop: { id: 12, origin: "KBOS", dest: "KPVD" }, message: "Logged KBOS → KPVD, 45 min, 180 fpm butter" }) +
+        sseEvent("status", trackerStatus({ phase: "ground" })),
+    );
+    await flush();
+    expect(t.events).toEqual([
+      ["pending", AS_NOTICE],
+      ["hop", { id: 12, message: "Logged KBOS → KPVD, 45 min, 180 fpm butter" }],
+    ]);
+  });
+
+  // @spec DESK-SHELL-NOTE-002
+  it("drops a malformed `pending` or `hop` event", async () => {
+    const t = setup();
+    t.http.on(PORT, TRACKER, trackerAnswer());
+    t.feed.subscribe();
+    await flush();
+    const stream = t.http.streams[0];
+    stream.chunk(
+      sseEvent("pending", { reason: "no id" }) +
+        sseEvent("pending", "a") +
+        sseEvent("hop", { id: 7 }) +
+        sseEvent("hop", { hop: { id: "12" }, message: "x" }) +
+        sseEvent("hop", { hop: { id: 12 } }) +
+        sseEvent("hop", { message: "no hop" }) +
+        "event: hop\ndata: {not json\n\n",
+    );
+    await flush();
+    expect(t.events).toEqual([]);
+    // The stream goes on after them.
+    stream.chunk(sseEvent("hop", { hop: { id: 13 }, message: "Logged KPVD → KBOS" }));
+    await flush();
+    expect(t.events).toEqual([["hop", { id: 13, message: "Logged KPVD → KBOS" }]]);
+  });
+
+  // @spec DESK-SHELL-NOTE-009
+  it("passes on no event from a stream it has closed", async () => {
+    const t = setup();
+    t.http.on(PORT, TRACKER, trackerAnswer());
+    t.feed.subscribe();
+    await flush();
+    const stream = t.http.streams[0];
+    t.feed.stop();
+    stream.chunk(sseEvent("hop", { hop: { id: 12 }, message: "Logged KBOS → KPVD" }));
+    await flush();
+    expect(t.events).toEqual([]);
   });
 });

@@ -3,7 +3,7 @@ import { EARLIER_PROGRAMS, type Programs } from "./exe-xml.ts";
 import { installedProgramPath } from "./installed.ts";
 import { LogFile } from "./logs.ts";
 import { editionFolders, unregisterMsfs } from "./msfs-start.ts";
-import type { Clock, EditorFs, StartupKeys } from "./ports.ts";
+import type { Clock, EditorFs, Registrations, StartupKeys } from "./ports.ts";
 import { SettingsStore } from "./settings.ts";
 import type { RunPlan } from "./start.ts";
 import { BACKUPS_FOLDER } from "./start-list-backups.ts";
@@ -13,7 +13,9 @@ import { turnWindowsOff } from "./windows-start.ts";
  * `--unregister`, the uninstaller's clean-up of the start lists: every entry of the app's out of every
  * `EXE.xml` present and the app's value out of Windows' start-up keys, both at once, each outcome in
  * desktop.log and never a box, bounded by 15 s. Its exit code says which list still holds the app's
- * entry or could not be checked: 1 an EXE.xml, 2 the keys, 3 both. In test mode it reaches neither list.
+ * entry or could not be checked: 1 an EXE.xml, 2 the keys, 3 both. Beside them it removes the notification
+ * registrations and clears the app's notifications, an outcome that only goes to desktop.log. In test mode
+ * it reaches neither list nor any registration.
  */
 
 export const UNREGISTER_LIMIT_MS = 15_000;
@@ -28,13 +30,14 @@ export interface UnregisterPorts {
   clock: Clock;
   fs: EditorFs;
   keys: StartupKeys;
+  registrations: Registrations;
   programs?: Programs;
 }
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** The exit code. Test mode: one line to <folder>\desktop\logs\desktop.log, nothing else, 0. */
-// @spec DESK-START-UNREG-001, DESK-START-UNREG-002, DESK-START-UNREG-003, DESK-START-UNREG-004, DESK-START-UNREG-005, DESK-START-UNREG-006, DESK-START-UNREG-007, DESK-START-UNREG-008, DESK-START-TEST-002, DESK-SHELL-CLI-009
+// @spec DESK-START-UNREG-001, DESK-START-UNREG-002, DESK-START-UNREG-003, DESK-START-UNREG-004, DESK-START-UNREG-005, DESK-START-UNREG-006, DESK-START-UNREG-007, DESK-START-UNREG-008, DESK-START-TEST-002, DESK-SHELL-CLI-009, DESK-SHELL-NOTE-016, DESK-SHELL-NOTE-017
 export async function runUnregister(o: UnregisterPorts): Promise<0 | 1 | 2 | 3> {
   const { plan, clock } = o;
   const desktopLog = new LogFile({ folder: path.win32.join(plan.electronFolder, "logs"), name: "desktop", clock });
@@ -75,6 +78,20 @@ export async function runUnregister(o: UnregisterPorts): Promise<0 | 1 | 2 | 3> 
     },
   );
 
+  // The registrations' outcome is logged and never counted in the exit code.
+  let registrationsDone = false;
+  const notifications = o.registrations
+    .remove()
+    .catch((e: unknown) => [message(e)])
+    .then((problems) => {
+      log(
+        problems.length === 0
+          ? "[unregister] notification registrations removed"
+          : `[unregister] notification registrations could not be removed: ${problems.join("; ")}`,
+      );
+      registrationsDone = true;
+    });
+
   return new Promise((resolve) => {
     const done: { exeXml: number | null; keys: number | null } = { exeXml: null, keys: null };
     let settled = false;
@@ -91,8 +108,9 @@ export async function runUnregister(o: UnregisterPorts): Promise<0 | 1 | 2 | 3> 
       finish((done.exeXml ?? EXE_XML) | (done.keys ?? KEYS));
     });
     const check = () => {
-      if (done.exeXml !== null && done.keys !== null) finish(done.exeXml | done.keys);
+      if (done.exeXml !== null && done.keys !== null && registrationsDone) finish(done.exeXml | done.keys);
     };
+    void notifications.then(check);
     void exeXml.then((bit) => {
       done.exeXml = bit;
       check();

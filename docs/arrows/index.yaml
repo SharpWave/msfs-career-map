@@ -124,7 +124,7 @@ arrows:
     blocks: [start-lists, distribution]
     blockedBy: [live-tracking, airports, simbrief]
     detail: desktop/shell.md
-    next: "155 of 226 DESK-SHELL specs implemented (70 gaps, 1 deferred): the shell runs packaged with its start-list tray items (QUIT-012, SET-006), without notifications or updates. Next: notifications and updates test-first (NOTE-*, UPD-*, BAK-005, SRV-039, WIN-001, the rest of QUIT, TRAY-015's update items and CLI-009's notification clean-up)"
+    next: "176 of 226 DESK-SHELL specs implemented (49 gaps, 1 deferred): notifications built (5a), NOTE-014 and NOTE-015 to be seen on the installed app. Next: updates test-first (milestone 5b: UPD-*, NOTE-003's call, the rest of QUIT and TRAY, CLI-022's quiet-moment part, BAK-005, SRV-039)"
     drift: "Tour-map's open basemap question (its LLD Open Questions 1) may change what the window loads (DESK-SHELL-WIN-011, DESK-SHELL-WIN-012)"
 
   start-lists:

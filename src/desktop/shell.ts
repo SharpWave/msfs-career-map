@@ -13,7 +13,10 @@ import type {
   LocalHttp,
   MessageBoxes,
   MessageBoxOptions,
+  NoticeTarget,
+  NotificationsPort,
   Opener,
+  Registrations,
   ServerLauncher,
   StartupKeys,
   TrayPort,
@@ -22,9 +25,11 @@ import type {
 } from "./ports.ts";
 import { backupsFolderFor, serverArgs, serverEnv } from "./server-inputs.ts";
 import { SettingsStore, type DesktopSettings, type SavedWindow } from "./settings.ts";
-import { MsfsWatch } from "./sim-in-use.ts";
+import { Notifier } from "./notifications.ts";
+import { MsfsWatch, simInUse } from "./sim-in-use.ts";
 import type { RunPlan } from "./start.ts";
 import { StartLists } from "./start-lists.ts";
+import { fragmentOf } from "./toast.ts";
 import { Supervisor } from "./supervisor.ts";
 import { TIMING } from "./timing.ts";
 import { TrackerFeed } from "./tracker-feed.ts";
@@ -32,8 +37,8 @@ import { trayModel, type TrayItemId, type TrayModel } from "./tray-model.ts";
 
 /**
  * The running copy's shell: its logs and settings, the server it supervises, the tracker it follows
- * for the tray, the daily backup, the window and the tray with its start-list items, the starts
- * handed over to it, and the ways it quits. Everything outside its own logic goes through the ports `main.ts` builds.
+ * for the tray, the daily backup, the window and the tray with its start-list items, the notifications
+ * and their clicks, the starts handed over to it, and the ways it quits. Everything outside its own logic goes through the ports `main.ts` builds.
  */
 
 export type QuitKind = "quit" | "quit-switch" | "session-end";
@@ -51,6 +56,9 @@ export interface ShellPorts {
   /** The start lists' file calls and Windows' start-up keys (outside test mode only). */
   fs: EditorFs;
   keys: StartupKeys;
+  /** The notifications shown and their clicks; the registrations that route clicks (outside test mode only). */
+  notifications: NotificationsPort;
+  registrations: Registrations;
   /** The app exits with code; relaunch: the switches to start it again with once it has exited, or null. */
   exit(code: number, relaunch: string[] | null): void;
 }
@@ -85,12 +93,17 @@ export class Shell {
   private readonly backups: BackupRequests;
   private readonly daily: DailyBackups;
   private readonly msfs: MsfsWatch;
+  private readonly notifier: Notifier;
   /** The tray's start-list items; null in test mode, which reaches neither start list. */
   private readonly startLists: StartLists | null;
   private page: PageWindow | null = null;
   private started = false;
   /** Starts handed over before start(), acted on there in order. */
   private readonly early: CommandLine[] = [];
+  /** Notification clicks before start(), acted on there in order. */
+  private readonly earlyClicks: NoticeTarget[] = [];
+  /** The server was given up on at the last state seen: a giving up notified once. */
+  private givenUp = false;
   /** Starts handed over during Quit, for the last look. */
   private kept: KeptStart[] = [];
   private quitKind: QuitKind | null = null;
@@ -136,13 +149,39 @@ export class Shell {
       clock,
       http: ports.http,
       serverRunning: () => this.supervisor.hasProcess(),
-      onStatus: () => this.showTray(),
+      onStatus: (s) => {
+        this.notifier.pendingListed(s.pending.map((p) => p.id));
+        this.showTray();
+        this.notifier.recheck();
+      },
       onActivity: () => this.supervisor.activity(),
+      onSubscribed: (s) => this.notifier.subscribed(s.pending),
+      onEvent: (name: "pending" | "hop", data: unknown) => {
+        if (name === "pending") this.notifier.pendingEvent(data as Parameters<Notifier["pendingEvent"]>[0]);
+        else this.notifier.hopEvent(data as { id: number; message: string });
+      },
       log,
     });
     this.backups = new BackupRequests({ clock, supervisor: this.supervisor, log });
-    this.daily = new DailyBackups({ clock, settings: this.store, backups: this.backups, changed: () => this.showTray() });
-    this.msfs = new MsfsWatch(clock, ports.facts);
+    this.daily = new DailyBackups({
+      clock,
+      settings: this.store,
+      backups: this.backups,
+      changed: () => {
+        this.showTray();
+        void this.backupsFailing();
+      },
+    });
+    this.msfs = new MsfsWatch(clock, ports.facts, () => this.notifier.recheck());
+    this.notifier = new Notifier({
+      mode: plan.mode,
+      port: ports.notifications,
+      settings: this.store,
+      simInUse: () => this.simInUse(),
+      windowForeground: () => ports.window.isForeground(),
+      log,
+    });
+    ports.notifications.onClick((t) => this.notificationClicked(t));
     this.startLists =
       plan.mode === "installed"
         ? new StartLists({
@@ -169,10 +208,11 @@ export class Shell {
 
   /**
    * The start, in order: the folders written to desktop.log, the tray, the window when this start
-   * opens one, the starts handed over before, the look for a copy run from source (installed only,
-   * bounded by 500 ms), then the server and the watch on MSFS.
+   * opens one, the starts and notification clicks handed over before, the notification registrations
+   * and the look for a copy run from source (installed only, the look bounded by 500 ms), then the
+   * server and the watch on MSFS.
    */
-  // @spec DESK-SHELL-TRAY-001, DESK-SHELL-CLI-004, DESK-SHELL-CLI-005, DESK-SHELL-CLI-006, DESK-SHELL-CLI-013, DESK-SHELL-CLI-014, DESK-SHELL-SRV-004, DESK-SHELL-FIRST-003, DESK-SHELL-FIRST-004, DESK-SHELL-FIRST-005, DESK-SHELL-LOG-003
+  // @spec DESK-SHELL-TRAY-001, DESK-SHELL-CLI-004, DESK-SHELL-CLI-005, DESK-SHELL-CLI-006, DESK-SHELL-CLI-013, DESK-SHELL-CLI-014, DESK-SHELL-SRV-004, DESK-SHELL-FIRST-003, DESK-SHELL-FIRST-004, DESK-SHELL-FIRST-005, DESK-SHELL-LOG-003, DESK-SHELL-NOTE-013, DESK-SHELL-NOTE-015, DESK-SHELL-NOTE-016, DESK-SHELL-CLI-021
   async start(): Promise<void> {
     if (this.started) return;
     this.started = true;
@@ -192,8 +232,11 @@ export class Shell {
     else if (own === "updated") this.openUnlessMsfs();
 
     for (const c of this.early.splice(0)) this.handOver(c);
+    for (const t of this.earlyClicks.splice(0)) this.notificationClicked(t);
 
     if (plan.mode === "installed") {
+      const problems = await this.ports.registrations.register().catch((e: unknown) => [String(e)]);
+      for (const p of problems) this.log(`[notifications] ${p}`);
       const look = await lookForSourceCopy({
         http: this.ports.http,
         clock: this.ports.clock,
@@ -283,11 +326,33 @@ export class Shell {
     });
   }
 
-  /** The pilot closed the window: its place kept, nothing else stopped. */
-  // @spec DESK-SHELL-WIN-025, DESK-SHELL-WIN-029
+  /** The pilot closed the window: its place kept, nothing else stopped; the one-time notice at the first such close. */
+  // @spec DESK-SHELL-WIN-025, DESK-SHELL-WIN-029, DESK-SHELL-TRAY-023
   windowClosed(place: SavedWindow): void {
     this.store.update((s) => (s.window = { ...place }));
     this.page = null;
+    if (this.quitKind === null && this.supervisor.state().kind !== "given-up" && !this.store.get().trayNoticeShown) {
+      this.notifier.firstClose();
+    }
+  }
+
+  /**
+   * A notification clicked, whatever object it came from: the window opened or brought forward, on the
+   * hop or pending leg it names; before start() kept for it; while quitting, a start with no switch
+   * handed over, its hop or pending leg left out.
+   */
+  // @spec DESK-SHELL-NOTE-012, DESK-SHELL-NOTE-014, DESK-SHELL-CLI-021, DESK-SHELL-CLI-022
+  notificationClicked(t: NoticeTarget): void {
+    if (!this.started) {
+      this.earlyClicks.push(t);
+      return;
+    }
+    if (this.quitKind !== null) {
+      const plan = this.o.plan;
+      this.handOver({ testData: plan.testFolder, background: false, updated: false, quit: false, unregister: false });
+      return;
+    }
+    this.openWindow(fragmentOf(t));
   }
 
   pageLoadFailed(): void {
@@ -341,17 +406,23 @@ export class Shell {
   // ---------------------------------------------------------------------------------------------
   // The window and the tray
 
-  /** Opens the window, or brings it forward; a window just created gets a fresh PageWindow. */
-  // @spec DESK-SHELL-AWAY-002
-  private openWindow(): void {
-    if (this.ports.window.open() !== "created") return;
+  /** Opens the window, or brings it forward; a window just created gets a fresh PageWindow; `fragment` points its page at a hop or pending leg. */
+  // @spec DESK-SHELL-AWAY-002, DESK-SHELL-NOTE-012
+  private openWindow(fragment: string | null = null): void {
+    if (this.ports.window.open() !== "created") {
+      if (fragment !== null) this.page?.pointAt(fragment);
+      return;
+    }
     const { clock } = this.ports;
     // A closed window's PageWindow (its 1 s page retry among it) loads nothing into a later window.
     let page: PageWindow | null = null;
     const load = (url: string) => {
       if (page === null || this.page === page) this.ports.window.load(url);
     };
-    page = new PageWindow({ port: this.o.plan.port, clock, load, log: (line) => this.log(line) }, this.view());
+    const setFragment = (f: string) => {
+      if (this.page === page) this.ports.window.setFragment(f);
+    };
+    page = new PageWindow({ port: this.o.plan.port, clock, load, setFragment, log: (line) => this.log(line), fragment }, this.view());
     this.page = page;
   }
 
@@ -374,10 +445,31 @@ export class Shell {
     this.ports.tray.show(this.trayModel());
   }
 
-  /** Something the tray or the window follows has changed. */
+  /** Something the tray or the window follows has changed; a giving up notified once. */
+  // @spec DESK-SHELL-NOTE-004
   private changed(): void {
+    const s = this.supervisor.state();
+    const givenUp = s.kind === "given-up";
+    if (givenUp && !this.givenUp) this.notifier.gaveUp(s.reason);
+    this.givenUp = givenUp;
     this.showTray();
     this.page?.shellChanged(this.view());
+  }
+
+  /** DESK-SHELL-AWAY-001 now: MSFS running, or this server's tracker linked or another copy holding the link. */
+  // @spec DESK-SHELL-AWAY-004
+  private simInUse(): boolean {
+    return simInUse({ serverRunning: this.supervisor.hasProcess(), tracker: this.feed.last(), msfsRunning: this.msfs.running() });
+  }
+
+  /** From the third daily backup failed in a row, its notice once for that run of failures (waiting for the sim). */
+  // @spec DESK-SHELL-NOTE-019
+  private async backupsFailing(): Promise<void> {
+    const short = this.daily.failing();
+    if (short === null || this.store.get().dailyBackupFailures.notified) return;
+    const folder = (await this.backupsFolder().catch(() => null)) ?? NO_DOCUMENTS;
+    if (this.daily.failing() === null || this.store.get().dailyBackupFailures.notified) return;
+    this.notifier.backupsFailing(folder, short);
   }
 
   /** The tracker read and followed, the daily backup checked, and the page loaded again after a requested restart. */

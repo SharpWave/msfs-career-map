@@ -32,10 +32,15 @@ const QUITTING_DONE: ShellView = { quitting: true, serverDone: true, givenUp: nu
 function open(v: ShellView, clock = new FakeClock()) {
   const loads: string[] = [];
   const logs: string[] = [];
-  const w = new PageWindow({ port: PORT, clock, load: (url) => loads.push(url), log: (line) => logs.push(line) }, v);
+  /** Fragments set on the page shown (m5a contract §4.2), in order. */
+  const fragments: string[] = [];
+  const w = new PageWindow(
+    { port: PORT, clock, load: (url) => loads.push(url), setFragment: (f) => fragments.push(f), log: (line) => logs.push(line) },
+    v,
+  );
   /** What each load showed, in order. */
   const shown = () => loads.map((url) => screenOf(url, PORT));
-  return { w, clock, loads, logs, shown };
+  return { w, clock, loads, logs, shown, fragments };
 }
 
 /** A window that shows the page with the server done. */
@@ -478,5 +483,59 @@ describe("a lost renderer", () => {
     // Whether the failure screen is loaded again into the new renderer is left open; nothing else is loaded.
     expect(loads[0]).toBe(failure);
     for (const url of loads) expect(url).toBe(failure);
+  });
+});
+
+describe("pointing the page at a hop or pending leg (m5a)", () => {
+  // @spec DESK-SHELL-NOTE-012
+  it("on the page changes only the fragment, loading nothing", () => {
+    const { w, loads, fragments } = onThePage();
+    w.pointAt("hop=12");
+    w.pointAt("pending=6f9c2b0e-4d1a-4c33-9a57-2b8e1d0c7a11");
+    expect(fragments).toEqual(["hop=12", "pending=6f9c2b0e-4d1a-4c33-9a57-2b8e1d0c7a11"]);
+    expect(loads).toEqual([PAGE]);
+    expect(w.view()).toBe("page");
+  });
+
+  // @spec DESK-SHELL-NOTE-012, DESK-SHELL-WIN-001
+  it("on the start screen holds it, the latest winning, and loads the page with it once the start-up work is done", () => {
+    const { w, loads, fragments } = open(STARTING);
+    w.pointAt("hop=7");
+    w.pointAt("hop=12");
+    expect(loads).toEqual([screenUrl({ kind: "start" })]);
+    expect(fragments).toEqual([]);
+    w.shellChanged(DONE);
+    expect(loads).toEqual([screenUrl({ kind: "start" }), `${PAGE}#hop=12`]);
+    expect(fragments).toEqual([]);
+  });
+
+  // @spec DESK-SHELL-NOTE-012, DESK-SHELL-SRV-043
+  it("clears the hold once the page has loaded with it: a later reload loads the page alone", () => {
+    const { w, loads } = open(STARTING);
+    w.pointAt("hop=12");
+    w.shellChanged(DONE);
+    w.reload();
+    expect(loads).toEqual([screenUrl({ kind: "start" }), `${PAGE}#hop=12`, PAGE]);
+  });
+
+  // @spec DESK-SHELL-NOTE-012, DESK-SHELL-WIN-003
+  it("on the failure screen holds it for the page loaded after Try again", () => {
+    const reason = "Port 3280 is in use by another program";
+    const { w, loads, fragments } = open(givenUp(reason));
+    w.pointAt("pending=0b7d4e2a-91c5-4f08-b6e3-5a2c9d1f8e44");
+    expect(fragments).toEqual([]);
+    w.shellChanged(STARTING);
+    w.shellChanged(DONE);
+    expect(loads.at(-1)).toBe(`${PAGE}#pending=0b7d4e2a-91c5-4f08-b6e3-5a2c9d1f8e44`);
+  });
+
+  // @spec DESK-SHELL-NOTE-012, DESK-SHELL-WIN-020
+  it("after a failed load holds it for the page loaded again 1 s later", async () => {
+    const { w, clock, loads, fragments } = onThePage();
+    w.pageFailed();
+    w.pointAt("hop=12");
+    expect(fragments).toEqual([]);
+    await clock.advance(1_000);
+    expect(loads).toEqual([PAGE, screenUrl({ kind: "start" }), `${PAGE}#hop=12`]);
   });
 });

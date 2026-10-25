@@ -15,7 +15,7 @@ import type { DesktopSettings } from "../../../src/desktop/settings.ts";
 import { runUnregister, UNREGISTER_LIMIT_MS } from "../../../src/desktop/unregister.ts";
 import { runValue } from "../../../src/desktop/windows-start.ts";
 import { FakeClock, flush } from "../support/clock.ts";
-import { APPROVED_ENABLED, FakeKeys, ScriptedFs, installedPlan, never, tempFolder, testPlan } from "../support/fakes.ts";
+import { APPROVED_ENABLED, FakeKeys, FakeRegistrations, ScriptedFs, installedPlan, never, tempFolder, testPlan } from "../support/fakes.ts";
 import { Sims, TEST_PROGRAM, fixture, text, type Edition } from "./support/sims.ts";
 
 const win = path.win32;
@@ -101,6 +101,7 @@ function harness(o: { programs?: typeof PROGRAMS | null } = {}): Harness {
         clock,
         fs: sfs,
         keys,
+        registrations: new FakeRegistrations(),
         ...(o.programs === null ? {} : { programs: o.programs ?? PROGRAMS }),
       }),
   };
@@ -295,7 +296,7 @@ describe("--unregister in test mode", () => {
     const sfs = new ScriptedFs();
     const folder = tempFolder("unregister-test-");
     const simsBefore = tree(sims.root);
-    const code = await runUnregister({ plan: testPlan(folder), env: sims.env, clock: new FakeClock(), fs: sfs, keys, programs: PROGRAMS });
+    const code = await runUnregister({ plan: testPlan(folder), env: sims.env, clock: new FakeClock(), fs: sfs, keys, registrations: new FakeRegistrations(), programs: PROGRAMS });
     expect(code).toBe(0);
     expect(tree(sims.root)).toEqual(simsBefore);
     expect(Object.keys(tree(folder))).toEqual([win.join("desktop", "logs", "desktop.log")]);

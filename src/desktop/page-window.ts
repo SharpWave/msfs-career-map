@@ -7,7 +7,8 @@ import { TIMING } from "./timing.ts";
  * What the open window shows: the start screen until the server's start-up work is done, then the
  * page; the failure screen while the shell has given up; the quitting screen for a window opened
  * while quitting; and, after a second renderer loss within 5 minutes, the stopped screen for good.
- * A view is loaded only when it changes, or on `reload()`.
+ * A view is loaded only when it changes, or on `reload()`. A hop or pending leg a notification points at
+ * changes only the fragment of a page already shown, and is otherwise held for the page's next load.
  */
 
 /** What the window follows of the shell; `serverDone` is the Supervisor's state being `running`. */
@@ -21,25 +22,49 @@ export type WindowView = "start" | "failure" | "quitting" | "stopped" | "page";
 
 const STOPPED_LINE = `[window] ${SCREEN_TEXT.stopped}`;
 
+export interface PageWindowOptions {
+  port: number;
+  clock: Clock;
+  load(url: string): void;
+  /** Changes only the fragment of the page the window shows. */
+  setFragment(fragment: string): void;
+  log(line: string): void;
+  /** A fragment held from the start: the click that opened the window. */
+  fragment?: string | null;
+}
+
 // @spec DESK-SHELL-WIN-001, DESK-SHELL-WIN-002, DESK-SHELL-WIN-003, DESK-SHELL-WIN-004, DESK-SHELL-WIN-020, DESK-SHELL-WIN-021, DESK-SHELL-WIN-030, DESK-SHELL-WIN-032
 export class PageWindow {
-  private readonly o: { port: number; clock: Clock; load(url: string): void; log(line: string): void };
+  private readonly o: PageWindowOptions;
   private v: ShellView;
   private current: WindowView = "start";
   /** The reason the failure screen shows. */
   private reason: string | null = null;
   private retry: Cancel | null = null;
   private lastLoss: number | null = null;
+  /** The fragment (`hop=12`) the page's next load carries; null when none is held. */
+  private held: string | null = null;
 
   /** The window just opened (always fresh); loads its first screen or the page. */
-  constructor(o: { port: number; clock: Clock; load(url: string): void; log(line: string): void }, v: ShellView) {
+  constructor(o: PageWindowOptions, v: ShellView) {
     this.o = o;
     this.v = { ...v };
+    this.held = o.fragment ?? null;
     this.asOnOpening(true);
   }
 
   view(): WindowView {
     return this.current;
+  }
+
+  /** A notification click's hop or pending leg: the fragment changed alone on the page shown, else held, the latest winning. */
+  // @spec DESK-SHELL-NOTE-012, DESK-SHELL-WIN-001, DESK-SHELL-CLI-021
+  pointAt(fragment: string): void {
+    if (this.current === "page") {
+      this.o.setFragment(fragment);
+      return;
+    }
+    this.held = fragment;
   }
 
   shellChanged(v: ShellView): void {
@@ -106,8 +131,11 @@ export class PageWindow {
 
   private urlOf(view: WindowView): string {
     switch (view) {
-      case "page":
-        return pageUrl(this.o.port);
+      case "page": {
+        const held = this.held;
+        this.held = null;
+        return held === null ? pageUrl(this.o.port) : `${pageUrl(this.o.port)}#${held}`;
+      }
       case "failure":
         return screenUrl({ kind: "failure", reason: this.reason ?? "" });
       default:

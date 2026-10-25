@@ -4,6 +4,7 @@ import { StringDecoder } from "node:string_decoder";
 import {
   BrowserWindow,
   Menu,
+  Notification,
   Tray,
   app,
   dialog,
@@ -23,10 +24,13 @@ import { checkInstallUnderWay, leftInMarkLogLine, nodeMarkFiles } from "./instal
 import { localHttp } from "./local-http.ts";
 import { LogFile } from "./logs.ts";
 import { nodeEditorFs } from "./msfs-start.ts";
+import { registrations, type ShortcutLinks } from "./registrations.ts";
 import type {
   Cancel,
   Clock,
   MessageBoxes,
+  NoticeTarget,
+  NotificationsPort,
   Opener,
   ServerChild,
   ServerLauncher,
@@ -36,6 +40,7 @@ import type {
 import { Shell } from "./shell.ts";
 import { decideStart, type RunPlan } from "./start.ts";
 import { startupKeys } from "./startup-keys.ts";
+import { launchOf, parseLaunch, toastXml } from "./toast.ts";
 import type { TrayDot, TrayMenuItem } from "./tray-model.ts";
 import { runUnregister } from "./unregister.ts";
 import { VERSION } from "./version.ts";
@@ -73,7 +78,14 @@ function main(): void {
   app.setPath("userData", decision.plan.electronFolder);
   if (decision.kind === "unregister") {
     // Its own work, before the lock and without handing over; the exit code tells the uninstaller what is left.
-    void runUnregister({ plan: decision.plan, env: process.env, clock: realClock(), fs: nodeEditorFs, keys: startupKeys({ loginItems: app }) })
+    void runUnregister({
+      plan: decision.plan,
+      env: process.env,
+      clock: realClock(),
+      fs: nodeEditorFs,
+      keys: startupKeys({ loginItems: app }),
+      registrations: registrations({ app, shell: shortcutLinks, appData: process.env.APPDATA ?? "" }),
+    })
       .catch(() => 3 as const)
       .then((code) => process.exit(code));
     return;
@@ -143,6 +155,7 @@ function runningCopy(plan: RunPlan, command: CommandLine): void {
   };
 
   const window = new PageWindowPort(plan.port, iconFolder, opener, () => shell);
+  const notifications = toastNotifications();
 
   const shell: Shell = new Shell(
     {
@@ -166,6 +179,8 @@ function runningCopy(plan: RunPlan, command: CommandLine): void {
       tray: trayPort,
       fs: nodeEditorFs,
       keys: startupKeys({ loginItems: app }),
+      notifications,
+      registrations: registrations({ app, shell: shortcutLinks, appData: process.env.APPDATA ?? "" }),
       exit(code, relaunch) {
         if (relaunch) app.relaunch({ args: app.isPackaged ? relaunch : [process.argv[1], ...relaunch] });
         // The icon leaves the notification area with the app, not at Explorer's next look.
@@ -183,6 +198,8 @@ function runningCopy(plan: RunPlan, command: CommandLine): void {
   app.userAgentFallback = windowUserAgent(app.userAgentFallback, VERSION);
 
   void app.whenReady().then(() => {
+    // Every click, whatever object it came from, a cold start by one included.
+    if (plan.mode === "installed") notifications.listen();
     session.defaultSession.setPermissionRequestHandler((_wc, _p, cb) => cb(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
 
@@ -222,6 +239,43 @@ function menuTemplate(menu: TrayMenuItem[], shell: Shell): MenuItemConstructorOp
       : { type: "checkbox", checked: item.checked, label: item.label, enabled: item.enabled, click };
   });
 }
+
+/**
+ * Windows toasts built from their XML, their click target in the toast's launch string, and every click
+ * — from a toast still on screen, the notification centre, or one that started the app — taken through
+ * Electron's notification activation once `listen()` is called.
+ */
+// @spec DESK-SHELL-NOTE-011, DESK-SHELL-NOTE-012, DESK-SHELL-NOTE-014, DESK-SHELL-AWAY-004, DESK-SHELL-CLI-021
+function toastNotifications(): NotificationsPort & { listen(): void } {
+  let clickFn: ((t: NoticeTarget) => void) | null = null;
+  return {
+    show(n) {
+      const notification = new Notification({ toastXml: toastXml({ title: n.title, body: n.body, launch: launchOf(n.target), silent: n.silent }) });
+      notification.show();
+      return {
+        close() {
+          notification.close();
+        },
+      };
+    },
+    onClick(fn) {
+      clickFn = fn;
+    },
+    listen() {
+      Notification.handleActivation((details) => {
+        const t = parseLaunch(details.arguments);
+        if (t !== null) clickFn?.(t);
+      });
+    },
+  };
+}
+
+/** Electron's shortcut calls; an update written over what the shortcut holds, so its target and the rest stay. */
+const shortcutLinks: ShortcutLinks = {
+  readShortcutLink: (file) => electronShell.readShortcutLink(file),
+  writeShortcutLink: (file, operation, options) =>
+    electronShell.writeShortcutLink(file, operation, { ...electronShell.readShortcutLink(file), ...options }),
+};
 
 /** A box aborted before it showed resolves with no response at once; one aborted while open gives its cancelId. */
 const messageBoxes: MessageBoxes = {
@@ -416,6 +470,17 @@ class PageWindowPort implements WindowPort {
 
   isOpen(): boolean {
     return this.win !== null && !this.win.isDestroyed();
+  }
+
+  isForeground(): boolean {
+    const w = this.win;
+    return w !== null && !w.isDestroyed() && !w.isMinimized() && w.isFocused();
+  }
+
+  /** Only the page's fragment changes: the page acts on it (APP-UI-032) and nothing reloads. */
+  setFragment(fragment: string): void {
+    const w = this.win;
+    if (w && !w.isDestroyed()) void w.webContents.executeJavaScript(`location.hash = ${JSON.stringify(fragment)}`).catch(() => {});
   }
 
   open(): "created" | "shown" {

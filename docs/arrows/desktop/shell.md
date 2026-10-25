@@ -63,7 +63,9 @@ ended by `taskkill /F` took its server's utility process and every child with it
   src/desktop imports src/server, and no module touches `child_process`, `net`, `http` or `electron`
   at load
 - The start-list tray items through start-lists' StartLists (shell.ts, tray-model.ts, main.ts)
-- Planned: notifications and updates (electron-updater)
+- Notifications: notifications.ts (the Notifier), toast.ts, registrations.ts, identity.ts; wired in
+  tracker-feed.ts, page-window.ts, shell.ts and main.ts
+- Planned: updates (electron-updater)
 
 ## Architecture
 
@@ -117,26 +119,26 @@ the sim is in use — while the page stays the same web page the browser tests c
 | Backups | DESK-SHELL-BAK-001 to 008 | 7 | 0 | 1 |
 | Logs | DESK-SHELL-LOG-001 to 009 | 9 | 0 | 0 |
 | Settings | DESK-SHELL-SET-001 to 006 | 6 | 0 | 0 |
-| Window | DESK-SHELL-WIN-001 to 032 | 30 | 0 | 2 |
-| Tray | DESK-SHELL-TRAY-001 to 027 | 22 | 0 | 5 |
-| One running copy and command line | DESK-SHELL-CLI-001 to 022 | 19 | 0 | 3 |
-| Staying out of the way | DESK-SHELL-AWAY-001 to 005 | 4 | 0 | 1 |
+| Window | DESK-SHELL-WIN-001 to 032 | 31 | 0 | 1 |
+| Tray | DESK-SHELL-TRAY-001 to 027 | 23 | 0 | 4 |
+| One running copy and command line | DESK-SHELL-CLI-001 to 022 | 21 | 0 | 1 |
+| Staying out of the way | DESK-SHELL-AWAY-001 to 005 | 5 | 0 | 0 |
 | Windows sign-out and shutdown | DESK-SHELL-OS-001 to 003 | 3 | 0 | 0 |
 | First run | DESK-SHELL-FIRST-001 to 005 | 5 | 0 | 0 |
-| Notifications | DESK-SHELL-NOTE-001 to 019 | 0 | 0 | 19 |
+| Notifications | DESK-SHELL-NOTE-001 to 019 | 16 | 0 | 3 |
 | Updates | DESK-SHELL-UPD-001 to 032 | 0 | 1 | 31 |
 | Unit-test harness | DESK-SHELL-TEST-001 | 1 | 0 | 0 |
 
-**Summary:** 155 of 226 specs implemented; 70 gaps; 1 deferred (DESK-SHELL-UPD-021, a prerelease
-channel). Of the gaps outside notifications and updates: built in part, waiting on notifications,
-or updates — DESK-SHELL-SRV-039 (the update check on resume), QUIT-002 (the page's
-confirm dialogs and update work while quitting), BAK-005 (the backup before an update; the `--quit`
-backup is built), WIN-001 (a notification click's fragment held for the first load), TRAY-015 (the
-update items; the start-list items are built), TRAY-016 (update states on the version line), CLI-009 (`--unregister`'s
-notification clean-up; its start-list clean-up is built); built and seen by hand but cited by no test until the packaged smoke test —
-SRV-003, SRV-040, WIN-031; not begun, belonging to
-updates, notifications or an install under way — QUIT-007, QUIT-009 to 011,
-TRAY-017, TRAY-023, TRAY-027, CLI-021, CLI-022, AWAY-004. CLI-020 (a start during an install left in the install-under-way mark) is built with distribution's include.
+**Summary:** 176 of 226 specs implemented; 49 gaps; 1 deferred (DESK-SHELL-UPD-021, a prerelease
+channel). Notifications are built (milestone 5a) but for NOTE-003 (the update-ready notice, built in
+notifications.ts and called by the updater) and NOTE-014, NOTE-015 (a click after the notification's
+object is gone, and the COM registration Electron writes), which rest on Electron's and Windows'
+behaviour and wait to be seen on the installed app. The other gaps belong to updates: SRV-039 (the update
+check on resume), QUIT-002 (update work while quitting; the page's confirm dialogs), QUIT-007, QUIT-009
+to 011, BAK-005 (the backup before an update; the `--quit` backup is built), TRAY-015 to 017 and TRAY-027
+(the update items and states), CLI-022 (a click calling a quiet-moment install off) and UPD-*. Built and
+seen by hand but cited by no test until the packaged smoke test — SRV-003, SRV-040, WIN-031. CLI-020 (a
+start during an install left in the install-under-way mark) is built with distribution's include.
 
 ## Key Findings
 
@@ -222,6 +224,8 @@ TRAY-017, TRAY-023, TRAY-027, CLI-021, CLI-022, AWAY-004. CLI-020 (a start durin
    DESK-SHELL-SRV-003, SRV-040 and WIN-031, which are built and seen by hand.
 
 ### Should Fix
-3. Notifications and updates, test-first, alongside distribution's installer, its include and the
-   release workflow (NOTE-*, UPD-*, the rest of QUIT, TRAY, CLI and AWAY-004, BAK-005, SRV-039,
-   WIN-001).
+3. Updates, test-first (milestone 5b: UPD-*, NOTE-003's call, the rest of QUIT and TRAY, CLI-022's
+   quiet-moment part, BAK-005, SRV-039).
+4. See notifications working on the installed app: a click from the notification centre and one that
+   starts the app (NOTE-014), the keys Electron writes (NOTE-015), whether Electron creates a Start-menu
+   shortcut of its own, and a closed pending leg's toast leaving the notification centre (NOTE-010).

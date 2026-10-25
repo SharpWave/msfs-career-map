@@ -128,10 +128,42 @@ export interface WindowPort {
   load(url: string): void;
   /** The open window's place now (its normal bounds and whether maximized); null when closed. */
   place(): SavedWindow | null;
+  /** Open, not minimized, and the foreground window. */
+  isForeground(): boolean;
+  /** The open window's page: only its address's fragment changed (`#hop=12`), nothing reloaded. */
+  setFragment(fragment: string): void;
 }
 
 export interface TrayPort {
   show(model: TrayModel): void;
+}
+
+// Notifications
+
+/** What a notification click opens. */
+export type NoticeTarget =
+  | { kind: "window" }
+  | { kind: "failure" }
+  | { kind: "hop"; id: number }
+  | { kind: "pending"; id: string };
+
+export interface NoticeHandle {
+  /** Removes it from the notification centre if it is still there. */
+  close(): void;
+}
+
+export interface NotificationsPort {
+  show(n: { title: string; body: string; target: NoticeTarget; silent: boolean }): NoticeHandle;
+  /** Every click (Electron's handleActivation), one listener. */
+  onClick(fn: (t: NoticeTarget) => void): void;
+}
+
+/** The notification registrations under HKCU and on the Start-menu shortcut. */
+export interface Registrations {
+  /** The AppUserModelID and ToastActivatorCLSID for this process, the CLSID onto the Start-menu shortcut when it lacks it (never creating it). Never rejects; the problems, or []. */
+  register(): Promise<string[]>;
+  /** The CLSID's and the AppUserModelId's keys under HKCU\Software\Classes removed, the app's notifications cleared. Never rejects; the problems, or []. */
+  remove(): Promise<string[]>;
 }
 
 // The start lists

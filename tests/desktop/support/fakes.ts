@@ -18,7 +18,11 @@ import type {
   LocalHttp,
   MessageBoxes,
   MessageBoxOptions,
+  NoticeHandle,
+  NoticeTarget,
+  NotificationsPort,
   Opener,
+  Registrations,
   ServerChild,
   ServerLauncher,
   ServerStartOptions,
@@ -419,8 +423,20 @@ export class FakeWindow implements WindowPort {
   opened = false;
   openCalls = 0;
   createdCount = 0;
+  /** isForeground's answer while open. */
+  foreground = false;
   /** Every address loaded in an open window, in order. */
   loads: string[] = [];
+  /** Every fragment set on the open window's page (setFragment), in order. */
+  fragments: string[] = [];
+
+  isForeground(): boolean {
+    return this.opened && this.foreground;
+  }
+  /** A closed window has no page, so a fragment then is not recorded. */
+  setFragment(fragment: string): void {
+    if (this.opened) this.fragments.push(fragment);
+  }
   /** What place() gives while open. */
   placeNow: SavedWindow = { x: 100, y: 100, width: 1280, height: 800, maximized: false };
 
@@ -447,6 +463,57 @@ export class FakeWindow implements WindowPort {
   /** The pilot closed it (the test then calls shell.windowClosed). */
   close(): void {
     this.opened = false;
+    this.foreground = false;
+  }
+}
+
+export interface ShownNotice {
+  title: string;
+  body: string;
+  target: NoticeTarget;
+  silent: boolean;
+  closed: boolean;
+}
+
+/** Notifications recorded, never shown; `click(t)` is the pilot clicking one (or the notification centre). */
+export class FakeNotifications implements NotificationsPort {
+  shown: ShownNotice[] = [];
+  private clickFn: ((t: NoticeTarget) => void) | null = null;
+
+  show(n: { title: string; body: string; target: NoticeTarget; silent: boolean }): NoticeHandle {
+    const notice: ShownNotice = { ...n, closed: false };
+    this.shown.push(notice);
+    return {
+      close() {
+        notice.closed = true;
+      },
+    };
+  }
+  onClick(fn: (t: NoticeTarget) => void): void {
+    this.clickFn = fn;
+  }
+  /** As Electron's handleActivation would deliver it; throws when nothing listens. */
+  click(t: NoticeTarget): void {
+    if (!this.clickFn) throw new Error("FakeNotifications.click: no listener registered");
+    this.clickFn(t);
+  }
+  titles(): string[] {
+    return this.shown.map((n) => n.title);
+  }
+}
+
+/** register() and remove() counted; `problems` is what each gives back. */
+export class FakeRegistrations implements Registrations {
+  registered = 0;
+  removed = 0;
+  problems: string[] = [];
+  register(): Promise<string[]> {
+    this.registered++;
+    return Promise.resolve([...this.problems]);
+  }
+  remove(): Promise<string[]> {
+    this.removed++;
+    return Promise.resolve([...this.problems]);
   }
 }
 
@@ -611,6 +678,8 @@ export interface FakePorts extends ShellPorts {
   tray: FakeTray;
   fs: ScriptedFs;
   keys: FakeKeys;
+  notifications: FakeNotifications;
+  registrations: FakeRegistrations;
   exits: { code: number; relaunch: string[] | null }[];
 }
 
@@ -628,6 +697,8 @@ export function makePorts(): FakePorts {
     tray: new FakeTray(),
     fs: new ScriptedFs(),
     keys: new FakeKeys(),
+    notifications: new FakeNotifications(),
+    registrations: new FakeRegistrations(),
     exits,
     exit(code: number, relaunch: string[] | null) {
       exits.push({ code, relaunch });

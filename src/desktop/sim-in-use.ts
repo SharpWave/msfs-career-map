@@ -18,10 +18,13 @@ export class MsfsWatch {
   private last = false;
   private looking = false;
   private timer: Cancel | null = null;
+  private readonly changed: () => void;
 
-  constructor(clock: Clock, facts: Pick<WindowsFacts, "msfsRunning">) {
+  /** `changed` is called after a look whose answer differs from the one before. */
+  constructor(clock: Clock, facts: Pick<WindowsFacts, "msfsRunning">, changed: () => void = () => {}) {
     this.clock = clock;
     this.facts = facts;
+    this.changed = changed;
   }
 
   /** A look now, then one every 10 s (a look still outstanding when the next falls due skips it). */
@@ -43,7 +46,9 @@ export class MsfsWatch {
   /** A look now, its answer also kept for running(). */
   async checkNow(): Promise<boolean> {
     const running = await this.facts.msfsRunning().catch(() => false);
+    const before = this.last;
     this.last = running;
+    if (running !== before) this.changed();
     return running;
   }
 

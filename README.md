@@ -280,6 +280,14 @@ program removes is never put back; the menu item says so until you click it. Uni
 entries away. A copy in test mode leaves both lists alone. If you fly MSFS 2020, turn on Start with
 Windows instead; Start with MSFS 2024 starts the app with MSFS 2024 only.
 
+The installed app tells you through Windows notifications when a leg is waiting to be logged or a hop
+is logged (only while its window isn't in front), when an update is ready, when it stopped tracking and
+when backups keep failing; they are silent while you fly, and a click opens the window on that hop or
+leg. Windows' Focus and Do Not Disturb hold them back: to let them through, add MSFS Career Map under
+Settings > System > Notifications > Set priority notifications. Windows 11 also keeps a new program's
+tray icon under ^ on the taskbar; Settings > Personalization > Taskbar > Other system tray icons keeps it
+in view.
+
 Don't run the installer on a development PC unless you mean to install the app: it is the real
 thing. The release workflow tries it on a clean GitHub runner instead (below).
 

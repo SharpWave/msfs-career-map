@@ -14,6 +14,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { writeAppManifest } from "../../../scripts/desktop-build.ts";
+import * as identity from "../../../src/desktop/identity.ts";
 import { downloadsFolder } from "../../../src/desktop/install-mark.ts";
 import { installedProgramPath } from "../../../src/desktop/installed.ts";
 import { tempFolder } from "../support/fakes.ts";
@@ -73,6 +74,13 @@ describe("the names that never change", () => {
   // @spec DESK-DIST-PKG-003, DESK-DIST-PKG-019
   it("set the product name, which names the program", () => {
     expect(config.productName).toBe(PRODUCT);
+  });
+
+  // @spec DESK-DIST-PKG-006, DESK-SHELL-NOTE-013
+  it("are the ones the desktop shell sets for its notifications: its appId, CLSID and product name are electron-builder's", () => {
+    expect(identity.APP_ID).toBe(config.appId);
+    expect(identity.TOAST_CLSID).toBe(config.extraMetadata?.toastActivatorClsid);
+    expect(identity.PRODUCT_NAME).toBe(config.productName);
   });
 
   // @spec DESK-DIST-PKG-004, DESK-DIST-PKG-019

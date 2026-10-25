@@ -1,3 +1,4 @@
+import type { PendingNotice } from "./notifications.ts";
 import type { Cancel, Clock, LocalHttp, StreamHandle } from "./ports.ts";
 import { SseParser } from "./sse.ts";
 import { TIMING } from "./timing.ts";
@@ -35,6 +36,34 @@ export function toTrayTracker(json: unknown): TrayTracker | null {
   };
 }
 
+/** A listed pending leg as the notifications read it, each field defaulted alone; null without a string id. */
+export function toPendingNotice(v: unknown): PendingNotice | null {
+  if (!isObject(v) || typeof v.id !== "string") return null;
+  const sim = v.sim;
+  return {
+    id: v.id,
+    sim: isObject(sim) ? { title: typeof sim.title === "string" ? sim.title : "", livery: typeof sim.livery === "string" ? sim.livery : "" } : null,
+    reason: typeof v.reason === "string" ? v.reason : "",
+  };
+}
+
+/** A `hop` event's hop id and the tracker's message; null unless both are there. */
+export function toHopNotice(v: unknown): { id: number; message: string } | null {
+  if (!isObject(v) || !isObject(v.hop) || typeof v.hop.id !== "number" || typeof v.message !== "string") return null;
+  return { id: v.hop.id, message: v.message };
+}
+
+/** The pending legs a status answer's body lists, as notices. */
+function pendingOf(body: string): PendingNotice[] {
+  try {
+    const json: unknown = JSON.parse(body);
+    if (!isObject(json) || !Array.isArray(json.pending)) return [];
+    return json.pending.flatMap((p) => toPendingNotice(p) ?? []);
+  } catch {
+    return [];
+  }
+}
+
 /** A status answer's body as a TrayTracker; null for anything but a 200 with a status object. */
 function statusOf(answer: { status: number; body: string } | null): TrayTracker | null {
   if (answer?.status !== 200) return null;
@@ -55,6 +84,11 @@ export interface TrackerFeedOptions {
   serverRunning(): boolean;
   onStatus(s: TrayTracker): void;
   onActivity(): void;
+  /** After each successful read of the tracker at a subscription, before the stream opens: its pending legs. */
+  onSubscribed?(s: { pending: PendingNotice[] }): void;
+  /** A `pending` or `hop` event, read as the notifications need it; a malformed one is dropped. */
+  onEvent?(name: "pending", data: PendingNotice): void;
+  onEvent?(name: "hop", data: { id: number; message: string }): void;
   log(line: string): void;
 }
 
@@ -63,7 +97,7 @@ export interface TrackerFeedOptions {
  * nothing else. A stream that ends, or an attempt that fails, is tried again after 2 s, doubling
  * after each failure up to 30 s, while the server's process runs.
  */
-// @spec DESK-SHELL-SRV-016, DESK-SHELL-SRV-017, DESK-SHELL-SRV-027, DESK-SHELL-SRV-042
+// @spec DESK-SHELL-SRV-016, DESK-SHELL-SRV-017, DESK-SHELL-SRV-027, DESK-SHELL-SRV-042, DESK-SHELL-NOTE-007, DESK-SHELL-NOTE-008, DESK-SHELL-NOTE-009
 export class TrackerFeed {
   private readonly o: TrackerFeedOptions;
   /** Subscribed and not stopped. */
@@ -149,6 +183,7 @@ export class TrackerFeed {
       if (answer?.status !== 200) return this.failed();
       const status = statusOf(answer);
       if (status) this.status(status);
+      this.o.onSubscribed?.({ pending: pendingOf(answer.body) });
       this.open(attempt);
     };
     this.readBound = this.o.clock.after(TIMING.trackerReadTimeoutMs, () => afterRead(null));
@@ -166,15 +201,23 @@ export class TrackerFeed {
         this.wait = TIMING.streamRetryFirstMs;
         this.o.onActivity();
         for (const e of parser.push(text).events) {
-          if (e.event !== "status") continue;
+          if (e.event !== "status" && e.event !== "pending" && e.event !== "hop") continue;
           let json: unknown;
           try {
             json = JSON.parse(e.data);
           } catch {
             continue;
           }
-          const status = toTrayTracker(json);
-          if (status) this.status(status);
+          if (e.event === "pending") {
+            const leg = toPendingNotice(json);
+            if (leg) this.o.onEvent?.("pending", leg);
+          } else if (e.event === "hop") {
+            const hop = toHopNotice(json);
+            if (hop) this.o.onEvent?.("hop", hop);
+          } else {
+            const status = toTrayTracker(json);
+            if (status) this.status(status);
+          }
         }
       },
       onEnd: () => {
