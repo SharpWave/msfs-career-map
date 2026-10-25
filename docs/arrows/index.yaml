@@ -148,7 +148,7 @@ arrows:
     blocks: []
     blockedBy: [shell, start-lists, live-tracking, simbrief, airports]
     detail: desktop/distribution.md
-    next: "82 of 113 DESK-DIST specs implemented (28 gaps, 3 deferred): packaging, the packaged smoke test, the include's steps and the release workflow with its installer round trip pass (a dry-run-v0.8.0 run on windows-latest). Next: check the wizard's pages and an older installer over a newer install by hand on a test machine; --unregister's work with the start lists and the shell's mark before it hands over with updates; the first release waits for SB-CARD-006 and SB-CARD-009 to 011 (the open part of DESK-DIST-REL-012) and a hand check of a start by the Store edition of MSFS"
+    next: "84 of 113 DESK-DIST specs implemented (26 gaps, 3 deferred): packaging, the packaged smoke test, the include's steps and the release workflow with its installer round trip pass (a dry-run-v0.8.0 run on windows-latest). Next: check the wizard's pages and an older installer over a newer install by hand on a test machine; --unregister's work with the start lists and the shell's mark before it hands over with updates; the first release waits for SB-CARD-006 and SB-CARD-009 to 011 (the open part of DESK-DIST-REL-012) and a hand check of a start by the Store edition of MSFS"
     drift: null
 
   # Foundation: every segment relies on app-shell's conventions, so its dependencies are not listed.

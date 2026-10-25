@@ -44,8 +44,8 @@ seen: the wizard's pages and notices, a draft release, an older installer over a
 - docs/intent/desktop/distribution/distribution-design.md
 
 ### EARS
-- docs/intent/desktop/distribution/distribution-specs.md — 113 specs (prefix `DESK-DIST`), 82
-  implemented, 28 active gaps, 3 deferred
+- docs/intent/desktop/distribution/distribution-specs.md — 113 specs (prefix `DESK-DIST`), 84
+  implemented, 26 active gaps, 3 deferred
 
 ### Tests
 - tests/desktop/distribution/ — Vitest unit tests in the `desktop` project: desktop-build (the bundles,
@@ -98,7 +98,7 @@ other without ever reaching the logbook, built and tested from the repository be
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
 | Packaging | DESK-DIST-PKG-001 to 022 | 21 | 0 | 1 |
-| Installer, closing a running copy and an install under way | DESK-DIST-INST-001 to 030 | 17 | 1 | 12 |
+| Installer, closing a running copy and an install under way | DESK-DIST-INST-001 to 030 | 19 | 1 | 10 |
 | Uninstaller | DESK-DIST-UNINST-001 to 015 | 7 | 0 | 8 |
 | Releases | DESK-DIST-REL-001 to 018 | 10 | 2 | 6 |
 | Development | DESK-DIST-DEV-001 to 007 (003 withdrawn) | 5 | 0 | 1 |
@@ -106,8 +106,8 @@ other without ever reaching the logbook, built and tested from the repository be
 | Packaged smoke test | DESK-DIST-SMOKE-001 to 012 | 12 | 0 | 0 |
 | Installer round trip | DESK-DIST-TRIP-001 to 008 | 8 | 0 | 0 |
 
-**Summary:** 82 of 113 specs implemented; 28 gaps; 3 deferred (DESK-DIST-INST-017, REL-013, REL-014).
-Built, not yet seen working: the wizard and what only it shows — INST-002, 004, 005, 012, 013, 018,
+**Summary:** 84 of 113 specs implemented; 26 gaps; 3 deferred (DESK-DIST-INST-017, REL-013, REL-014).
+Built, not yet seen working: the wizard and what only it shows — INST-002, 012, 013, 018,
 019, 026 (the include's take-up and choice of start are tested; the Finished page is not); UNINST-008
 to 010 (the last page's texts are tested, the page is not); INST-006 and DEV-007 (the Start-menu entry
 is made; its AppUserModelID and the shortcuts' empty command line are not checked); INST-011 is tested,
