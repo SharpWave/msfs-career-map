@@ -1,3 +1,4 @@
+import type { StartListItems } from "./start-lists.ts";
 import type { ServerState } from "./supervisor.ts";
 import type { TrayTracker } from "./tracker-feed.ts";
 
@@ -13,13 +14,16 @@ export type TrayItemId =
   | "status"
   | "waiting"
   | "backups-failing"
+  | "start-msfs"
+  | "start-windows"
   | "version"
   | "open-data"
   | "open-backups"
   | "show-log"
   | "try-again"
   | "quit";
-export type TrayMenuItem = { id: TrayItemId; label: string; enabled: boolean; isDefault?: true } | { separator: true };
+/** An item with `checked` is a checkbox. */
+export type TrayMenuItem = { id: TrayItemId; label: string; enabled: boolean; isDefault?: true; checked?: boolean } | { separator: true };
 
 export interface TrayInput {
   quitting: boolean;
@@ -30,6 +34,8 @@ export interface TrayInput {
   backupsFailing: string | null;
   version: string;
   backupsFolderExists: boolean;
+  /** The start-list items as last read; null in test mode, or before the first read (both left out). */
+  startLists: StartListItems | null;
 }
 
 export interface TrayModel {
@@ -91,7 +97,7 @@ export function trayDot(i: TrayInput): TrayDot {
 }
 
 /** The menu in order, each conditional item only when it applies; every item stays enabled while quitting (the shell ignores them). */
-// @spec DESK-SHELL-TRAY-015, DESK-SHELL-TRAY-016, DESK-SHELL-TRAY-018, DESK-SHELL-TRAY-019, DESK-SHELL-TRAY-020, DESK-SHELL-TRAY-026
+// @spec DESK-SHELL-TRAY-015, DESK-SHELL-TRAY-016, DESK-SHELL-TRAY-018, DESK-SHELL-TRAY-019, DESK-SHELL-TRAY-020, DESK-SHELL-TRAY-026, DESK-START-MSFS-013, DESK-START-WINDOWS-007, DESK-START-TEST-001
 export function trayMenu(i: TrayInput): TrayMenuItem[] {
   const sep: TrayMenuItem = { separator: true };
   const menu: TrayMenuItem[] = [
@@ -102,6 +108,9 @@ export function trayMenu(i: TrayInput): TrayMenuItem[] {
   const waiting = waitingLine(i.tracker?.pending.length ?? 0);
   if (waiting !== null) menu.push({ id: "waiting", label: waiting, enabled: false });
   if (i.backupsFailing !== null) menu.push({ id: "backups-failing", label: `Backups failing: ${i.backupsFailing}`, enabled: false });
+  if (i.startLists !== null) {
+    menu.push(sep, { id: "start-msfs", ...i.startLists.msfs }, { id: "start-windows", ...i.startLists.windows });
+  }
   menu.push(sep, { id: "version", label: `Version ${i.version}`, enabled: false }, sep);
   menu.push({ id: "open-data", label: "Open data folder", enabled: true });
   if (i.backupsFolderExists) menu.push({ id: "open-backups", label: "Open backups folder", enabled: true });

@@ -268,6 +268,18 @@ folder (`MSFS Career Map\Backups` in Documents) or the app's settings and logs
 hand. A build run from anywhere but the install folder (the unpacked build in `release\` included)
 runs only in test mode, with `--test-data=<folder>`.
 
+The installed app's tray menu offers **Start with MSFS 2024** and **Start with Windows**, both off
+until you turn them on. The first adds one entry, "MSFS Career Map", to the `EXE.xml` of each MSFS 2024
+edition installed (Microsoft Store in
+`%LOCALAPPDATA%\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache`, Steam in
+`%APPDATA%\Microsoft Flight Simulator 2024`), changing nothing else in the file and only while MSFS is
+closed; the second adds the value "MSFS Career Map" to Windows' per-user start-up list, which Task
+Manager's Startup apps also switches. Before each change the app copies what it changes into
+`%APPDATA%\MSFS Career Map\start-up list backups` (the five newest of each kept). An entry another
+program removes is never put back; the menu item says so until you click it. Uninstalling takes both
+entries away. A copy in test mode leaves both lists alone. If you fly MSFS 2020, turn on Start with
+Windows instead; Start with MSFS 2024 starts the app with MSFS 2024 only.
+
 Don't run the installer on a development PC unless you mean to install the app: it is the real
 thing. The release workflow tries it on a clean GitHub runner instead (below).
 
@@ -369,7 +381,7 @@ src/client/   Vite + React + Leaflet UI
   tracker.ts  subscribes to the tracker's event stream
   landing.ts  how landing ratings are shown
   components/FlightPanel.tsx, ProfileChart.tsx   the bottom panel and its chart
-src/desktop/  Electron shell: runs the server, keeps it running, the window, the tray (main.ts is the Electron glue)
+src/desktop/  Electron shell: runs the server, keeps it running, the window, the tray and its start lists (main.ts is the Electron glue)
 scripts/      import-airports.ts, sim-probe.ts (print what the sim reports), sim-fake.ts (synthetic flight),
               desktop-build.ts and tray-icons.ts (the desktop build), desktop.ts (npm run desktop),
               test-packaged.ts (npm run test:packaged), release/ (the release workflow's scripts and installer round trip)

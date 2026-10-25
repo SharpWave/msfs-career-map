@@ -3,7 +3,8 @@
  * shell's own states and then the last tracker status received (DESK-SHELL-TRAY-002..010); the
  * waiting-legs line (TRAY-011); the tooltip, cut to the 127 characters Windows keeps (TRAY-012);
  * the icon's dot (TRAY-013); and the menu in order with each item shown only when it applies
- * (TRAY-015 less the start-list and update items, TRAY-016's "Version X", TRAY-018..020, TRAY-026).
+ * (TRAY-015 less the update items, TRAY-016's "Version X", TRAY-018..020, TRAY-026), the two start-list
+ * items as checkboxes in their place or left out (m4 contract §6; DESK-START-MSFS-013, DESK-START-TEST-001).
  */
 import { describe, expect, it } from "vitest";
 import {
@@ -18,7 +19,7 @@ import {
 import type { ServerState } from "../../../src/desktop/supervisor.ts";
 import type { TrayTracker } from "../../../src/desktop/tracker-feed.ts";
 
-/** A running server, no tracker status yet, nothing failing, version 0.8.0, no backups folder. */
+/** A running server, no tracker status yet, nothing failing, version 0.8.0, no backups folder, no start-list items (test mode). */
 function input(o: Partial<TrayInput> = {}): TrayInput {
   return {
     quitting: false,
@@ -27,6 +28,7 @@ function input(o: Partial<TrayInput> = {}): TrayInput {
     backupsFailing: null,
     version: "0.8.0",
     backupsFolderExists: false,
+    startLists: null,
     ...o,
   };
 }
@@ -340,6 +342,54 @@ describe("the tray menu", () => {
     ).flatMap((item: TrayMenuItem) => ("id" in item ? [item.id] : []));
     expect(ids).toEqual(["open", "status", "waiting", "backups-failing", "version", "open-data", "open-backups", "show-log", "try-again", "quit"]);
     expect(trayMenu(input({ version: "1.2.3" }))).toContainEqual({ id: "version", label: "Version 1.2.3", enabled: false });
+  });
+
+  // @spec DESK-SHELL-TRAY-015, DESK-START-MSFS-013, DESK-START-WINDOWS-007
+  it("puts Start with MSFS 2024 and Start with Windows, as checkboxes, between the status lines and the version line", () => {
+    const i = input({
+      tracker: tracker({ pending: [{ id: "p1" }] }),
+      backupsFailing: "disk full",
+      startLists: {
+        msfs: { label: "Start with MSFS 2024 (close MSFS to change)", enabled: false, checked: true },
+        windows: { label: "Start with Windows", enabled: true, checked: false },
+      },
+    });
+    expect(trayMenu(i)).toEqual([
+      OPEN,
+      SEP,
+      { id: "status", label: "Sim not running", enabled: false },
+      { id: "waiting", label: "1 leg waiting to be logged", enabled: false },
+      { id: "backups-failing", label: "Backups failing: disk full", enabled: false },
+      SEP,
+      { id: "start-msfs", label: "Start with MSFS 2024 (close MSFS to change)", enabled: false, checked: true },
+      { id: "start-windows", label: "Start with Windows", enabled: true, checked: false },
+      SEP,
+      VERSION,
+      SEP,
+      OPEN_DATA,
+      SHOW_LOG,
+      SEP,
+      QUIT,
+    ]);
+  });
+
+  // @spec DESK-START-TEST-001, DESK-SHELL-TRAY-020
+  it("leaves both start-list items out while there are none to show (test mode, or before the first read)", () => {
+    const ids = trayMenu(input({ startLists: null })).flatMap((item: TrayMenuItem) => ("id" in item ? [item.id] : []));
+    expect(ids).not.toContain("start-msfs");
+    expect(ids).not.toContain("start-windows");
+    expect(trayMenu(input()).filter((item: TrayMenuItem) => "checked" in item)).toEqual([]);
+  });
+
+  // @spec DESK-SHELL-QUIT-003
+  it("keeps the start-list items as read while quitting (the shell ignores their clicks)", () => {
+    const startLists = {
+      msfs: { label: "Start with MSFS 2024", enabled: true, checked: false },
+      windows: { label: "Start with Windows" as const, enabled: true as const, checked: true },
+    };
+    const menu = trayMenu(input({ quitting: true, startLists }));
+    expect(menu).toContainEqual({ id: "start-msfs", label: "Start with MSFS 2024", enabled: true, checked: false });
+    expect(menu).toContainEqual({ id: "start-windows", label: "Start with Windows", enabled: true, checked: true });
   });
 });
 

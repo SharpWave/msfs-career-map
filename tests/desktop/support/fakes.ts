@@ -1,8 +1,9 @@
 /**
  * The stand-ins the desktop tests inject in place of everything the shell reaches outside its own
  * logic (DESK-SHELL-TEST-001; m2 contract §3, §18.3): the server's process, local HTTP, Windows'
- * facts, known folders, the opener, message boxes, the window and the tray. Plans and command lines
- * for tests, temp folders in the run's folder, and canned server answers.
+ * facts, known folders, the opener, message boxes, the window and the tray; and for the start lists
+ * (m4 contract §1) the editor's file calls and Windows' start-up keys. Plans and command lines for
+ * tests, temp folders in the run's folder, and canned server answers.
  *
  * Only types come from `src/desktop/` (`import type`), so this file loads before any shell module
  * exists.
@@ -11,6 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { inject } from "vitest";
 import type {
+  EditorFs,
   HttpAnswer,
   KnownFolders,
   LocalHttp,
@@ -21,6 +23,7 @@ import type {
   ServerLauncher,
   ServerStartOptions,
   StreamHandle,
+  StartupKeys,
   StreamHandlers,
   TrayPort,
   WindowPort,
@@ -308,6 +311,8 @@ export function sseEvent(event: string, data: unknown): string {
 
 export class FakeFacts implements WindowsFacts {
   msfs = false;
+  /** msfs2024Running's answer (FlightSimulator2024.exe alone). */
+  msfs2024 = false;
   /** programOf answers; missing → null. */
   programs = new Map<number, string | null>();
   ended: number[] = [];
@@ -317,12 +322,16 @@ export class FakeFacts implements WindowsFacts {
   isFixedDriveReply: ((letter: string) => Promise<boolean>) | null = null;
   /** processesIn answers, by folder exactly as asked; missing → []. */
   inFolder = new Map<string, number[]>();
-  /** "msfsRunning", "programOf <pid>", "endProcess <pid>", "excludedPortRanges", "isFixedDrive <L>", "processesIn <folder>". */
+  /** "msfsRunning", "msfs2024Running", "programOf <pid>", "endProcess <pid>", "excludedPortRanges", "isFixedDrive <L>", "processesIn <folder>". */
   calls: string[] = [];
 
   msfsRunning(): Promise<boolean> {
     this.calls.push("msfsRunning");
     return Promise.resolve(this.msfs);
+  }
+  msfs2024Running(): Promise<boolean> {
+    this.calls.push("msfs2024Running");
+    return Promise.resolve(this.msfs2024);
   }
   programOf(pid: number): Promise<string | null> {
     this.calls.push(`programOf ${pid}`);
@@ -451,6 +460,145 @@ export class FakeTray implements TrayPort {
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// The start lists: the editor's file calls and Windows' start-up keys (m4 contract §4.1, §5.1)
+
+export type FsOp = "read" | "exists" | "write" | "rename" | "remove" | "list" | "mkdir";
+
+/** An Error carrying a Node-style `code`, as node:fs throws them. */
+export function fsError(code: string, message = `${code}: refused by the test`): NodeJS.ErrnoException {
+  const e = new Error(message) as NodeJS.ErrnoException;
+  e.code = code;
+  return e;
+}
+
+interface FsHook {
+  op: FsOp;
+  suffix: string;
+  fn: (n: number) => void;
+  n: number;
+}
+
+/**
+ * The editor's file calls on real files (temp folders only), each recorded as "<op> <path>" (rename:
+ * "rename <from> -> <to>"). A hook runs before every call of its op whose (first) path ends with its
+ * suffix, ignoring case, given the 1-based count of such calls: it may throw, failing the call, or
+ * change files on disk first, as another program would.
+ */
+export class ScriptedFs implements EditorFs {
+  calls: string[] = [];
+  private hooks: FsHook[] = [];
+
+  /** Returns a function that takes the hook away. */
+  hook(op: FsOp, suffix: string, fn: (n: number) => void): () => void {
+    const h: FsHook = { op, suffix: suffix.toLowerCase(), fn, n: 0 };
+    this.hooks.push(h);
+    return () => {
+      this.hooks = this.hooks.filter((x) => x !== h);
+    };
+  }
+
+  /** The recorded calls of one op. */
+  callsOf(op: FsOp): string[] {
+    return this.calls.filter((c) => c.startsWith(`${op} `));
+  }
+
+  read(file: string): Uint8Array | null {
+    this.before("read", file, `read ${file}`);
+    try {
+      return new Uint8Array(fs.readFileSync(file));
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw e;
+    }
+  }
+  exists(file: string): boolean {
+    this.before("exists", file, `exists ${file}`);
+    return fs.existsSync(file);
+  }
+  write(file: string, bytes: Uint8Array): void {
+    this.before("write", file, `write ${file}`);
+    fs.writeFileSync(file, bytes);
+  }
+  rename(from: string, to: string): void {
+    this.before("rename", from, `rename ${from} -> ${to}`);
+    fs.renameSync(from, to);
+  }
+  remove(file: string): void {
+    this.before("remove", file, `remove ${file}`);
+    fs.rmSync(file, { force: true });
+  }
+  list(folder: string): string[] {
+    this.before("list", folder, `list ${folder}`);
+    try {
+      return fs.readdirSync(folder);
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw e;
+    }
+  }
+  mkdir(folder: string): void {
+    this.before("mkdir", folder, `mkdir ${folder}`);
+    fs.mkdirSync(folder, { recursive: true });
+  }
+
+  private before(op: FsOp, file: string, call: string): void {
+    this.calls.push(call);
+    const lower = file.toLowerCase();
+    for (const h of [...this.hooks]) {
+      if (h.op === op && lower.endsWith(h.suffix)) h.fn(++h.n);
+    }
+  }
+}
+
+/** StartupApproved's mark as Electron writes it enabled (02) and as Task Manager writes it disabled (03). */
+export const APPROVED_ENABLED = Uint8Array.from([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+export const APPROVED_DISABLED = Uint8Array.from([3, 0, 0, 0, 0x8a, 0x3b, 0x1f, 0x52, 0x9c, 0x46, 0xdb, 0x01]);
+
+/**
+ * Windows' two start-up keys in memory: the value named "MSFS Career Map" in each (null when
+ * absent). `others` stands for every other value in the keys, which nothing may change. A failure
+ * set for a call makes it throw with that message; `gate`, while set, holds every call until it
+ * settles (a never-settling one for --unregister's 15 s bound).
+ */
+export class FakeKeys implements StartupKeys {
+  run: string | null = null;
+  approved: Uint8Array | null = null;
+  readonly others = { run: { OneDrive: '"C:\\Program Files\\Microsoft OneDrive\\OneDrive.exe" /background' }, approved: { OneDrive: "02" } };
+  /** "read", "exportTo <file>", "writeOn <program>", "remove". */
+  calls: string[] = [];
+  fail: Partial<Record<"read" | "exportTo" | "writeOn" | "remove", string>> = {};
+  gate: Promise<void> | null = null;
+
+  async read(): Promise<{ run: string | null; approved: Uint8Array | null }> {
+    await this.enter("read");
+    return { run: this.run, approved: this.approved === null ? null : Uint8Array.from(this.approved) };
+  }
+  /** Writes a small UTF-16LE .reg file at `file`, so the backups folder holds it as Windows' export would. */
+  async exportTo(file: string): Promise<void> {
+    await this.enter("exportTo", file);
+    const text = `Windows Registry Editor Version 5.00\r\n\r\n[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run]\r\n"MSFS Career Map"=${JSON.stringify(this.run)}\r\n`;
+    fs.writeFileSync(file, Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, "utf16le")]));
+  }
+  async writeOn(program: string): Promise<void> {
+    await this.enter("writeOn", program);
+    this.run = `"${program}" --background`;
+    this.approved = Uint8Array.from(APPROVED_ENABLED);
+  }
+  async remove(): Promise<void> {
+    await this.enter("remove");
+    this.run = null;
+    this.approved = null;
+  }
+
+  private async enter(name: "read" | "exportTo" | "writeOn" | "remove", arg?: string): Promise<void> {
+    this.calls.push(arg === undefined ? name : `${name} ${arg}`);
+    if (this.gate) await this.gate;
+    const why = this.fail[name];
+    if (why !== undefined) throw new Error(why);
+  }
+}
+
 export interface FakePorts extends ShellPorts {
   clock: FakeClock;
   launcher: FakeLauncher;
@@ -461,6 +609,8 @@ export interface FakePorts extends ShellPorts {
   boxes: FakeBoxes;
   window: FakeWindow;
   tray: FakeTray;
+  fs: ScriptedFs;
+  keys: FakeKeys;
   exits: { code: number; relaunch: string[] | null }[];
 }
 
@@ -476,6 +626,8 @@ export function makePorts(): FakePorts {
     boxes: new FakeBoxes(),
     window: new FakeWindow(),
     tray: new FakeTray(),
+    fs: new ScriptedFs(),
+    keys: new FakeKeys(),
     exits,
     exit(code: number, relaunch: string[] | null) {
       exits.push({ code, relaunch });

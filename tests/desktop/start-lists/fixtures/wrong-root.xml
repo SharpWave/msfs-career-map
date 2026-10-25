@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SimBase.Document Type="AceXML" version="1,0">
+  <Descr>AceXML Document</Descr>
+  <Launch.Addon>
+    <Name>MSFS Career Map</Name>
+    <Disabled>False</Disabled>
+    <ManualLoad>False</ManualLoad>
+    <Path>{{PROGRAM}}</Path>
+    <CommandLine>--background</CommandLine>
+  </Launch.Addon>
+</SimBase.Document>

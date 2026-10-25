@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SimBase.Document Type="Launch" version="1,0">
+  <Descr>Launch</Descr>
+  <Launch.Addon>
+    <Name>  msfs career MAP </Name>
+    <Disabled>False</Disabled>
+    <ManualLoad>False</ManualLoad>
+    <Path>{{PROGRAM}}</Path>
+    <CommandLine>--background</CommandLine>
+  </Launch.Addon>
+</SimBase.Document>

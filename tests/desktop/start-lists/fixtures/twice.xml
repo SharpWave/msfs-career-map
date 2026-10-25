@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SimBase.Document Type="Launch" version="1,0">
+  <Descr>Launch</Descr>
+  <Launch.Addon>
+    <Name>MSFS Career Map</Name>
+    <Disabled>False</Disabled>
+    <ManualLoad>False</ManualLoad>
+    <Path>{{PROGRAM}}</Path>
+    <CommandLine>--background</CommandLine>
+  </Launch.Addon>
+  <Launch.Addon>
+    <Name>FSUIPC7</Name>
+    <Disabled>False</Disabled>
+    <Path>C:\FSUIPC7\FSUIPC7.exe</Path>
+  </Launch.Addon>
+  <Launch.Addon>
+    <Name>MSFS Career Map</Name>
+    <Disabled>True</Disabled>
+    <ManualLoad>False</ManualLoad>
+    <Path>{{PROGRAM}}</Path>
+    <CommandLine>--background</CommandLine>
+  </Launch.Addon>
+</SimBase.Document>

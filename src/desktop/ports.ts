@@ -80,6 +80,8 @@ export interface StreamHandle {
 export interface WindowsFacts {
   /** FlightSimulator2024.exe or FlightSimulator.exe running for this Windows account; false when the look fails. */
   msfsRunning(): Promise<boolean>;
+  /** FlightSimulator2024.exe alone running for this Windows account (Start with MSFS 2024); false when the look fails. */
+  msfs2024Running(): Promise<boolean>;
   /** The program file a process runs; null when gone or unreadable. */
   programOf(pid: number): Promise<string | null>;
   /** Ends a process outright. */
@@ -130,4 +132,38 @@ export interface WindowPort {
 
 export interface TrayPort {
   show(model: TrayModel): void;
+}
+
+// The start lists
+
+/**
+ * The file calls the `EXE.xml` editor makes; `nodeEditorFs` (msfs-start.ts) is node:fs. Tests wrap it
+ * to make a call fail or to change a file between two calls. Every path is absolute.
+ */
+export interface EditorFs {
+  /** The bytes, or null when the file does not exist; throws for any other failure. */
+  read(file: string): Uint8Array | null;
+  exists(file: string): boolean;
+  /** Creates or truncates. */
+  write(file: string, bytes: Uint8Array): void;
+  /** Replaces `to`; throws with the Windows code (EBUSY, EPERM, EACCES …). */
+  rename(from: string, to: string): void;
+  /** A missing file is fine. */
+  remove(file: string): void;
+  /** Names; [] when the folder is missing. */
+  list(folder: string): string[];
+  /** Recursive. */
+  mkdir(folder: string): void;
+}
+
+/** Windows' two per-user start-up keys, as far as the app's value named "MSFS Career Map" goes. */
+export interface StartupKeys {
+  /** The value in each key (Run's text, StartupApproved's bytes), null where absent; throws when a key cannot be read. */
+  read(): Promise<{ run: string | null; approved: Uint8Array | null }>;
+  /** Both keys' values as one .reg file (UTF-16LE with BOM, "Windows Registry Editor Version 5.00"); throws with the reason. */
+  exportTo(file: string): Promise<void>;
+  /** Electron's login item: the Run value `"<program>" --background`, enabled under StartupApproved. */
+  writeOn(program: string): Promise<void>;
+  /** The value deleted from both keys; one absent is fine; throws when one stays. */
+  remove(): Promise<void>;
 }

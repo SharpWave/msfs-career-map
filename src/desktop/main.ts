@@ -22,6 +22,7 @@ import { installErrorHandlers } from "./errors.ts";
 import { checkInstallUnderWay, leftInMarkLogLine, nodeMarkFiles } from "./install-mark.ts";
 import { localHttp } from "./local-http.ts";
 import { LogFile } from "./logs.ts";
+import { nodeEditorFs } from "./msfs-start.ts";
 import type {
   Cancel,
   Clock,
@@ -34,7 +35,9 @@ import type {
 } from "./ports.ts";
 import { Shell } from "./shell.ts";
 import { decideStart, type RunPlan } from "./start.ts";
+import { startupKeys } from "./startup-keys.ts";
 import type { TrayDot, TrayMenuItem } from "./tray-model.ts";
+import { runUnregister } from "./unregister.ts";
 import { VERSION } from "./version.ts";
 import {
   contextMenuItems,
@@ -68,7 +71,13 @@ function main(): void {
   }
   // Electron's own folder comes first: nothing before it may ask Electron for a folder.
   app.setPath("userData", decision.plan.electronFolder);
-  if (decision.kind === "unregister") process.exit(0);
+  if (decision.kind === "unregister") {
+    // Its own work, before the lock and without handing over; the exit code tells the uninstaller what is left.
+    void runUnregister({ plan: decision.plan, env: process.env, clock: realClock(), fs: nodeEditorFs, keys: startupKeys({ loginItems: app }) })
+      .catch(() => 3 as const)
+      .then((code) => process.exit(code));
+    return;
+  }
   if (decision.kind === "quit-only") {
     app.requestSingleInstanceLock({ commandLine: decision.command });
     app.exit(0);
@@ -155,6 +164,8 @@ function runningCopy(plan: RunPlan, command: CommandLine): void {
       boxes: messageBoxes,
       window,
       tray: trayPort,
+      fs: nodeEditorFs,
+      keys: startupKeys({ loginItems: app }),
       exit(code, relaunch) {
         if (relaunch) app.relaunch({ args: app.isPackaged ? relaunch : [process.argv[1], ...relaunch] });
         // The icon leaves the notification area with the app, not at Explorer's next look.
@@ -201,13 +212,15 @@ function runningCopy(plan: RunPlan, command: CommandLine): void {
   });
 }
 
-/** The tray menu as Electron builds it; each item's click goes to the shell. */
+/** The tray menu as Electron builds it, an item with `checked` as a checkbox; each item's click goes to the shell. */
 function menuTemplate(menu: TrayMenuItem[], shell: Shell): MenuItemConstructorOptions[] {
-  return menu.map((item) =>
-    "separator" in item
-      ? { type: "separator" }
-      : { label: item.label, enabled: item.enabled, click: () => void shell.menuChosen(item.id) },
-  );
+  return menu.map((item): MenuItemConstructorOptions => {
+    if ("separator" in item) return { type: "separator" };
+    const click = () => void shell.menuChosen(item.id);
+    return item.checked === undefined
+      ? { label: item.label, enabled: item.enabled, click }
+      : { type: "checkbox", checked: item.checked, label: item.label, enabled: item.enabled, click };
+  });
 }
 
 /** A box aborted before it showed resolves with no response at once; one aborted while open gives its cancelId. */

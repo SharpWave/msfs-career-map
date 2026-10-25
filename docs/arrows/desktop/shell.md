@@ -62,7 +62,8 @@ ended by `taskkill /F` took its server's utility process and every child with it
   address.ts, page-window.ts, screens.ts, window-options.ts, window-place.ts; version.ts. Nothing in
   src/desktop imports src/server, and no module touches `child_process`, `net`, `http` or `electron`
   at load
-- Planned: notifications and updates (electron-updater), the start-list tray items (start-lists)
+- The start-list tray items through start-lists' StartLists (shell.ts, tray-model.ts, main.ts)
+- Planned: notifications and updates (electron-updater)
 
 ## Architecture
 
@@ -112,10 +113,10 @@ the sim is in use — while the page stays the same web page the browser tests c
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
 | Server process: start, readiness, private channel, event stream, shutdown, restarts, sleep and the clock | DESK-SHELL-SRV-001 to 045 | 42 | 0 | 3 |
-| Quitting state | DESK-SHELL-QUIT-001 to 012 | 6 | 0 | 6 |
+| Quitting state | DESK-SHELL-QUIT-001 to 012 | 7 | 0 | 5 |
 | Backups | DESK-SHELL-BAK-001 to 008 | 7 | 0 | 1 |
 | Logs | DESK-SHELL-LOG-001 to 009 | 9 | 0 | 0 |
-| Settings | DESK-SHELL-SET-001 to 006 | 5 | 0 | 1 |
+| Settings | DESK-SHELL-SET-001 to 006 | 6 | 0 | 0 |
 | Window | DESK-SHELL-WIN-001 to 032 | 30 | 0 | 2 |
 | Tray | DESK-SHELL-TRAY-001 to 027 | 22 | 0 | 5 |
 | One running copy and command line | DESK-SHELL-CLI-001 to 022 | 19 | 0 | 3 |
@@ -126,15 +127,15 @@ the sim is in use — while the page stays the same web page the browser tests c
 | Updates | DESK-SHELL-UPD-001 to 032 | 0 | 1 | 31 |
 | Unit-test harness | DESK-SHELL-TEST-001 | 1 | 0 | 0 |
 
-**Summary:** 153 of 226 specs implemented; 72 gaps; 1 deferred (DESK-SHELL-UPD-021, a prerelease
+**Summary:** 155 of 226 specs implemented; 70 gaps; 1 deferred (DESK-SHELL-UPD-021, a prerelease
 channel). Of the gaps outside notifications and updates: built in part, waiting on notifications,
-updates or the start lists — DESK-SHELL-SRV-039 (the update check on resume), QUIT-002 (the page's
+or updates — DESK-SHELL-SRV-039 (the update check on resume), QUIT-002 (the page's
 confirm dialogs and update work while quitting), BAK-005 (the backup before an update; the `--quit`
 backup is built), WIN-001 (a notification click's fragment held for the first load), TRAY-015 (the
-start-list and update items), TRAY-016 (update states on the version line), CLI-009 (`--unregister`'s
-clean-up outside test mode); built and seen by hand but cited by no test until the packaged smoke test —
+update items; the start-list items are built), TRAY-016 (update states on the version line), CLI-009 (`--unregister`'s
+notification clean-up; its start-list clean-up is built); built and seen by hand but cited by no test until the packaged smoke test —
 SRV-003, SRV-040, WIN-031; not begun, belonging to
-updates, notifications, the start lists or an install under way — QUIT-007, QUIT-009 to 012, SET-006,
+updates, notifications or an install under way — QUIT-007, QUIT-009 to 011,
 TRAY-017, TRAY-023, TRAY-027, CLI-021, CLI-022, AWAY-004. CLI-020 (a start during an install left in the install-under-way mark) is built with distribution's include.
 
 ## Key Findings
@@ -221,8 +222,6 @@ TRAY-017, TRAY-023, TRAY-027, CLI-021, CLI-022, AWAY-004. CLI-020 (a start durin
    DESK-SHELL-SRV-003, SRV-040 and WIN-031, which are built and seen by hand.
 
 ### Should Fix
-3. The start-list tray items and settings with start-lists (TRAY-015's items, SET-006, QUIT-012,
-   CLI-009's clean-up).
-4. Notifications and updates, test-first, alongside distribution's installer, its include and the
+3. Notifications and updates, test-first, alongside distribution's installer, its include and the
    release workflow (NOTE-*, UPD-*, the rest of QUIT, TRAY, CLI and AWAY-004, BAK-005, SRV-039,
    WIN-001).

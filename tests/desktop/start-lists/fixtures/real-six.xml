@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SimBase.Document Type="Launch" version="1,0">
+  <Descr>Launch</Descr>
+  <Filename>EXE.xml</Filename>
+  <Disabled>False</Disabled>
+  <Launch.ManualLoad>False</Launch.ManualLoad>
+  <Launch.Addon>
+    <Name>FSUIPC7</Name>
+    <Disabled>False</Disabled>
+    <Path>C:\FSUIPC7\FSUIPC7.exe</Path>
+    <CommandLine>-auto</CommandLine>
+    <NewConsole>False</NewConsole>
+  </Launch.Addon>
+  <Launch.Addon>
+    <Name>Navigraph Simlink</Name>
+    <Disabled>False</Disabled>
+    <ManualLoad>False</ManualLoad>
+    <Path>C:\Users\Pilot\AppData\Local\Navigraph\Simlink\navigraph-simlink.exe</Path>
+  </Launch.Addon>
+  <!-- added by the SayIntentions installer -->
+  <Launch.Addon>
+    <Name>SayIntentionsAI</Name>
+    <Disabled>False</Disabled>
+    <Path>C:\Program Files\SayIntentionsAI\SimAPI.exe</Path>
+    <CommandLine>--autostart  --quiet</CommandLine>
+  </Launch.Addon>
+  <Launch.Addon>
+    <Name>Volanta</Name>
+    <Disabled>False</Disabled>
+    <ManualLoad>False</ManualLoad>
+    <Path>C:\Users\Pilot\AppData\Local\Programs\Volanta\Volanta.exe</Path>
+    <CommandLine>--minimized</CommandLine>
+  </Launch.Addon>
+  <Launch.Addon>
+    <Name>BeyondATC</Name>
+    <Disabled>True</Disabled>
+    <Path>D:\Sim Tools\BeyondATC\BeyondATC.exe</Path>
+  </Launch.Addon>
+  <Launch.Addon>
+    <Name>Fenix &amp; Friends Bridge</Name>
+    <Disabled>False</Disabled>
+    <Path>C:\Program Files\Fenix\Bridge &lt;x64&gt;\bridge.exe</Path>
+    <CommandLine></CommandLine>
+  </Launch.Addon>
+</SimBase.Document>

@@ -8,11 +8,14 @@ import { LogFile } from "./logs.ts";
 import { PageWindow, type ShellView } from "./page-window.ts";
 import type {
   Clock,
+  EditorFs,
   KnownFolders,
   LocalHttp,
   MessageBoxes,
+  MessageBoxOptions,
   Opener,
   ServerLauncher,
+  StartupKeys,
   TrayPort,
   WindowPort,
   WindowsFacts,
@@ -21,6 +24,7 @@ import { backupsFolderFor, serverArgs, serverEnv } from "./server-inputs.ts";
 import { SettingsStore, type DesktopSettings, type SavedWindow } from "./settings.ts";
 import { MsfsWatch } from "./sim-in-use.ts";
 import type { RunPlan } from "./start.ts";
+import { StartLists } from "./start-lists.ts";
 import { Supervisor } from "./supervisor.ts";
 import { TIMING } from "./timing.ts";
 import { TrackerFeed } from "./tracker-feed.ts";
@@ -28,8 +32,8 @@ import { trayModel, type TrayItemId, type TrayModel } from "./tray-model.ts";
 
 /**
  * The running copy's shell: its logs and settings, the server it supervises, the tracker it follows
- * for the tray, the daily backup, the window and the tray, the starts handed over to it, and the
- * ways it quits. Everything outside its own logic goes through the ports `main.ts` builds.
+ * for the tray, the daily backup, the window and the tray with its start-list items, the starts
+ * handed over to it, and the ways it quits. Everything outside its own logic goes through the ports `main.ts` builds.
  */
 
 export type QuitKind = "quit" | "quit-switch" | "session-end";
@@ -44,6 +48,9 @@ export interface ShellPorts {
   boxes: MessageBoxes;
   window: WindowPort;
   tray: TrayPort;
+  /** The start lists' file calls and Windows' start-up keys (outside test mode only). */
+  fs: EditorFs;
+  keys: StartupKeys;
   /** The app exits with code; relaunch: the switches to start it again with once it has exited, or null. */
   exit(code: number, relaunch: string[] | null): void;
 }
@@ -78,6 +85,8 @@ export class Shell {
   private readonly backups: BackupRequests;
   private readonly daily: DailyBackups;
   private readonly msfs: MsfsWatch;
+  /** The tray's start-list items; null in test mode, which reaches neither start list. */
+  private readonly startLists: StartLists | null;
   private page: PageWindow | null = null;
   private started = false;
   /** Starts handed over before start(), acted on there in order. */
@@ -134,6 +143,20 @@ export class Shell {
     this.backups = new BackupRequests({ clock, supervisor: this.supervisor, log });
     this.daily = new DailyBackups({ clock, settings: this.store, backups: this.backups, changed: () => this.showTray() });
     this.msfs = new MsfsWatch(clock, ports.facts);
+    this.startLists =
+      plan.mode === "installed"
+        ? new StartLists({
+            clock,
+            fs: ports.fs,
+            keys: ports.keys,
+            facts: ports.facts,
+            boxes: ports.boxes,
+            settings: this.store,
+            env: { LOCALAPPDATA: o.env.LOCALAPPDATA, APPDATA: o.env.APPDATA },
+            electronFolder: plan.electronFolder,
+            log,
+          })
+        : null;
 
     this.supervisor.onState(() => this.changed());
     this.supervisor.onStartupDone((e) => this.startupDone(e));
@@ -210,14 +233,14 @@ export class Shell {
     this.openWindow();
   }
 
-  /** The tray menu is about to open: the backups folder looked up again. Never rejects. */
-  // @spec DESK-SHELL-TRAY-018
+  /** The tray menu is about to open: the backups folder looked up again and the start lists read. Never rejects. */
+  // @spec DESK-SHELL-TRAY-018, DESK-START-MSFS-011, DESK-START-WINDOWS-004
   async menuOpening(): Promise<void> {
-    await this.lookUpBackupsFolder();
+    await Promise.all([this.lookUpBackupsFolder(), this.startLists?.refresh()]);
   }
 
   /** Returns once the item's effect has begun (for Quit, once the quit has run its course or stopped). */
-  // @spec DESK-SHELL-TRAY-014, DESK-SHELL-TRAY-019, DESK-SHELL-TRAY-024, DESK-SHELL-TRAY-025, DESK-SHELL-LOG-009, DESK-SHELL-QUIT-003
+  // @spec DESK-SHELL-TRAY-014, DESK-SHELL-TRAY-019, DESK-SHELL-TRAY-024, DESK-SHELL-TRAY-025, DESK-SHELL-LOG-009, DESK-SHELL-QUIT-003, DESK-START-MSFS-012, DESK-START-WINDOWS-005
   async menuChosen(id: TrayItemId): Promise<void> {
     if (id === "open") return this.openWindow();
     if (id === "show-log") return this.ports.opener.openFolder(this.logsFolder);
@@ -233,6 +256,13 @@ export class Shell {
         if (folder !== null && exists) this.ports.opener.openFolder(folder);
         return;
       }
+      case "start-msfs":
+      case "start-windows":
+        return this.startLists?.click(
+          id === "start-msfs" ? "msfs" : "windows",
+          () => this.quitKind !== null,
+          (b) => this.showBox(b),
+        );
       case "try-again":
         if (this.supervisor.state().kind === "given-up") this.supervisor.tryAgain();
         return;
@@ -249,6 +279,7 @@ export class Shell {
       backupsFailing: this.daily.failing(),
       version: this.o.version,
       backupsFolderExists: this.backupsFolderExists,
+      startLists: this.startLists?.items() ?? null,
     });
   }
 
@@ -388,7 +419,7 @@ export class Shell {
   // Quitting
 
   /** Quit: the tracker read (2 s allowed), a question only about a leg in the air, then the quitting state, Shut down and the exit. */
-  // @spec DESK-SHELL-TRAY-021, DESK-SHELL-TRAY-022, DESK-SHELL-QUIT-001, DESK-SHELL-QUIT-006, DESK-SHELL-AWAY-003
+  // @spec DESK-SHELL-TRAY-021, DESK-SHELL-TRAY-022, DESK-SHELL-QUIT-001, DESK-SHELL-QUIT-006, DESK-SHELL-QUIT-012, DESK-SHELL-AWAY-003
   private async quit(): Promise<void> {
     if (this.quitKind !== null || this.quitAsking) return;
     this.quitAsking = true;
@@ -401,36 +432,47 @@ export class Shell {
     }
     if (this.quitKind !== null) return;
     this.enterQuitting("quit");
+    await this.startListChange();
     await this.supervisor.shutDown();
     this.finish();
   }
 
   /** Quit's one question, closed as cancelled if the quitting state begins while it is open. */
-  private async ask(): Promise<number> {
+  private ask(): Promise<number> {
+    return this.showBox({
+      type: "warning",
+      title: "MSFS Career Map",
+      message: QUIT_QUESTION,
+      buttons: ["Quit", "Cancel"],
+      defaultId: 1,
+      cancelId: 1,
+    });
+  }
+
+  /** A box in answer to the pilot's click, closed as cancelled if the quitting state begins while it is open. */
+  private async showBox(o: Omit<MessageBoxOptions, "signal">): Promise<number> {
     const controller = new AbortController();
     this.openBoxes.add(controller);
     try {
-      return await this.ports.boxes.show({
-        type: "warning",
-        title: "MSFS Career Map",
-        message: QUIT_QUESTION,
-        buttons: ["Quit", "Cancel"],
-        defaultId: 1,
-        cancelId: 1,
-        signal: controller.signal,
-      });
+      return await this.ports.boxes.show({ ...o, signal: controller.signal });
     } catch {
-      return 1;
+      return o.cancelId;
     } finally {
       this.openBoxes.delete(controller);
     }
   }
 
+  /** A start-list change under way finished, within its own bounds, before the server shuts down (never at a session end). */
+  // @spec DESK-SHELL-QUIT-012
+  private async startListChange(): Promise<void> {
+    await this.startLists?.busy()?.catch(() => {});
+  }
+
   /** `--quit` handed over: a quit backup (whatever it gives), Shut down, the exit. */
-  // @spec DESK-SHELL-CLI-008, DESK-SHELL-BAK-005
+  // @spec DESK-SHELL-CLI-008, DESK-SHELL-BAK-005, DESK-SHELL-QUIT-012
   private async quitSwitch(): Promise<void> {
     this.enterQuitting("quit-switch");
-    await this.backups.request("quit");
+    await Promise.all([this.backups.request("quit"), this.startListChange()]);
     await this.supervisor.shutDown();
     this.finish();
   }

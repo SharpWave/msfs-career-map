@@ -56,7 +56,12 @@ description, API table and roadmap.
   `hops.briefing_id`. The tracker holds one "current" briefing that the next logged hop consumes.
 - Desktop shell: `src/desktop/` (Electron 45). Its modules are pure logic driven through the stand-ins
   in `ports.ts` — clock, server launcher, local HTTP, Windows facts, known folders, opener, message
-  boxes, window, tray — with `FakeClock` in tests (`tests/desktop/support/`). `main.ts` is the only
+  boxes, window, tray, the start lists' file calls (`EditorFs`) and Windows' start-up keys
+  (`StartupKeys`) — with `FakeClock` in tests (`tests/desktop/support/`). The start lists (Start with
+  MSFS 2024, Start with Windows, `--unregister`) are `exe-xml.ts` (the `EXE.xml` editor, edits as text,
+  parsed with `saxes`), `msfs-start.ts`, `windows-start.ts` + `startup-keys.ts` (reg.exe, Electron's
+  login item), `start-lists.ts` (the two tray items) and `unregister.ts`; their tests and `EXE.xml`
+  fixtures are in `tests/desktop/start-lists/`. `main.ts` is the only
   Electron glue and the only module that loads `electron`; nothing in `src/desktop` imports
   `src/server`, and no module touches `child_process`, `net`, `http` or `electron` at load. The
   desktop build (`scripts/desktop-build.ts`, tray icons from `assets/career-map.ico` by

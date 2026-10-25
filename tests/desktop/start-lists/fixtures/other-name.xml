@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SimBase.Document Type="Launch" version="1,0">
+  <Descr>Launch</Descr>
+  <Launch.Addon>
+    <Name>Career Map</Name>
+    <Disabled>False</Disabled>
+    <ManualLoad>False</ManualLoad>
+    <Path>{{PROGRAM}}</Path>
+    <CommandLine>--background</CommandLine>
+  </Launch.Addon>
+  <Launch.Addon>
+    <Name>MSFS Career Map</Name>
+    <Disabled>False</Disabled>
+    <ManualLoad>False</ManualLoad>
+    <Path>C:\Somewhere Else\MSFS Career Map.exe</Path>
+    <CommandLine>--background</CommandLine>
+  </Launch.Addon>
+</SimBase.Document>

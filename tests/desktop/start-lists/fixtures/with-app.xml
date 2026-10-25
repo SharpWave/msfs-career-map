@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SimBase.Document Type="Launch" version="1,0">
+  <Descr>Launch</Descr>
+  <Filename>EXE.xml</Filename>
+  <Launch.Addon>
+    <Name>FSUIPC7</Name>
+    <Disabled>False</Disabled>
+    <Path>C:\FSUIPC7\FSUIPC7.exe</Path>
+  </Launch.Addon>
+	<Launch.Addon>
+		<Path>  {{PROGRAM}}  </Path>
+		<CommandLine>--background</CommandLine>
+		<ManualLoad>false</ManualLoad>
+		<Name>MSFS Career Map</Name>
+		<Disabled> false </Disabled>
+	</Launch.Addon>
+  <Launch.Addon>
+    <Name>Volanta</Name>
+    <Disabled>False</Disabled>
+    <Path>C:\Users\Pilot\AppData\Local\Programs\Volanta\Volanta.exe</Path>
+  </Launch.Addon>
+</SimBase.Document>

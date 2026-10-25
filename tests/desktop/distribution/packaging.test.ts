@@ -34,7 +34,7 @@ interface BuilderConfig {
   directories?: { app?: string; output?: string; buildResources?: string };
   electronLanguages?: unknown;
   electronFuses?: Record<string, boolean>;
-  win?: { target?: unknown; icon?: string };
+  win?: { target?: unknown; icon?: string; requestedExecutionLevel?: string };
   nsis?: Record<string, unknown>;
   publish?: unknown;
 }
@@ -141,6 +141,12 @@ describe("the installer", () => {
     expect(config.nsis?.createDesktopShortcut).toBe(false);
     expect(config.nsis?.runAfterFinish).toBe(false);
     expect(config.nsis?.menuCategory ?? false).toBe(false);
+  });
+
+  // @spec DESK-START-MSFS-024
+  it("never has the program ask to run elevated, since MSFS does not start a program that does", () => {
+    expect(config.win?.requestedExecutionLevel ?? "asInvoker").toBe("asInvoker");
+    expect(config.nsis?.allowElevation ?? false).toBe(false);
   });
 
   // @spec DESK-DIST-UNINST-007

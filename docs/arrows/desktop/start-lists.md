@@ -6,9 +6,10 @@ the two tray items, and the start-list work `--unregister` does for the uninstal
 
 ## Status
 
-**MAPPED** — LLD and EARS specs written 2026-10-23, before any code (greenfield), with the
-intent-narrowing edge audit's findings for the desktop group applied; not yet audited against code. No
-tests or code yet. Its one note for another segment, the README's advice for MSFS 2020, is in app-shell's
+**MAPPED** — LLD and EARS specs written 2026-10-23, before any code, with the intent-narrowing edge
+audit's findings for the desktop group applied; built test-first on 2026-10-25, every spec but the
+deferred one implemented and unit-tested on fixtures and stand-ins; not yet audited against code, nor
+tried on the real `EXE.xml`, `reg.exe` or Electron's login item. Its one note for another segment, the README's advice for MSFS 2020, is in app-shell's
 LLD (Docs This Segment Owns); its other reliances are on the desktop shell, each cited by spec in the
 LLD's Relies On.
 
@@ -23,17 +24,23 @@ LLD's Relies On.
 - docs/intent/desktop/start-lists/start-lists-design.md
 
 ### EARS
-- docs/intent/desktop/start-lists/start-lists-specs.md — 76 specs (prefix `DESK-START`), none
+- docs/intent/desktop/start-lists/start-lists-specs.md — 76 specs (prefix `DESK-START`), 75
   implemented, 1 deferred
 
 ### Tests
-- None yet. Planned: tests/desktop/start-lists/ (Vitest unit tests of the `EXE.xml` editor against fixture
-  files in temporary folders, the two tray items, and `--unregister`'s exit codes; the process list,
-  Windows' known folders, both editions' folders, Electron's folder, `HKCU` and Electron's login item
-  reached only through injected stand-ins, a test failing when it reaches a real one)
+- tests/desktop/start-lists/ (desktop Vitest project): exe-xml, backups, startup-keys (pure parts);
+  msfs-pass, msfs-item (the passes over the editions' folders and the Start with MSFS 2024 item, on temp
+  folders through `ScriptedFs`); windows-start, unregister, shell-items, guard. Fixtures in
+  tests/desktop/start-lists/fixtures/ (README there), loaded by support/sims.ts; `ScriptedFs` and `FakeKeys`
+  in tests/desktop/support/fakes.ts. Also tests/desktop/shell/tray-model.test.ts (the items' place) and
+  tests/desktop/distribution/packaging.test.ts (DESK-START-MSFS-024)
 
 ### Code
-- None yet. Planned: the start-list code in src/desktop/
+- src/desktop/exe-xml.ts (reading, adding and removing the app's entry as text, the result's check;
+  XML parsed with `saxes`), start-list-backups.ts (names and pruning), msfs-start.ts (the editions'
+  folders, the item's state, the passes, `nodeEditorFs`), windows-start.ts and startup-keys.ts (Start with
+  Windows; reg.exe and Electron's login item), start-lists.ts (the two tray items), unregister.ts
+  (`--unregister`); wired in tray-model.ts, shell.ts and main.ts; `EditorFs` and `StartupKeys` in ports.ts
 
 ## Architecture
 
@@ -64,17 +71,20 @@ programs share only by the app's one entry, only when asked, and only after a ba
 
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
-| Start with MSFS: editions, the item, the app's entry, the `EXE.xml` editor, backups, an entry another program removed | DESK-START-MSFS-001 to 055 | 0 | 1 | 54 |
-| Start with Windows | DESK-START-WINDOWS-001 to 009 | 0 | 0 | 9 |
-| Test mode and unit tests | DESK-START-TEST-001 to 004 | 0 | 0 | 4 |
-| Unregistering | DESK-START-UNREG-001 to 008 | 0 | 0 | 8 |
+| Start with MSFS: editions, the item, the app's entry, the `EXE.xml` editor, backups, an entry another program removed | DESK-START-MSFS-001 to 055 | 54 | 1 | 0 |
+| Start with Windows | DESK-START-WINDOWS-001 to 009 | 9 | 0 | 0 |
+| Test mode and unit tests | DESK-START-TEST-001 to 004 | 4 | 0 | 0 |
+| Unregistering | DESK-START-UNREG-001 to 008 | 8 | 0 | 0 |
 
-**Summary:** 0 of 76 specs implemented; 75 gaps; 1 deferred (DESK-START-MSFS-010, Starting with MSFS
-2020). No tests yet.
+**Summary:** 75 of 76 specs implemented; no gaps; 1 deferred (DESK-START-MSFS-010, Starting with MSFS
+2020). Every implemented spec is cited by a test.
 
 ## Key Findings
 
-1. **Greenfield** — the LLD and specs exist; tests and code do not.
+1. **Built test-first** — the tests reach the sim's folders, the registry, the process list and Electron
+   only through stand-ins; the real `reg.exe` and login-item port (startup-keys.ts) is tested only in its
+   pure helpers. reg.exe's output is read as UTF-8, so a Run value naming a path outside ASCII may not
+   compare equal; the effect is only an export and rewrite that were not needed.
 2. **Built on the desktop shell** — the tray menu that offers the two items, the settings that record
    the `EXE.xml` files last written, `desktop.log`, and the command line that runs `--unregister` before
    the single-instance lock. DESK-SHELL-CLI-009 and DESK-START-TEST-002 agree that `--unregister`
@@ -99,16 +109,16 @@ programs share only by the app's one entry, only when asked, and only after a ba
    Windows, since Start with MSFS 2024 starts it with MSFS 2024 alone; starting with MSFS 2020 is
    deferred (DESK-START-MSFS-010). app-shell's LLD lists it among the README's contents (Docs This
    Segment Owns); no EARS spec carries the README.
-4. **Platform behaviour not yet seen working** — the Steam edition's `EXE.xml` folder and process name
+4. **Platform behaviour not yet seen working** — both items and `--unregister` on the real files and keys;
+   the Steam edition's `EXE.xml` folder and process name
    (from community sources only), and a start by the Store edition of MSFS (the folders, the lock,
    outliving MSFS; an open question in the desktop design, checked by hand before the first release).
 
 ## Work Required
 
 ### Must Fix
-1. Review the LLD and specs together with the desktop shell's, which they build on.
+1. Try both items and `--unregister` by hand on the installed app: the real `EXE.xml` (a backup taken
+   first), Windows' keys with Task Manager's Startup apps, and the uninstaller's last page.
 
 ### Should Fix
-2. Build the `EXE.xml` editor and the Run and StartupApproved writer test-first against the fixtures,
-   behind the injected stand-ins, on the desktop shell's tray and settings, which now exist
-   (src/desktop/tray-model.ts, settings.ts, ports.ts).
+2. Confirm the Steam edition's folder and process name (LLD Open Question 1).

@@ -12,6 +12,8 @@ type Env = Readonly<Record<string, string | undefined>>;
 
 /** MSFS 2024's and MSFS 2020's programs. */
 export const MSFS_PROGRAMS = ["FlightSimulator2024.exe", "FlightSimulator.exe"] as const;
+/** MSFS 2024's alone: the one sim Start with MSFS 2024 starts the app with. */
+export const MSFS_2024_PROGRAM = MSFS_PROGRAMS[0];
 
 export const NETSH_ARGS = ["int", "ipv4", "show", "excludedportrange", "protocol=tcp"] as const;
 
@@ -83,7 +85,7 @@ export function parseDocumentsOutput(stdout: string, env: Env): string | null {
 }
 
 /** Runs a program hidden, bounded by 10 s: its stdout, or the error. Never rejects. */
-function run(file: string, args: readonly string[]): Promise<{ ok: true; stdout: string } | { ok: false; message: string }> {
+export function run(file: string, args: readonly string[]): Promise<{ ok: true; stdout: string } | { ok: false; message: string }> {
   return new Promise((resolve) => {
     try {
       execFile(file, [...args], { windowsHide: true, timeout: COMMAND_TIMEOUT_MS }, (err, stdout) => {
@@ -96,13 +98,17 @@ function run(file: string, args: readonly string[]): Promise<{ ok: true; stdout:
 }
 
 /** The real WindowsFacts, by tasklist, PowerShell and netsh. */
-// @spec DESK-SHELL-AWAY-001, DESK-SHELL-SRV-029, DESK-SHELL-SRV-034, DESK-DIST-INST-030
+// @spec DESK-SHELL-AWAY-001, DESK-SHELL-SRV-029, DESK-SHELL-SRV-034, DESK-DIST-INST-030, DESK-START-MSFS-004
 export function windowsFacts(env: Env): WindowsFacts {
   const user = windowsUser(env);
   return {
     async msfsRunning() {
       const looks = await Promise.all(MSFS_PROGRAMS.map((exe) => run("tasklist.exe", tasklistArgs(user, exe))));
       return looks.some((r, i) => r.ok && tasklistHas(r.stdout, MSFS_PROGRAMS[i]));
+    },
+    async msfs2024Running() {
+      const r = await run("tasklist.exe", tasklistArgs(user, MSFS_2024_PROGRAM));
+      return r.ok && tasklistHas(r.stdout, MSFS_2024_PROGRAM);
     },
     async programOf(pid) {
       const r = await run("powershell.exe", processPathArgs(pid));
