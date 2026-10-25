@@ -102,6 +102,17 @@ describe("its steps", () => {
   });
 
   // @spec DESK-DIST-REL-002
+  it("run the large import's wall-clock tests alone, right after the rest of the Vitest suites leave them out", () => {
+    const suites = stepWith("npm test");
+    const timed = stepWith("npx vitest run");
+    expect(timed).toBe(suites + 1);
+    for (const file of ["tests/airports/import.test.ts", "tests/app-shell/server-airports.test.ts"]) {
+      expect(steps[suites].run).toContain(`--exclude ${file}`);
+      expect(steps[timed].run).toContain(file);
+    }
+  });
+
+  // @spec DESK-DIST-REL-002
   it("install the browser for the Playwright tests before they run", () => {
     expect(stepWith("playwright install")).toBeLessThan(stepWith("npm run test:e2e"));
   });

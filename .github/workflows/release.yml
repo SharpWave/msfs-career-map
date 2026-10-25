@@ -42,8 +42,13 @@ jobs:
       - name: Type checks
         run: npm run typecheck
 
+      # The wall-clock tests of a large airport import measure how long the server's event loop is held,
+      # so they run alone: beside every other test file at once, a 4-core runner measures the others too.
       - name: Vitest
-        run: npm test
+        run: npm test -- --exclude tests/airports/import.test.ts --exclude tests/app-shell/server-airports.test.ts
+
+      - name: Vitest, the import's timing tests alone
+        run: npx vitest run tests/airports/import.test.ts tests/app-shell/server-airports.test.ts
 
       - name: The include's tests
         run: npm run test:installer
