@@ -24,10 +24,12 @@ and its dependencies shipped as files beside the program, `npm run package`; the
 and the packaged smoke test passing on a real packaged build (`npm run test:packaged`); the include's
 steps (`build/installer-steps.nsh`) passing their own tests (`npm run test:installer`), and the hooks
 (`build/installer.nsh`) compiling inside electron-builder; the start's check for an install under way
-(`src/desktop/install-mark.ts`, DESK-SHELL-CLI-020). Built, not yet run: the release workflow
-(`.github/workflows/release.yml`, `scripts/release/`), whose first run on a `dry-run-v<version>` tag is
-also the installer round trip's first run — the end-to-end check of the installer and uninstaller,
-which never run on a developer's PC.
+(`src/desktop/install-mark.ts`, DESK-SHELL-CLI-020). Run end to end (2026-10-25) on a
+`dry-run-v0.8.0` tag: the release workflow (`.github/workflows/release.yml`, `scripts/release/`) on
+windows-latest — every check, both packagings, the packaged smoke test and the installer round trip
+(the refused `/D=` folder, a silent install, the app started, a newer build installed over the running
+app, a silent uninstall, the seeded logbook and backups untouched throughout) — making no draft. Not yet
+seen: the wizard's pages and notices, a draft release, an older installer over a newer install.
 
 ## References
 
@@ -42,8 +44,8 @@ which never run on a developer's PC.
 - docs/intent/desktop/distribution/distribution-design.md
 
 ### EARS
-- docs/intent/desktop/distribution/distribution-specs.md — 113 specs (prefix `DESK-DIST`), 49
-  implemented, 61 active gaps, 3 deferred
+- docs/intent/desktop/distribution/distribution-specs.md — 113 specs (prefix `DESK-DIST`), 82
+  implemented, 28 active gaps, 3 deferred
 
 ### Tests
 - tests/desktop/distribution/ — Vitest unit tests in the `desktop` project: desktop-build (the bundles,
@@ -96,20 +98,23 @@ other without ever reaching the logbook, built and tested from the repository be
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
 | Packaging | DESK-DIST-PKG-001 to 022 | 21 | 0 | 1 |
-| Installer, closing a running copy and an install under way | DESK-DIST-INST-001 to 030 | 8 | 1 | 21 |
-| Uninstaller | DESK-DIST-UNINST-001 to 015 | 0 | 0 | 15 |
-| Releases | DESK-DIST-REL-001 to 018 | 0 | 2 | 16 |
-| Development | DESK-DIST-DEV-001 to 007 (003 withdrawn) | 4 | 0 | 2 |
+| Installer, closing a running copy and an install under way | DESK-DIST-INST-001 to 030 | 17 | 1 | 12 |
+| Uninstaller | DESK-DIST-UNINST-001 to 015 | 7 | 0 | 8 |
+| Releases | DESK-DIST-REL-001 to 018 | 10 | 2 | 6 |
+| Development | DESK-DIST-DEV-001 to 007 (003 withdrawn) | 5 | 0 | 1 |
 | The include's tests | DESK-DIST-INCL-001, 002 | 2 | 0 | 0 |
 | Packaged smoke test | DESK-DIST-SMOKE-001 to 012 | 12 | 0 | 0 |
-| Installer round trip | DESK-DIST-TRIP-001 to 008 | 2 | 0 | 6 |
+| Installer round trip | DESK-DIST-TRIP-001 to 008 | 8 | 0 | 0 |
 
-**Summary:** 49 of 113 specs implemented; 61 gaps; 3 deferred (DESK-DIST-INST-017, REL-013, REL-014).
-Built, awaiting the first `dry-run-v<version>` run of the release workflow, whose installer round trip
-and wizard-free steps are their test: INST-002, 004 to 010, 012 to 014, 018 to 021, 023, 024, 026
-(the include's take-up and choice of start are tested; the Finished page is not), 027 (seen only on a
-real Windows shutdown); UNINST-001, 003 to 011, 013 to 015 (the last page's texts are tested, the page
-is not); REL-001 to 011, 015, 018; DEV-006, DEV-007; TRIP-002 to 006, 008. Built in part: PKG-007
+**Summary:** 82 of 113 specs implemented; 28 gaps; 3 deferred (DESK-DIST-INST-017, REL-013, REL-014).
+Built, not yet seen working: the wizard and what only it shows — INST-002, 004, 005, 012, 013, 018,
+019, 026 (the include's take-up and choice of start are tested; the Finished page is not); UNINST-008
+to 010 (the last page's texts are tested, the page is not); INST-006 and DEV-007 (the Start-menu entry
+is made; its AppUserModelID and the shortcuts' empty command line are not checked); INST-011 is tested,
+INST-027 is seen only on a real Windows shutdown; UNINST-001, 003, 011 (no running copy or start-list
+entry at the round trip's uninstall, and its silence is not checked); REL-006 (a draft, made only by a
+`v<version>` tag), REL-010 (a published release), REL-011 (an older installer over a newer install).
+Built in part: PKG-007
 (electron-updater with updates), INST-025 and INST-028 (the desktop shell's own mark before it hands
 over, with updates), UNINST-002 and UNINST-012 (the program's `--unregister` does its work with the
 start lists). Not code: REL-012 (the first release's gate, waiting on simbrief's SB-CARD-006 and
@@ -117,11 +122,14 @@ SB-CARD-009 to 011), REL-016 and REL-017 (the maintainer's rules, written into t
 
 ## Key Findings
 
-1. **Packaged and smoke-tested; the installer awaits its dry run** — the packaged build runs the whole
-   smoke test in test mode, and the include's steps pass their own tests, but the installer and
-   uninstaller have never run: on a developer's PC they would write the real install folder, HKCU and the
-   Start menu. Pushing a `dry-run-v<version>` tag runs them on a clean runner (the round trip). Seen
-   while building: electron-builder, finding no dependencies in `build/desktop/`, packs the repository's
+1. **Packaged, smoke-tested and round-tripped on a clean runner** — the installer and uninstaller never
+   run on a developer's PC (they write the real install folder, HKCU and the Start menu); a
+   `dry-run-v<version>` tag runs them in the release workflow's round trip. On windows-latest the
+   workflow runs its steps in bash (Windows PowerShell drops the bare `--` of `npm run <script> --
+   <flags>`), points TEMP at the runner's own temp folder on D: (SQLite commits on the C: drive were
+   measured at up to 588 ms against 13 ms on D:, so the large import's wall-clock tests measured the
+   disk), and runs those tests alone after the rest (`CAREER_MAP_TIMED_TESTS=apart`). Seen while
+   building: electron-builder, finding no dependencies in `build/desktop/`, packs the repository's
    own production dependencies unless `files` excludes `node_modules`; and electron-builder's `.onInit`
    makes a `/D=` folder before any hook runs, so the include removes it again while empty. VS Code's
    extension host can hold open an `app.asar` under `release/` once a file tool has looked inside it,
@@ -208,9 +216,8 @@ SB-CARD-009 to 011), REL-016 and REL-017 (the maintainer's rules, written into t
 
 ### Must Fix
 1. Add the airports → distribution edge to the HLD's graph and index.yaml once approved.
-2. Run the release workflow on a `dry-run-v<version>` tag (the maintainer pushes it) and mark the
-   installer, uninstaller, release and round-trip specs it proves; then run the wizard by hand on a
-   test machine for the Finished pages, the uninstaller's last page and the notices.
+2. Run the wizard by hand on a test machine (never the development PC) for the Finished pages, the
+   uninstaller's last page and the notices, and an older installer over a newer install.
 
 ### Should Fix
 3. The start lists' `--unregister` and the desktop shell's updates and notifications (the shell's mark
