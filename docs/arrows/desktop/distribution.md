@@ -99,14 +99,14 @@ other without ever reaching the logbook, built and tested from the repository be
 |----------|----------|-------------|----------|------|
 | Packaging | DESK-DIST-PKG-001 to 022 | 21 | 0 | 1 |
 | Installer, closing a running copy and an install under way | DESK-DIST-INST-001 to 030 | 19 | 1 | 10 |
-| Uninstaller | DESK-DIST-UNINST-001 to 015 | 7 | 0 | 8 |
+| Uninstaller | DESK-DIST-UNINST-001 to 015 | 8 | 0 | 7 |
 | Releases | DESK-DIST-REL-001 to 018 | 10 | 2 | 6 |
 | Development | DESK-DIST-DEV-001 to 007 (003 withdrawn) | 5 | 0 | 1 |
 | The include's tests | DESK-DIST-INCL-001, 002 | 2 | 0 | 0 |
 | Packaged smoke test | DESK-DIST-SMOKE-001 to 012 | 12 | 0 | 0 |
 | Installer round trip | DESK-DIST-TRIP-001 to 008 | 8 | 0 | 0 |
 
-**Summary:** 84 of 113 specs implemented; 26 gaps; 3 deferred (DESK-DIST-INST-017, REL-013, REL-014).
+**Summary:** 85 of 113 specs implemented; 25 gaps; 3 deferred (DESK-DIST-INST-017, REL-013, REL-014).
 Built, not yet seen working: the wizard and what only it shows — INST-002, 012, 013, 018,
 019, 026 (the include's take-up and choice of start are tested; the Finished page is not); UNINST-008
 to 010 (the last page's texts are tested, the page is not); INST-006 and DEV-007 (the Start-menu entry
@@ -116,8 +116,8 @@ entry at the round trip's uninstall, and its silence is not checked); REL-006 (a
 `v<version>` tag), REL-010 (a published release), REL-011 (an older installer over a newer install).
 Built in part: PKG-007
 (electron-updater with updates), INST-025 and INST-028 (the desktop shell's own mark before it hands
-over, with updates), UNINST-002 and UNINST-012 (the program's `--unregister` does its work with the
-start lists). Not code: REL-012 (the first release's gate, waiting on simbrief's SB-CARD-006 and
+over, with updates), UNINST-012 (every uninstaller step seen working, waiting on UNINST-001, 003 and 008
+to 011). Not code: REL-012 (the first release's gate, waiting on simbrief's SB-CARD-006 and
 SB-CARD-009 to 011), REL-016 and REL-017 (the maintainer's rules, written into the README's Releasing).
 
 ## Key Findings
