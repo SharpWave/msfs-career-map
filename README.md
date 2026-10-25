@@ -227,16 +227,43 @@ tracking is off. A copy run from source started without `--sim` takes the fake f
 `TRACKER_FAKE=1`. On the sim link, `SIMCONNECT_HOST` and `SIMCONNECT_PORT` reach a sim on another
 PC (enable TCP in that PC's `SimConnect.xml`).
 
+## Desktop app (in development)
+
+The app is becoming a Windows program: an Electron shell that runs the server in the background,
+keeps a tray icon and shows the page in a window of its own. Until it is packaged it runs from the
+repository, always in test mode, on a folder of its own:
+
+```powershell
+npm run desktop          # build, then start the desktop app on .desktop-dev\ (port 3280, fake feed)
+npm run desktop:build    # build only: the page, then everything the app runs into build/desktop/
+```
+
+`npm run desktop` builds the page and bundles the server and the shell into `build/desktop/`, with
+the seed airport lists (downloaded only when missing; add `-- --fresh` to fetch them again) and the
+icons, then starts Electron unpackaged in test mode on `.desktop-dev\` (git-ignored): its logbook in
+`.desktop-dev\data`, backups in `.desktop-dev\Backups`, the shell's logs and settings in
+`.desktop-dev\desktop`. Its server runs on port 3280 with the fake feed and airport downloads off,
+so it never touches the real logbook or the sim and can run beside `npm run dev`. Drive it with a
+synthetic flight:
+
+```powershell
+npm run sim-fake -- --base http://127.0.0.1:3280 KBOS KPVD
+```
+
+Closing the window leaves the app in the tray; **Quit** is in the tray icon's menu.
+
 ## Tests
 
 ```powershell
-npm test                        # logic, API and component tests (Vitest)
+npm test                        # logic, API, component and desktop-shell tests (Vitest)
 npx playwright install chromium # once, for the browser tests
 npm run test:e2e                # browser tests (Playwright) on servers of their own, ports 3180 and 5183
 ```
 
 Tests run on temporary databases with a small fixed set of New England airports, never on
-`data/`, and never reach the internet.
+`data/`, and never reach the internet. The desktop shell's tests run without Electron: a test fails
+if it starts a process, opens a connection, loads Electron or calls `fetch`, so they can never touch
+the installed app, Windows' settings or the sim.
 
 ## API
 
@@ -305,9 +332,12 @@ src/client/   Vite + React + Leaflet UI
   tracker.ts  subscribes to the tracker's event stream
   landing.ts  how landing ratings are shown
   components/FlightPanel.tsx, ProfileChart.tsx   the bottom panel and its chart
-scripts/      import-airports.ts, sim-probe.ts (print what the sim reports), sim-fake.ts (synthetic flight)
-tests/        tests by segment, e2e/ browser tests, fixtures/ airport lists, support/ shared setup
+src/desktop/  Electron shell: runs the server, keeps it running, the window, the tray (main.ts is the Electron glue)
+scripts/      import-airports.ts, sim-probe.ts (print what the sim reports), sim-fake.ts (synthetic flight),
+              desktop-build.ts and tray-icons.ts (the desktop build), desktop.ts (npm run desktop)
+tests/        tests by segment, desktop/ shell and build tests, e2e/ browser tests, fixtures/ airport lists, support/ shared setup
 data/         runtime data (ignored by git)
+build/desktop/  the desktop build (ignored by git)
 ```
 
 ## Roadmap

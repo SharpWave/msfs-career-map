@@ -25,8 +25,11 @@ The installer target is NSIS (Decisions & Alternatives: Packaging).
 
 **The build folders.** The desktop build scripts build into the **desktop build output**, `build/desktop/`,
 a folder apart from the page build in `dist/` that nothing but those scripts empties. It holds the page
-build, copied in from `dist/` as `page/` after Vite has built it there, the server and desktop-shell bundles and
-the seed airport lists, laid out exactly as packaging lays them out in the program folder. electron-builder
+build, copied in from `dist/` as `page/` after Vite has built it there, the server and desktop-shell bundles,
+the seed airport lists and the icons, laid out exactly as packaging lays them out in the program folder,
+and an app manifest of its own — a `package.json` naming the package `msfs-career-map`, the product
+MSFS Career Map and the desktop-shell bundle `main.cjs` as its entry — so `electron build/desktop` runs
+the desktop shell unpackaged. electron-builder
 packages from it and writes its own output — the unpacked build and the installer — to `release/`, set
 in its configuration rather than left at electron-builder's default, `dist/`. Both folders are kept out
 of git; the NSIS include, `build/installer.nsh`, is kept in it (Decisions & Alternatives: The build
@@ -39,13 +42,15 @@ from source (app-shell, APP-RUN-002).
   (`app.asar`, the read-only file holding the app's code), beside the seed airport lists: the program
   folder app-shell's server reads, laid out as it gives (APP-SRV-003, APP-SRV-006; Decisions &
   Alternatives: The page outside the app archive).
-- **The server**: `src/server` bundled by esbuild into one ES module, with a `require` shim for its
-  CommonJS dependencies and the version from `package.json` built in, so `/api/status` and every
-  User-Agent report it (app-shell, APP-API-005). node-simconnect and its own dependencies are not bundled: they ship
+- **The server**: `src/server` bundled by esbuild into an ES module, `server.mjs`, with its start-up
+  worker beside it as a second one, `startup-worker.mjs` (the start-up work runs in a worker thread,
+  which loads a module file of its own), each with a `require` shim for its CommonJS dependencies and
+  the version from `package.json` built in, so `/api/status` and every User-Agent report it (app-shell,
+  APP-API-005). node-simconnect and its own dependencies are not bundled: they ship
   as separate files outside the app archive, with node-simconnect's LGPL-3.0 licence, so the library can
   be replaced as its licence expects.
-- **The desktop shell**: `src/desktop` bundled by esbuild into one CommonJS file, with the version
-  built in.
+- **The desktop shell**: `src/desktop` bundled by esbuild into one CommonJS file, `main.cjs`, with the
+  version built in.
 - **The seed airport lists**: OurAirports' `airports.csv` and `runways.csv` (public domain), put in the
   desktop build output by the desktop build scripts, and from there into the program's resources. Each
   carries the time it was downloaded, recorded beside it in the form airports reads (`<list>.downloaded`,
@@ -63,6 +68,9 @@ from source (app-shell, APP-RUN-002).
 - The icons: `career-map.ico` for the program, installer and shortcuts, holding a 256 px image; and the
   tray icons — the plain mark with no dot, and the mark with each of the tray's status dots
   ([Shell › The Tray](../shell/shell-design.md#the-tray)) — each holding 16, 20, 24 and 32 px images.
+  The repository keeps only `assets/career-map.ico`: the desktop build scripts copy it into the desktop
+  build output's `icons/` and make the tray icons there from it (`scripts/tray-icons.ts`), the same mark
+  always giving the same files (Decisions & Alternatives: The tray icons).
 
 **Fuses** — switches built into the Electron program when it is packaged: RunAsNode and `NODE_OPTIONS`
 are off, so neither variable can change what the installed program runs. The inspect switches stay on:
@@ -291,6 +299,8 @@ The first release requires:
   runs on the fake feed, which never takes the PC-wide sim-link claim, so it runs beside an installed
   app tracking a flight (Relies On). A synthetic flight drives it with `npm run sim-fake -- --base http://127.0.0.1:3280 KBOS KPVD`, its option before
   the airports (Relies On).
+- `npm run desktop:build` builds the page and the desktop build output as `npm run desktop` does, and
+  starts nothing. Either takes `--fresh` to download the seed lists again.
 - Only the installed program runs outside test mode. A desktop shell started without `--test-data`
   whose own program path, fully resolved and compared without regard to case, is not `MSFS Career
   Map.exe` in `%LOCALAPPDATA%\Programs\MSFS Career Map` — unpackaged, or packaged and run from anywhere
@@ -449,7 +459,7 @@ design and specs say how. What the desktop parts share from other segments is in
 | The install folder | Always `%LOCALAPPDATA%\Programs\MSFS Career Map`; another folder given with `/D=` refused | Accepting any folder; refusing only a folder that is or holds the data folder | The uninstaller removes the install folder and everything in it. A fixed folder is one it can be shown never to share with the logbook, its backups or Electron's folder, whatever else the pilot keeps on the disk. |
 | Shortcuts over an installed copy | Kept as the pilot left them by every install over an installed copy (update, repair, older installer); its Finished page offers only Launch | Offering "Create a desktop shortcut" on every wizard run; recreating the shortcuts at each install; recreating only a missing Start-menu entry | Whether to keep a desktop shortcut is the pilot's choice, made at the first install; an update or repair that brought a deleted one back would undo it, and a box on every run would ask again what was already answered. The Start-menu entry, which every first install makes, is the pilot's to remove in the same way. Notification clicks are routed through it ([Shell › Notifications](../shell/shell-design.md#notifications)), so a pilot who deletes it may leave a click on a notification without its way to the app; uninstalling and installing again brings it back. |
 | A test-mode copy when installing | Matched by the running-copy check and ended once the 90 s wait is over | Sending it a `--quit` of its own; leaving it running | Running from the install folder, it would hold installed files open if left. Its `--quit` would need its folder, which the include could learn only by reading each process's command line; a test-mode copy works on a test folder, never the logbook, so ending it costs only the wait. |
-| Building the server | One esbuild bundle, node-simconnect left as separate files | `tsx` at runtime; compiling with `tsc`; bundling node-simconnect too | `tsx` works through its register API, but compiles the sources as they load and ships esbuild's native binary unpacked beside the app archive; Node's own type stripping rejects the parameter properties the server uses (`routes.ts`, `tracker.ts`). One bundle starts fastest and ships one file. Separate files let node-simconnect be replaced, as its LGPL-3.0 licence expects. |
+| Building the server | One esbuild bundle and its start-up worker, node-simconnect left as separate files | `tsx` at runtime; compiling with `tsc`; bundling node-simconnect too; inlining the worker as a `data:` module | `tsx` works through its register API, but compiles the sources as they load and ships esbuild's native binary unpacked beside the app archive; Node's own type stripping rejects the parameter properties the server uses (`routes.ts`, `tracker.ts`). A bundle starts fastest. The start-up work runs in a worker thread, which needs a module file of its own: a `data:` module resolves no relative or bare import and has no file URL for the `require` shim. Separate files let node-simconnect be replaced, as its LGPL-3.0 licence expects. |
 | The desktop shell's module format | One CommonJS bundle | An ES module | An ES-module main process that waits for Electron's ready event at top level hangs, and electron-updater is CommonJS. |
 | Locales | All of Chromium's | English only, about 51 MB smaller | Dates and numbers follow the pilot's Windows language, as in a browser tab. |
 | Fuses | RunAsNode and `NODE_OPTIONS` off; inspect switches on | Every fuse off | Neither variable can change what the program runs. The smoke test needs the inspect switches, and turning them off guards nothing in a per-user install its own user can rewrite. |
@@ -458,6 +468,7 @@ design and specs say how. What the desktop parts share from other segments is in
 | The build folders | `build/desktop/` for the desktop build output, emptied only by its own scripts; electron-builder's output set to `release/` | Building into the page build's `dist/`; electron-builder's default output, also `dist/` | Vite empties `dist/` at every page build, so a page build would delete the seed lists, making a rebuild need a connection again, and the unpacked build the smoke test runs; and `npm start` would serve whatever else lay there. |
 | Seed lists for `npm run desktop` | Downloaded by the desktop build scripts into the desktop build output, laid out as packaging lays them out in the program folder | Copying the lists `npm run dev` keeps in `data/`; leaving the server to download them at first start | One source and one layout for the packaged and the unpackaged build, so `npm run desktop` runs the seeding the installed app relies on. `data/` may hold no lists or older ones, and a download at first start is what seeding exists to avoid. |
 | When the build downloads the seed lists | Only when the desktop build output lacks one or its download time; `--fresh` downloads both again, and the release workflow always uses it | Downloading at every build; downloading once and never refreshing | A rebuild, `npm run desktop` included, needs no connection and does not fetch OurAirports' files again each time, while each release, built on a clean runner, ships the current lists. Lists only ever kept would age with no way to refresh them short of deleting the desktop build output. |
+| The tray icons | Made by the desktop build scripts from `assets/career-map.ico`, the mark with each status dot drawn on at 16, 20, 24 and 32 px | Drawn by hand and kept in `assets/`; drawn by the desktop shell at run time | One mark to keep: a change to it reaches every tray icon at the next build, with no set of hand-made files to fall out of step. Made at build time, the icons are plain files the tray loads, with no drawing in the desktop shell and nothing made but kept in git. |
 | Console launcher and shortcut script | None: the installer's shortcuts start the app, `npm run dev` runs it from source | Keeping `start.cmd` for running from source; keeping the shortcut script | `npm run dev` covers development, and the installer makes the shortcuts. A copy run from source links to the sim only when started with `--sim=link` (`npm run dev:sim`), and never while another server holds the PC-wide sim-link claim ([Desktop › Relies On](../desktop-design.md#relies-on)), so a shortcut to one would start a copy that records no flight; the installed app's shortcuts are the only ones a pilot needs. |
 | A start during an install | The install-under-way mark in electron-updater's download folder, written by the desktop shell before it hands over or by the include for an installer run by hand, then only appended to; a start that finds it appends its command line there, looks again and exits; the mark taken up by renaming it aside before it is read; the include starts the app once at the end with the one that shows the most, the desktop shell's own request included | A separate process left waiting for the installer to end; holding Quit's install while the sim is in use; electron-updater's own start after the install; each start rewriting the mark; reading the mark in place and then deleting it | The installer runs to the end regardless, so it can start the app itself with no other process left behind, and the download folder lies outside the install folder the install replaces. Two starts at once — MSFS and Windows sign-in — each rewriting the mark would lose one, and a line added between a read in place and the delete would be lost; appending only, renaming aside before reading, and a start's second look lose none. Holding Quit's install while the sim is in use would only make installs rarer, and Quit is a moment the app stops anyway. electron-updater's own start after an install carries only `--updated`: it could neither bring the app back in the tray after a quiet-moment install nor carry a start made during the install, and two starters would start the app twice. |
 | A session end while installing | The include's hidden window holds the session end with a reason until the install is done | A RunOnce entry that resumes the install at the next sign-in; nothing beyond the README's repair | Windows' shutdown screen then names the app and waits unless the pilot forces it, so a shutdown soon after a Quit, or while an update installs at a quiet moment, does not cut the install off between the old program's removal and the new one's arrival. The installer being run is the new release's, so the hold needs no release's delay. A RunOnce entry would add the app to Windows' start-up list without the pilot asking (A guest in the sim's house). Where electron-builder 26.18.0's NSIS cannot hold the session end, running the release's installer again repairs the install, as the README says. |
@@ -532,8 +543,9 @@ design and specs say how. What the desktop parts share from other segments is in
   times, airport downloads turned off), [live-tracking](../../live-tracking/live-tracking-design.md)
   (first-release gates, `npm run sim-fake`, the fake feed and the sim-link claim) and [simbrief](../../simbrief/simbrief-design.md) (a
   first-release gate)
-- Code (planned): `build/installer.nsh` (the NSIS include), electron-builder's configuration, the build
-  scripts for the server and desktop bundles writing to `build/desktop/`, electron-builder's output in
-  `release/`, `.github/workflows/release.yml`, `tests/packaged/`,
+- Code: the desktop build scripts writing to `build/desktop/` (`scripts/desktop-build.ts`,
+  `scripts/tray-icons.ts`, `scripts/desktop.ts`), `tests/desktop/distribution/`,
   [assets/career-map.ico](../../../../assets/career-map.ico)
+- Code (planned): `build/installer.nsh` (the NSIS include), electron-builder's configuration,
+  electron-builder's output in `release/`, `.github/workflows/release.yml`, `tests/packaged/`
 - External: Electron (fuses), electron-builder (NSIS target and include hooks)

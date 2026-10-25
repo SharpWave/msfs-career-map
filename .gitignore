@@ -4,3 +4,7 @@ dist/
 .env
 test-results/
 playwright-report/
+# @spec DESK-DIST-DEV-002
+/.desktop-dev/
+/build/desktop/
+/release/

@@ -110,4 +110,5 @@ programs share only by the app's one entry, only when asked, and only after a ba
 
 ### Should Fix
 2. Build the `EXE.xml` editor and the Run and StartupApproved writer test-first against the fixtures,
-   behind the injected stand-ins, once the desktop shell's tray and settings exist.
+   behind the injected stand-ins, on the desktop shell's tray and settings, which now exist
+   (src/desktop/tray-model.ts, settings.ts, ports.ts).

@@ -54,6 +54,14 @@ description, API table and roadmap.
   only setting, in the `settings` table) and parses both the v2 and the older all-strings shape.
   Briefings are archived whole (raw JSON + OFP HTML + summary) in `briefings`, linked from
   `hops.briefing_id`. The tracker holds one "current" briefing that the next logged hop consumes.
+- Desktop shell: `src/desktop/` (Electron 45). Its modules are pure logic driven through the stand-ins
+  in `ports.ts` — clock, server launcher, local HTTP, Windows facts, known folders, opener, message
+  boxes, window, tray — with `FakeClock` in tests (`tests/desktop/support/`). `main.ts` is the only
+  Electron glue and the only module that loads `electron`; nothing in `src/desktop` imports
+  `src/server`, and no module touches `child_process`, `net`, `http` or `electron` at load. The
+  desktop build (`scripts/desktop-build.ts`, tray icons from `assets/career-map.ico` by
+  `scripts/tray-icons.ts`) writes `build/desktop/`: `page/`, `server.mjs` + `startup-worker.mjs`,
+  `main.cjs`, the seed lists, `icons/` and an app `package.json`.
 - Charts follow the dataviz skill: no dual axes; the profile chart indexes each series to its own
   range and shows real values in the legend and crosshair. Palette validated for the dark surface.
 
@@ -64,10 +72,18 @@ description, API table and roadmap.
 - `npm run dev:sim` — the same, with the server on the sim link (`--sim=link`).
 - `npm run build` then `npm start` — production-style single server on :3080; add
   `-- --sim=link` to track flights.
-- `npm run typecheck` — client, server and test tsconfigs.
+- `npm run desktop` — builds the page and bundles into `build/desktop/`, then starts Electron
+  unpackaged in test mode on `.desktop-dev\` (server on :3280, fake feed, airport downloads off);
+  drive it with `npm run sim-fake -- --base http://127.0.0.1:3280 KBOS KPVD`. `npm run desktop:build`
+  builds without starting Electron; either takes `-- --fresh` to download the seed lists again.
+- `npm run typecheck` — client, server, test and desktop tsconfigs.
 - `npm test` — Vitest: Node tests (`tests/<segment>/*.test.ts`, each file on its own temp data
-  folder with the fixture airports) and component tests (`*.test.tsx`, jsdom). Outside requests
-  fail the test unless answered with `answerFetch()` (`tests/support/fetch-guard.ts`).
+  folder with the fixture airports), component tests (`*.test.tsx`, jsdom) and the `desktop`
+  project (`tests/desktop/`, no Electron, no database). Outside requests fail the test unless
+  answered with `answerFetch()` (`tests/support/fetch-guard.ts`); in the `desktop` project the guard
+  (`tests/desktop/support/guard.ts`) fails any test reaching `child_process`, `net`, `http`,
+  `https`, `dgram`, `electron`, `process.kill` or `fetch`, with decoy `LOCALAPPDATA`, `APPDATA` and
+  `USERPROFILE`.
 - `npm run test:e2e` — Playwright on its own servers (:3180 app on `--sim=fake`, :5183 page)
   and a temp data folder; first run needs `npx playwright install chromium`. Browser tests run one
   at a time and import `test` from `tests/e2e/fixtures.ts`.

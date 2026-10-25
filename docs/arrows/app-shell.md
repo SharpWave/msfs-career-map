@@ -245,8 +245,10 @@ or the internet.
    by hand. The private channel is tested over Node's IPC channel, standing in for Electron's
    `parentPort`, whose branch is tested in process with a stand-in host; the link starting only
    after preparation is seen through its log line, since no test runs `--sim=link`. The start-up
-   worker runs under `tsx` from source; in Electron's utility process and from the one-file bundle it
-   is still to be seen (the LLD's Open Questions 2). The Documents lookup is stubbed in tests and not
+   worker runs under `tsx` from source and, from the desktop build's second entry
+   (`startup-worker.mjs` beside `server.mjs`), in Electron 45's utility process, its start-up work
+   done in about 0.3 s on a fresh data folder — the LLD's Open Questions 2 is answered
+   and can be closed there. The Documents lookup is stubbed in tests and not
    yet checked against a Documents folder OneDrive has moved, nor Controlled folder access's error
    code (Open Questions 1, 3). The page's reconnect, version and logbook checks are tested with a
    stand-in event stream; a real server restart under an open tab is checked by hand.
@@ -271,6 +273,6 @@ or the internet.
 
 ### Nice to Have
 3. Tests for the implemented specs listed in Key Findings 5.
-4. Check the start-up worker in Electron's utility process and from the bundle, the Documents lookup
-   against a Documents folder OneDrive has moved, and Controlled folder access's error code (Key
-   Findings 2).
+4. Check the Documents lookup against a Documents folder OneDrive has moved, and Controlled folder
+   access's error code (Key Findings 2); close the LLD's Open Questions 2 (the start-up worker, now seen
+   in Electron's utility process from the desktop build).

@@ -19,10 +19,22 @@ export default defineConfig({
         test: {
           name: "node",
           include: ["tests/**/*.test.ts"],
-          exclude: ["tests/e2e/**"],
+          exclude: ["tests/e2e/**", "tests/desktop/**"],
           environment: "node",
           globalSetup: ["tests/support/global-setup.ts"],
           setupFiles: ["tests/support/setup-node.ts"],
+        },
+      },
+      {
+        // The desktop shell's unit tests: no database, and every way out of the process guarded
+        // (DESK-SHELL-TEST-001).
+        define: { __MSFS_CAREER_MAP_VERSION__: JSON.stringify(version) },
+        test: {
+          name: "desktop",
+          include: ["tests/desktop/**/*.test.ts"],
+          environment: "node",
+          globalSetup: ["tests/support/global-setup.ts"],
+          setupFiles: ["tests/desktop/support/guard.ts"],
         },
       },
       {

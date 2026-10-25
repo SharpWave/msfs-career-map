@@ -7,9 +7,21 @@ line, staying out of the way, Windows sign-out, first run, notifications and upd
 ## Status
 
 **MAPPED** — LLD and EARS specs written 2026-10-23, before any code (greenfield), with the
-intent-narrowing edge audit's findings for the desktop group applied; not yet audited against code. No
-tests or code yet. The server work it relies on is specified in app-shell, live-tracking, airports,
-logbook, fleet and simbrief, and the LLD's Relies On cites each of those specs.
+intent-narrowing edge audit's findings for the desktop group applied; not yet audited against code. The
+server work it relies on is specified in app-shell, live-tracking, airports, logbook, fleet and
+simbrief, and the LLD's Relies On cites each of those specs.
+
+Built and tested (2026-10-25) — a desktop shell without notifications, updates or start lists, run
+unpackaged by `npm run desktop`: the server in a utility process with its inputs, readiness, start-up
+work, restarts, held ports, leftovers, the checks for a server that stops answering, the event stream
+and shutdown; daily and `--quit` backups; the logs and settings; the window with its address rules,
+screens, settings and remembered place; the tray's status line, dot, tooltip and menu (version line
+"Version X" only); one running copy and its command line; the sim in use; Windows sign-out; the look
+for a copy run from source. Every module but `main.ts` (the Electron glue) is pure logic driven through
+the stand-ins in `ports.ts`, unit-tested under Vitest's `desktop` project, whose guard fails any test
+reaching a child process, the network, Electron or `fetch`. Seen by hand on Electron 45: a main process
+ended by `taskkill /F` took its server's utility process and every child with it within a second
+(DESK-SHELL-SRV-003, SRV-040, WIN-031 stay open until the packaged smoke test cites them).
 
 ## References
 
@@ -24,16 +36,33 @@ logbook, fleet and simbrief, and the LLD's Relies On cites each of those specs.
 - docs/intent/desktop/shell/shell-design.md
 
 ### EARS
-- docs/intent/desktop/shell/shell-specs.md — 226 specs (prefix `DESK-SHELL`): 225 active gaps, 1
-  deferred
+- docs/intent/desktop/shell/shell-specs.md — 226 specs (prefix `DESK-SHELL`): 152 implemented, 73
+  active gaps, 1 deferred
 
 ### Tests
-- None yet. Planned: tests/desktop/shell/ (Vitest unit tests of the desktop shell's logic, reaching the
-  process list, known folders, `HKCU`, shortcuts, Electron's folder, `netsh` and local ports only through
-  injected stand-ins); the packaged smoke test (distribution) runs it end to end
+- tests/desktop/shell/ — Vitest unit tests of the desktop shell's logic in the `desktop` project, on
+  `FakeClock` and the stand-ins of tests/desktop/support/fakes.ts: the supervisor
+  (supervisor-start, -failures, -health, -ports, -shutdown), shell-start and shell-quit, backups and
+  daily-backups, logs, settings, errors, cli and start, first-run, server-inputs, sim-in-use, sse and
+  tracker-feed, tray-model, address, page-window, screens, window-options, window-place,
+  windows-facts (the pure parsers), glue-wiring (static checks of main.ts) and guard
+- tests/desktop/support/guard.ts — the project's setup file: fails a test that reaches
+  `child_process`, `net`, `http`, `https`, `dgram`, `electron`, `process.kill` or `fetch`, with decoy
+  `LOCALAPPDATA`, `APPDATA` and `USERPROFILE`
+- Planned: the packaged smoke test (distribution, tests/packaged/) runs it end to end, the Electron
+  glue in main.ts included
 
 ### Code
-- None yet. Planned: src/desktop/ (the desktop shell)
+- src/desktop/ — main.ts (the only Electron glue and the only module that loads `electron`); shell.ts
+  (the run: start, quitting, the tray's clicks, handed-over starts); supervisor.ts (the server's
+  utility process); ports.ts (the stand-in interfaces: clock, launcher, local HTTP, Windows facts, known
+  folders, opener, message boxes, window, tray); clock.ts, timing.ts; local-http.ts, sse.ts,
+  tracker-feed.ts; backups.ts, daily-backups.ts; logs.ts, settings.ts, errors.ts; cli.ts, start.ts,
+  installed.ts; first-run.ts, server-inputs.ts, sim-in-use.ts, windows-facts.ts; tray-model.ts;
+  address.ts, page-window.ts, screens.ts, window-options.ts, window-place.ts; version.ts. Nothing in
+  src/desktop imports src/server, and no module touches `child_process`, `net`, `http` or `electron`
+  at load
+- Planned: notifications and updates (electron-updater), the start-list tray items (start-lists)
 
 ## Architecture
 
@@ -82,27 +111,37 @@ the sim is in use — while the page stays the same web page the browser tests c
 
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
-| Server process: start, readiness, private channel, event stream, shutdown, restarts, sleep and the clock | DESK-SHELL-SRV-001 to 045 | 0 | 0 | 45 |
-| Quitting state | DESK-SHELL-QUIT-001 to 012 | 0 | 0 | 12 |
-| Backups | DESK-SHELL-BAK-001 to 008 | 0 | 0 | 8 |
-| Logs | DESK-SHELL-LOG-001 to 009 | 0 | 0 | 9 |
-| Settings | DESK-SHELL-SET-001 to 006 | 0 | 0 | 6 |
-| Window | DESK-SHELL-WIN-001 to 032 | 0 | 0 | 32 |
-| Tray | DESK-SHELL-TRAY-001 to 027 | 0 | 0 | 27 |
-| One running copy and command line | DESK-SHELL-CLI-001 to 022 | 0 | 0 | 22 |
-| Staying out of the way | DESK-SHELL-AWAY-001 to 005 | 0 | 0 | 5 |
-| Windows sign-out and shutdown | DESK-SHELL-OS-001 to 003 | 0 | 0 | 3 |
-| First run | DESK-SHELL-FIRST-001 to 005 | 0 | 0 | 5 |
+| Server process: start, readiness, private channel, event stream, shutdown, restarts, sleep and the clock | DESK-SHELL-SRV-001 to 045 | 42 | 0 | 3 |
+| Quitting state | DESK-SHELL-QUIT-001 to 012 | 6 | 0 | 6 |
+| Backups | DESK-SHELL-BAK-001 to 008 | 7 | 0 | 1 |
+| Logs | DESK-SHELL-LOG-001 to 009 | 9 | 0 | 0 |
+| Settings | DESK-SHELL-SET-001 to 006 | 5 | 0 | 1 |
+| Window | DESK-SHELL-WIN-001 to 032 | 30 | 0 | 2 |
+| Tray | DESK-SHELL-TRAY-001 to 027 | 22 | 0 | 5 |
+| One running copy and command line | DESK-SHELL-CLI-001 to 022 | 18 | 0 | 4 |
+| Staying out of the way | DESK-SHELL-AWAY-001 to 005 | 4 | 0 | 1 |
+| Windows sign-out and shutdown | DESK-SHELL-OS-001 to 003 | 3 | 0 | 0 |
+| First run | DESK-SHELL-FIRST-001 to 005 | 5 | 0 | 0 |
 | Notifications | DESK-SHELL-NOTE-001 to 019 | 0 | 0 | 19 |
 | Updates | DESK-SHELL-UPD-001 to 032 | 0 | 1 | 31 |
-| Unit-test harness | DESK-SHELL-TEST-001 | 0 | 0 | 1 |
+| Unit-test harness | DESK-SHELL-TEST-001 | 1 | 0 | 0 |
 
-**Summary:** 0 of 226 specs implemented; 225 gaps; 1 deferred (DESK-SHELL-UPD-021, a prerelease
-channel). No tests yet.
+**Summary:** 152 of 226 specs implemented; 73 gaps; 1 deferred (DESK-SHELL-UPD-021, a prerelease
+channel). Of the gaps outside notifications and updates: built in part, waiting on notifications,
+updates or the start lists — DESK-SHELL-SRV-039 (the update check on resume), QUIT-002 (the page's
+confirm dialogs and update work while quitting), BAK-005 (the backup before an update; the `--quit`
+backup is built), WIN-001 (a notification click's fragment held for the first load), TRAY-015 (the
+start-list and update items), TRAY-016 (update states on the version line), CLI-009 (`--unregister`'s
+clean-up outside test mode); built and seen by hand but cited by no test until the packaged smoke test —
+SRV-003, SRV-040, WIN-031; not begun, belonging to
+updates, notifications, the start lists or an install under way — QUIT-007, QUIT-009 to 012, SET-006,
+TRAY-017, TRAY-023, TRAY-027, CLI-020 to 022, AWAY-004.
 
 ## Key Findings
 
-1. **Greenfield** — the LLD and its EARS specs exist; tests and code do not.
+1. **Built without notifications, updates or start lists** — the desktop shell runs unpackaged
+   (`npm run desktop`) and its logic is unit-tested through injected stand-ins; the Electron glue
+   (main.ts) is checked only as text until the packaged smoke test runs it.
 2. **Built on server work other segments own**, each specified there and cited in the LLD's Relies On.
    app-shell: explicit server inputs and the program folder (APP-SRV-006 to 008, 011), listening only
    on 127.0.0.1 with the Host check and the `Sec-Fetch-Site`/`Origin` rule (APP-SRV-005, APP-API-011,
@@ -135,16 +174,18 @@ channel). No tests yet.
    airport preparation's detail, the exit codes 1, 10, 11 and 12, the data-folder lock, the private
    channel's `save`, `backup` and `shutdown`, backups and bringing in a logbook, seeding and airport
    downloads off, the User-Agent, the sim-link claim and `link_holder`, the merged checkpoint, and the
-   page's starting state, fragment route, reloads and layout below 800 × 600. Still to come: airports'
+   page's starting state, fragment route, reloads and layout below 800 × 600. The server bundle and its
+   start-up worker run in Electron 45's utility process (`npm run desktop`). Still to come: airports'
    official-site link (APT-POP-007), simbrief's links kept to other origins (SB-CARD-009) and fleet's
-   icon addresses (FLEET-REC-018); and, seen only under `tsx` from source, the start-up worker in
-   Electron's utility process and the one-file bundle.
+   icon addresses (FLEET-REC-018).
 3. **Platform behaviour not yet seen working** — notification clicks with no window, the registry keys
    notifications write and the switch Electron 45's notification activation adds to a start; session end
    on a hidden window; Windows 11 hiding a new program's tray icon and the Settings path the one-time
-   notice quotes; the server ending with a desktop shell that crashes, seen so far only for a forced end;
-   and a start by the Store edition of MSFS (an open question in the desktop design, checked by hand
-   before the first release).
+   notice quotes; and a start by the Store edition of MSFS (an open question in the desktop design,
+   checked by hand before the first release). Seen: a main process ended outright, by `taskkill /F` or
+   `process.kill`, takes its server's utility process with it within a second. A real `Tray` makes
+   Explorer record an entry for the program under `HKCU\Control Panel\NotifyIconSettings` (`electron.exe`
+   when unpackaged), so `npm run desktop` and the smoke test leave one; the unit tests make no `Tray`.
 4. **Cited by other segments** — links that ask for a new window open in the pilot's default browser
    from the installed app's window (DESK-SHELL-WIN-007, which APT-POP-004, APT-POP-007, PLAN-LIST-008,
    SB-CARD-007 and SB-CARD-009 cite and MAP-VIEW-008's attribution links rely on), choices kept per origin under the installed app's fixed
@@ -175,11 +216,13 @@ channel). No tests yet.
 ## Work Required
 
 ### Must Fix
-1. Review the LLD and specs with the segments they cite; add the simbrief → shell edge to the HLD's
-   graph and index.yaml once approved. The server work it relies on is built first, test-first, in
-   app-shell, live-tracking and airports (their gaps).
+1. Add the simbrief → shell edge to the HLD's graph and index.yaml once approved.
+2. The packaged smoke test (distribution) runs the Electron glue end to end and cites
+   DESK-SHELL-SRV-003, SRV-040 and WIN-031, which are built and seen by hand.
 
 ### Should Fix
-2. Build the desktop shell test-first, starting with the unit tests; the packaged smoke test follows
-   with distribution.
-3. Updates, alongside distribution's installer, its include and the release workflow.
+3. The start-list tray items and settings with start-lists (TRAY-015's items, SET-006, QUIT-012,
+   CLI-009's clean-up).
+4. Notifications and updates, test-first, alongside distribution's installer, its include and the
+   release workflow (NOTE-*, UPD-*, the rest of QUIT, TRAY, CLI and AWAY-004, BAK-005, SRV-039,
+   WIN-001).

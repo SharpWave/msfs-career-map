@@ -90,7 +90,8 @@ each of these is specified in the part that carries it out.
 The server runs in Electron's own Node, so the installed app needs nothing else installed. Its
 synchronous database work and the sim's per-frame data never stall the tray or the window, and a crash
 takes down only the server. When the desktop shell's process ends, however it ends, Electron ends the
-utility process with it, so a desktop shell that crashes leaves no server tracking behind. The server
+utility process with it — on Electron 45, within a second of a main process ended outright by
+`taskkill /F` or `process.kill` — so a desktop shell that crashes leaves no server tracking behind. The server
 cannot see that happen and runs no shutdown then; what keeps the logbook and the leg is listed in
 [Relies On](#relies-on), under app-shell.
 
@@ -335,8 +336,7 @@ The desktop parts answer for these of the HLD's success metrics
    check by hand on a real Store install before the first release. Should it be needed, the remedy to
    weigh then is detecting package identity at start and starting the installed program again outside it
    through `explorer.exe`.
-2. **The server ending with the desktop shell** has been seen for a forced end, not for a crash.
-3. **Size** — the installer's size, and the app's memory with the map page loaded, are not yet
+2. **Size** — the installer's size, and the app's memory with the map page loaded, are not yet
    measured.
 
 ## References

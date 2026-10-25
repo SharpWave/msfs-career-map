@@ -60,7 +60,10 @@ and every later one it passes the server these inputs as start-up arguments:
 The address is always 127.0.0.1. The version is built into the server bundle
 ([Distribution › Packaging](../distribution/distribution-design.md#packaging)), so it is not an input. At
 every start the desktop shell writes to `desktop.log` the data folder and the backups folder as
-Documents resolves at that moment.
+Documents resolves at that moment. The desktop shell looks Documents up as the server does at each
+backup, from the user's `Personal` value under `User Shell Folders` in the registry, never from
+Electron's own Documents path, which keeps its first answer for the run; so the folder it names — here
+and in the tray's **Open backups folder** (The Tray) — is always the one the server backs up into.
 
 The installed app's data folder (`%LOCALAPPDATA%\MSFS Career Map`), Electron's own folder
 (`%APPDATA%\MSFS Career Map`) and port 3380 never change from one release to the next
@@ -130,7 +133,8 @@ restart a server, so the server switches casual mode off as it shuts down (LIVE-
 that crashes or is ended leaves casual mode on for the next one (live-tracking, LIVE-CASUAL-011), and a
 server shut down for an update that then goes no further starts again with casual mode off (Quitting).
 A session end that ends the processes first can cut this order short, and a desktop shell that crashes
-or is ended takes its server with it with no shutdown at all: Electron ends the utility process, and
+or is ended takes its server with it with no shutdown at all: Electron ends the utility process — on
+Electron 45, within a second of a main process ended outright by `taskkill /F` or `process.kill` — and
 the server cannot see the desktop shell end (app-shell). What that leaves is safe: the logbook's
 write-ahead log keeps every committed write; the tracker's checkpoint, a few seconds old at most and
 written at once at every change of leg (LIVE-SAVE-001), holds the leg; the next run's first server
@@ -288,7 +292,7 @@ reloads what it shows on reconnecting (live-tracking, LIVE-API-005).
 
 **The reason** for giving up is the first that applies: the desktop shell's own reason for the last
 failure — a held or refused port, a leftover server, "The server stopped responding"; else the last error
-line the server wrote; else "The server did not start within 60 s", as when each of the three failures
+line the server wrote (Logs); else "The server did not start within 60 s", as when each of the three failures
 was a server that never became ready and wrote no error line.
 
 When the desktop shell gives up:
@@ -323,20 +327,28 @@ asleep is live-tracking's.
 ### Logs
 
 The desktop shell writes two logs in the `logs` folder of Electron's own folder
-(`%APPDATA%\MSFS Career Map\logs`), each line time-stamped:
+(`%APPDATA%\MSFS Career Map\logs`), each line stamped with its time — an ISO UTC time, then a space,
+then the line:
 
 | Log | Holds |
 |---|---|
-| `server.log` | Everything the server writes to its output and error streams, captured through a pipe |
+| `server.log` | Everything the server writes to its output and error streams, captured through a pipe; each line from the error stream begins `[stderr] ` |
 | `desktop.log` | The desktop shell's own events: the folders it resolved, server starts, exits, restarts and their reasons, readiness, held ports, failed backups, update steps, starts made while an install was under way, start-list changes and refusals, links sent to the browser, refused addresses, its own uncaught errors, lines it could not write |
 
 The desktop shell keeps a running count of each log's size and, whenever a log passes 5 MB, renames it
 `<name>.old.log`, replacing the previous one. It always reads the server's output and error streams to
 the end, splitting them at line breaks: a partial line waits for the next chunk or for the process to
-exit, and a line longer than 16 KB is cut there and ends with "…". Writing a log is best-effort: a line
+exit, and a line longer than 16 KB, counted in UTF-8 bytes, is cut at the last whole character within
+that and ends with "…". Writing a log is best-effort: a line
 that cannot be written — a full disk, a locked folder — is dropped and counted, and one line reports the
 count once writing works again. Only the running copy writes `server.log` (One Running Copy). **Show
 log** in the tray opens the folder.
+
+The server's **last error line**, the reason the desktop shell gives when it gives up on a server and
+has no reason of its own (Keeping the server running), is the last line of its error stream that is not blank, does
+not start with whitespace — a stack line, a line of an error's fields — and is not one of Node's framing
+lines: a lone bracket or brace, or the "Node.js vN" trailer Node writes after an uncaught error. So the
+reason is the error's own message line, not the stack or the trailer beneath it.
 
 ### Settings
 
@@ -345,7 +357,7 @@ The desktop shell keeps its settings in one file in Electron's own folder:
 | Setting | Used by |
 |---|---|
 | The time of the last daily backup | Backups |
-| The daily backups failed in a row: their count, the time of the last attempt, and whether their notification has shown | Backups, Notifications |
+| The daily backups failed in a row: their count, the time of the last attempt, the last failure's short reason — so the tray's "Backups failing" line has its reason in a later run too — and whether their notification has shown | Backups, The Tray, Notifications |
 | The window's last place and size, and whether it was maximized | The Window |
 | Whether the one-time notice has shown | The Tray |
 | The versions whose update-ready notification has shown | Notifications |
@@ -453,7 +465,9 @@ first that applies:
 | Otherwise | "Sim not running" |
 
 While legs wait, a second line reads "1 leg waiting to be logged" or "N legs waiting to be logged". The
-icon's tooltip is "MSFS Career Map — " and the status line.
+icon's tooltip is "MSFS Career Map — " and the status line, cut to the 127 characters Windows keeps of a
+tray tooltip, its last one "…", when longer — a long give-up reason, say; the menu's status line stays
+whole.
 
 **Icon.** The app's mark, with a small dot, the first that applies: red while the server is given up
 on; none while the app is quitting or the server is starting or restarting; then, from the last tracker
@@ -479,9 +493,9 @@ the sim link included.
    sim closes)". Beneath it, while the last backup taken for that update failed, **Restart to update
    without a backup**, which can be clicked when **Restart to update** can (Updates).
 6. **Check for updates**.
-7. **Open data folder**, **Open backups folder** (only once the folder exists, looked up through
-   Windows' known folders when the menu opens and again when clicked, as the server looks it up at each
-   backup) and **Show log**.
+7. **Open data folder**, **Open backups folder** (only once the folder exists, Documents looked up
+   when the menu opens and again when clicked, from the registry as the server looks it up at each
+   backup; Starting the server) and **Show log**.
 8. **Try again**, only while the desktop shell has given up on the server.
 9. **Quit**.
 
@@ -665,6 +679,11 @@ finds the folder the uninstaller kept and opens that logbook. The desktop shell'
 - The desktop shell remembers the last folder it accepted in its settings and passes it to the server as
   the logbook to offer at every start, whether that copy still runs or not. At each start the remembered
   folder is checked again by the same rules, and dropped from the settings when it fails them.
+- One 500 ms bound covers the whole look: the answer from port 3080 and every check of a folder, found
+  or remembered, run at once, and the server is started when all have ended or 500 ms has passed. A found
+  folder still being checked at 500 ms is neither offered nor remembered at that start (the next start
+  finds it again); a remembered folder still being checked has not failed the rules, so it is kept and
+  offered, as it was accepted when it was remembered.
 - The offer, the copy and their rules — made only while the installed logbook has no hops, copied with
   SQLite's own backup, refused while the copy run from source still runs on that folder, with a folder
   the pilot can type instead — are app-shell's (APP-IMP-001 to APP-IMP-004, APP-UI-038 to APP-UI-040;
@@ -1107,7 +1126,7 @@ What the desktop parts share from other segments is in
 | The server's inputs | Explicit start-up arguments, with the source-run variables removed from its environment | Inheriting the environment (`CAREER_DB`, `PORT`, `TRACKER_FAKE`) as a source run does | A setting left in the pilot's or developer's environment can never point the installed app at another logbook, port or the fake feed; one place says what the installed server runs on. |
 | When backups are taken | Daily, before an update and when the installer or uninstaller closes the app, asked for by the desktop shell and each bounded by 60 s without progress; before a schema upgrade and on **Back up now**, by the server; pruned by the server, per logbook | Only before updates and upgrades; a daily timer in the server; a fixed 60 s from the request | The HLD gives the desktop shell the when and where. A daily copy bounds what a damaged or deleted logbook can lose to a day. Kept out of the server, the daily copy is made only by the desktop app, so a copy run from source, and the server under the Vitest and browser tests, never pile them up. Bounding by progress rather than by a fixed time never cuts short a large logbook still being copied on a slow disk, yet still ends a backup that has stalled. |
 | A failing daily backup | Asked for again at the next hourly check, then once a day; from the third failure in a row, a line in the tray menu and one notification | Retrying every hour for good; saying nothing until the pilot looks in the log | A cause that lasts — Controlled folder access refusing an unsigned program, a full drive — fails every try, and Windows may announce each refusal, mid-flight included. A pilot told that backups exist would otherwise go on trusting copies that are not being made. |
-| Where the backups folder is looked up | The server looks Documents up through Windows' known folders at each backup; the tray makes the same lookup | Once per server start; by the desktop shell, passed with each Back up request | OneDrive's folder backup can move Documents while the app runs for days; a folder fixed at start would leave backups outside OneDrive and out of the pilot's sight. Looked up by the server, its own backups — **Back up now**, before an upgrade — follow a move too. |
+| Where the backups folder is looked up | The server looks Documents up through Windows' known folders at each backup; the desktop shell, for `desktop.log` and the tray, reads the same registry value the server reads | Once per server start; by the desktop shell, passed with each Back up request; Electron's own Documents path for the desktop shell | OneDrive's folder backup can move Documents while the app runs for days; a folder fixed at start would leave backups outside OneDrive and out of the pilot's sight. Looked up by the server, its own backups — **Back up now**, before an upgrade — follow a move too. Electron's path keeps its first answer for the run, so after a move the tray would open, and `desktop.log` name, a folder the server no longer backs up into. |
 | Readiness | `/api/status` answering with this app's name and the process id of the server the desktop shell started | A "ready" message on the private channel; a fixed wait; the app's name and version | It proves the page will load from the address the window uses. The process id tells the desktop shell's own server from another program on the port, and from another server of this app — of any version, left behind, or run by another account or a test copy — which name and version cannot. |
 | How long a start may take | 60 s for the first `/api/status` answer; no bound on the start-up work that follows while the server keeps answering | One bound for the whole start | Backing up and upgrading the logbook grow with it. Ending a server in the middle of an upgrade risks the logbook and would fail the same way at every retry, while a server that still answers is plainly working. |
 | Start-up work done | Only when `/api/status` says so outright | When the status no longer names a step | Only an outright "done" says the logbook is open. A status that names no step — from a server that does not keep to the `/api/status` contract — read as done would load the page into 503s and ask for the daily backup before the logbook is open; waiting for the word costs nothing. |
@@ -1157,7 +1176,9 @@ What the desktop parts share from other segments is in
    its notification activation adds to the command line of a start it makes (Notifications, One Running
    Copy).
 2. **Session end on the hidden window**, and how long Windows waits for the clean shutdown, have not yet
-   been seen on Electron 45.
+   been seen on Electron 45. Should Windows end the processes first, no server is left behind: a main
+   process ended outright, by `taskkill /F` or `process.kill`, takes its server's utility process with
+   it within a second.
 3. **The tray icon on Windows 11** — that a newly installed program's icon goes among the hidden icons,
    and the Settings path the one-time notice quotes for keeping it in view, are still to be checked on
    the Windows 11 builds the app supports (The Tray).
@@ -1181,6 +1202,6 @@ What the desktop parts share from other segments is in
   logbook import, page), [live-tracking](../../live-tracking/live-tracking-design.md) (status, event
   stream, sim link), [airports](../../airports/airports-design.md) (the airport popup's links),
   [simbrief](../../simbrief/simbrief-design.md) (links taken from a plan)
-- Code (planned): `src/desktop/` (the desktop shell), `tests/desktop/shell/`
+- Code: `src/desktop/` (the desktop shell), `tests/desktop/shell/`
 - External: Electron (utility processes, the single-instance lock, notifications, session and power
   events), electron-updater (GitHub provider), OpenStreetMap's tile usage policy

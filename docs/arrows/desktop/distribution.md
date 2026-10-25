@@ -7,9 +7,18 @@ the release workflow, desktop development, the packaged smoke test and the insta
 ## Status
 
 **MAPPED** — LLD and EARS specs written 2026-10-23, before any code (greenfield), with the
-intent-narrowing edge audit's findings for the desktop group applied; not yet audited against code. No
-tests or code yet. What it relies on is specified in app-shell, airports, live-tracking, logbook and
-simbrief, and the LLD's Relies On cites each of those specs.
+intent-narrowing edge audit's findings for the desktop group applied; not yet audited against code. What
+it relies on is specified in app-shell, airports, live-tracking, logbook and simbrief, and the LLD's
+Relies On cites each of those specs.
+
+Built and tested (2026-10-25) — desktop development: the desktop build output `build/desktop/` (the page
+copied in as `page/`, the server bundle `server.mjs` with its start-up worker `startup-worker.mjs`, the
+desktop shell `main.cjs`, the seed airport lists with their download times, the icons with the tray
+icons made from `assets/career-map.ico`, and an app manifest so `electron build/desktop` runs the
+shell), `npm run desktop` and `npm run desktop:build`, the check that only the installed program runs
+outside test mode, Electron and esbuild pinned, and the folders kept out of git. Not begun: electron-builder
+and its configuration, the installer and uninstaller, the release workflow, the packaged smoke test and
+the installer round trip.
 
 ## References
 
@@ -24,18 +33,25 @@ simbrief, and the LLD's Relies On cites each of those specs.
 - docs/intent/desktop/distribution/distribution-design.md
 
 ### EARS
-- docs/intent/desktop/distribution/distribution-specs.md — 110 specs (prefix `DESK-DIST`), none
-  implemented, 3 deferred
+- docs/intent/desktop/distribution/distribution-specs.md — 110 specs (prefix `DESK-DIST`), 9
+  implemented, 98 active gaps, 3 deferred
 
 ### Tests
-- None yet. Planned: tests/packaged/ (the packaged smoke test), unit tests in tests/desktop/distribution/
-  (the packaging names, and the check that only the installed program runs outside test mode), and the
-  installer round trip in the release workflow
+- tests/desktop/distribution/ — Vitest unit tests in the `desktop` project: desktop-build (the bundles,
+  the start-up worker's address, the seed lists, the app manifest, Electron's command line for
+  `npm run desktop`), tray-icons (the tray icons made from the mark), installed-program (only the
+  installed program runs outside test mode), package (pinned versions, the npm commands, the folders
+  kept out of git)
+- Planned: tests/packaged/ (the packaged smoke test), the packaging-names tests against
+  electron-builder's configuration, and the installer round trip in the release workflow
 
 ### Code
-- None yet. Planned: build/installer.nsh (the NSIS include), electron-builder's configuration, the
-  server and desktop bundle scripts writing to build/desktop/, electron-builder's output in release/,
-  .github/workflows/release.yml; assets/career-map.ico exists and is reused
+- scripts/desktop-build.ts (the desktop build output: page, bundles, seed lists, icons, app manifest),
+  scripts/tray-icons.ts (the tray icons from assets/career-map.ico), scripts/desktop.ts
+  (`npm run desktop`), src/desktop/installed.ts (the installed program's path), tsconfig.desktop.json,
+  the `desktop` and `desktop:build` npm commands, .gitignore
+- Planned: build/installer.nsh (the NSIS include), electron-builder's configuration, electron-builder's
+  output in release/, .github/workflows/release.yml
 
 ## Architecture
 
@@ -45,35 +61,45 @@ other without ever reaching the logbook, built and tested from the repository be
 **Key Components:**
 1. Bundles — the desktop build output `build/desktop/` (the page build copied in from `dist/` as
    `page/`, laid out as in the program's resources, outside the app archive, beside the seed lists; the
-   server as one ES module with node-simconnect as separate files, the desktop shell as one CommonJS
-   file, the seed airport lists with their download times), electron-builder's output in `release/`,
-   every Chromium locale, the fuses
+   server as an ES module with its start-up worker as a second one and node-simconnect as separate
+   files, the desktop shell as one CommonJS file, the seed airport lists with their download times, the
+   icons with the tray icons made at build time, and an app manifest), electron-builder's output in
+   `release/`, every Chromium locale, the fuses
 2. Installer and uninstaller — electron-builder 26.18.0 NSIS per user, the fixed install folder, the
    include (closing a running copy through `--quit`, `--unregister` on a real uninstall, the last page,
    the session end held while installing, the install-under-way mark and the one start of the app at the
    end of an install)
 3. Release workflow — GitHub Actions on a version tag, draft releases, fixed forward
-4. Development — `npm run desktop`; only the installed program runs outside test mode
+4. Development — `npm run desktop` and `npm run desktop:build`; only the installed program runs
+   outside test mode
 5. Packaged smoke test and installer round trip
 
 ## Spec Coverage
 
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
-| Packaging | DESK-DIST-PKG-001 to 022 | 0 | 0 | 22 |
+| Packaging | DESK-DIST-PKG-001 to 022 | 6 | 0 | 16 |
 | Installer, closing a running copy and an install under way | DESK-DIST-INST-001 to 030 | 0 | 1 | 29 |
 | Uninstaller | DESK-DIST-UNINST-001 to 015 | 0 | 0 | 15 |
 | Releases | DESK-DIST-REL-001 to 017 | 0 | 2 | 15 |
-| Development | DESK-DIST-DEV-001 to 007 (003 withdrawn) | 0 | 0 | 6 |
+| Development | DESK-DIST-DEV-001 to 007 (003 withdrawn) | 4 | 0 | 2 |
 | Packaged smoke test | DESK-DIST-SMOKE-001 to 012 | 0 | 0 | 12 |
 | Installer round trip | DESK-DIST-TRIP-001 to 008 | 0 | 0 | 8 |
 
-**Summary:** 0 of 110 specs implemented; 107 gaps; 3 deferred (DESK-DIST-INST-017, REL-013, REL-014).
-No tests yet.
+**Summary:** 10 of 110 specs implemented (PKG-009, 011, 012, 016, 020, 021; DEV-001, 002, 004, 005); 97
+gaps; 3 deferred (DESK-DIST-INST-017, REL-013, REL-014). Built in part: PKG-007 (Electron and esbuild
+pinned; electron-builder and electron-updater not yet added), PKG-010 (node-simconnect left out of the
+bundle; shipping it beside the program with its licence comes with packaging), PKG-015 (the window's
+icon; the program's, installer's and shortcuts' with packaging), PKG-022 (the desktop build output;
+`release/` with electron-builder).
 
 ## Key Findings
 
-1. **Greenfield** — the LLD and specs exist; tests and code do not.
+1. **Desktop development built; packaging not begun** — the desktop build output and `npm run desktop`
+   run the desktop shell unpackaged in test mode; electron-builder, the installer and uninstaller, the
+   release workflow, the packaged smoke test and the round trip are still to come. A copied
+   `build/desktop/` does not start its server, since node-simconnect resolves only inside the
+   repository until packaging ships it beside the program.
 2. **Built on work other segments own**, each specified there and cited in the LLD's Relies On —
    app-shell: schema changes kept additive (APP-DATA-009; logbook's LOG-REC-013 and LOG-REC-015), so an
    older server runs on a newer logbook; no console launcher or shortcut script, its npm commands for
@@ -109,10 +135,10 @@ No tests yet.
    preparation at start have ended (APP-API-009 but for a daily check's repeat); `--sim=fake`
    giving the fake feed and `--airport-downloads=off` downloading nothing; `sim-fake`'s airports
    (LIVE-TOOL-003); a leg kept when the sim disconnects in flight and the restored-leg rule
-   (LIVE-LEG-008, 016); pending legs in a list (LIVE-HOP-003). Still to come: the seed lists in the
-   program folder and their download times, seeding (airports), the logbook's id and backup names
-   (app-shell's backups). The sim-link claim (live-tracking) is built and tested, a fake-feed server
-   neither taking nor checking it (LIVE-LINK-015).
+   (LIVE-LEG-008, 016); pending legs in a list (LIVE-HOP-003); seeding a data folder from the program
+   folder's lists and their download times (APT-DATA-017, 018); the logbook's id and backup names with
+   pruning per logbook (APP-DATA-006, APP-BAK-004, APP-BAK-007). The sim-link claim (live-tracking) is
+   built and tested, a fake-feed server neither taking nor checking it (LIVE-LINK-015).
 3. **Before the first release** — the SimBrief OFP text shown as text and layout only (SB-CARD-006,
    SB-CARD-009 to 011), the open part of DESK-DIST-REL-012, whose live-tracking items (pending legs
    kept in a list, LIVE-HOP-003; a leg in the air kept when the sim disconnects, LIVE-LEG-008; a leg
@@ -154,14 +180,16 @@ No tests yet.
 ## Work Required
 
 ### Must Fix
-1. Review the LLD and specs with the segments they cite; add the airports → distribution edge to the
-   HLD's graph and index.yaml once approved.
+1. Add the airports → distribution edge to the HLD's graph and index.yaml once approved.
+2. Packaging, test-first: electron-builder 26.18.0 and its configuration (PKG-001 to 008, 010, 013 to
+   015, 017 to 019, 022), the packaging-names unit tests, and the packaged smoke test (SMOKE-001 to 012,
+   `npm run test:packaged`), which also cites the desktop shell's hand-verified DESK-SHELL-SRV-003,
+   SRV-040 and WIN-031.
 
 ### Should Fix
-2. Tests first: the packaging-names and program-path unit tests, then the packaged smoke test once the
-   desktop shell runs.
-3. The installer, its include and the release workflow; the first release after SB-CARD-006 and
-   SB-CARD-009 to 011 are closed and a start by the Store edition of MSFS has been checked by hand.
+3. The installer, its include and the release workflow, with the start lists and with the desktop
+   shell's updates and notifications; the first release after SB-CARD-006 and SB-CARD-009 to 011 are
+   closed and a start by the Store edition of MSFS has been checked by hand.
 
 ### Nice to Have
 4. Settle the licence and code signing.

@@ -124,7 +124,7 @@ arrows:
     blocks: [start-lists, distribution]
     blockedBy: [live-tracking, airports, simbrief]
     detail: desktop/shell.md
-    next: "Review the LLD and specs (226 DESK-SHELL specs, none implemented, 1 deferred) with the segments its Relies On cites; then build the desktop shell test-first, unit tests first, once the server work it relies on has landed in app-shell, live-tracking and airports"
+    next: "152 of 226 DESK-SHELL specs implemented (73 gaps, 1 deferred): the shell runs unpackaged without notifications, updates or start lists. Next: the packaged smoke test (distribution) to cite the hand-verified SRV-003, SRV-040 and WIN-031 and run the Electron glue; the start-list tray items with start-lists; then notifications and updates test-first (NOTE-*, UPD-*, BAK-005, SRV-039, WIN-001, the rest of QUIT, TRAY and CLI)"
     drift: "Tour-map's open basemap question (its LLD Open Questions 1) may change what the window loads (DESK-SHELL-WIN-011, DESK-SHELL-WIN-012)"
 
   start-lists:
@@ -136,7 +136,7 @@ arrows:
     blocks: [distribution]
     blockedBy: [shell]
     detail: desktop/start-lists.md
-    next: "Review the LLD and specs (76 DESK-START specs, none implemented, 1 deferred); then build the EXE.xml editor and the Run and StartupApproved writer test-first against the fixtures, once the desktop shell's tray and settings exist"
+    next: "Review the LLD and specs (76 DESK-START specs, none implemented, 1 deferred); then build the EXE.xml editor and the Run and StartupApproved writer test-first against the fixtures, on the desktop shell's tray and settings, which now exist"
     drift: null
 
   distribution:
@@ -148,7 +148,7 @@ arrows:
     blocks: []
     blockedBy: [shell, start-lists, live-tracking, simbrief, airports]
     detail: desktop/distribution.md
-    next: "Review the LLD and specs (110 DESK-DIST specs, none implemented, 3 deferred) with the segments its Relies On cites; then tests first: the packaging-names and program-path unit tests, the packaged smoke test once the desktop shell runs, then the installer, its include and the release workflow; the first release waits for SB-CARD-006 and SB-CARD-009 to 011 (the open part of DESK-DIST-REL-012) and a hand check of a start by the Store edition of MSFS"
+    next: "10 of 110 DESK-DIST specs implemented (97 gaps, 3 deferred): desktop development (the desktop build output, npm run desktop and desktop:build, the installed-program check). Next, test-first: electron-builder 26.18.0 and its configuration with the packaging-names tests, node-simconnect shipped beside the program, the packaged smoke test (npm run test:packaged), then the installer, its include and the release workflow alongside the start lists and the desktop shell's updates and notifications; the first release waits for SB-CARD-006 and SB-CARD-009 to 011 (the open part of DESK-DIST-REL-012) and a hand check of a start by the Store edition of MSFS"
     drift: null
 
   # Foundation: every segment relies on app-shell's conventions, so its dependencies are not listed.
@@ -161,5 +161,5 @@ arrows:
     blocks: []
     blockedBy: []
     detail: app-shell.md
-    next: "Check by hand what the tests stand in for: the start-up worker in Electron's utility process and the bundle, the Documents lookup against a OneDrive-moved Documents folder, a real server restart under an open tab; remove start.cmd and scripts/install-shortcut.ps1 once the installed app exists; add tests for the four implemented specs that have none"
+    next: "Close the LLD's Open Questions 2 (the start-up worker now seen in Electron's utility process from the desktop build); check by hand what the tests stand in for: the Documents lookup against a OneDrive-moved Documents folder, a real server restart under an open tab; remove start.cmd and scripts/install-shortcut.ps1 once the installed app exists; add tests for the four implemented specs that have none"
     drift: null
