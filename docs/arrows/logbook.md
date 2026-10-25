@@ -61,13 +61,15 @@ hops by hand.
 
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
-| Hop record | LOG-REC-001 to 016 | 13 | 0 | 3 |
+| Hop record | LOG-REC-001 to 016 | 14 | 0 | 2 |
 | Ordering & parked position | LOG-SEQ-001 to 009 | 8 | 0 | 1 |
 | Correcting a tracked hop | LOG-EDIT-001 to 003 | 1 | 0 | 2 |
 | Hop form | LOG-FORM-001 to 012 | 12 | 0 | 0 |
 | Hop list | LOG-LIST-001 to 007 | 6 | 0 | 1 |
 
-**Summary:** 40 of 47 specs implemented; 7 gaps; none deferred. 6 specs have tests.
+**Summary:** 41 of 47 specs implemented; 6 gaps; none deferred. 7 specs have tests (LOG-REC-002 in
+tests/live-tracking/sim-clock.test.ts: the nullable columns, an insert without them, and the hop
+API's sim-clock times kept on an edit).
 
 ## Key Findings
 
@@ -75,7 +77,7 @@ hops by hand.
    tracker's `insertHop` (src/server/tracker.ts:346-365), which follows the same append rule.
 2. **Parked position is derived in six places** — Fleet.tsx:106, HopForm.tsx:28-32,
    Planner.tsx:86-89, paths.ts:194-202, routes.ts:738-743, and the tracker's takeoff tie-break
-   (intended); all depend on hops arriving sorted.
+   (`parkedAt` in tracker.ts, which sorts in its query); the others depend on hops arriving sorted.
 3. **Renumbering is not atomic** — routes.ts:407-410 and 417-418 run outside a transaction;
    reorder (434-441) is the only transactional path.
 4. **Form-only validation** — arrival-before-departure and negative durations are rejected by
@@ -137,10 +139,7 @@ hops by hand.
 
 ### New Behaviour
 7. Restrict airport changes on tracked hops to plausible corrections (LOG-EDIT-001, LOG-EDIT-002).
-8. Store sim-clock departure and arrival alongside real-world times (LOG-REC-002), as columns added
-   in place (`addColumnIfMissing`), nullable so an older release's insert still succeeds
-   (LOG-REC-015); capture is live-tracking's.
 
 ### Nice to Have
-9. One shared parked-position helper for the client consumers.
-10. Return 400 for a missing or non-numeric `aircraft_id` (routes.ts:375-376, 370).
+8. One shared parked-position helper for the client consumers.
+9. Return 400 for a missing or non-numeric `aircraft_id` (routes.ts:375-376, 370).

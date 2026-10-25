@@ -17,21 +17,28 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onChoose: (drawer: DrawerKey) => void;
+  /** Back up now: ask the server for a backup. */
+  onBackup?: () => void;
   columnHidden: boolean;
   onToggleColumn: () => void;
 }
 
-const ENTRIES: [DrawerKey, string][] = [
+type Entry = [DrawerKey | "backup", string];
+
+/** Log a hop and Fleet; Bring in a logbook while the logbook holds no hops; Back up now. */
+const entries = (counts: Counts | null): Entry[] => [
   ["log", "Log a hop"],
   ["fleet", "Fleet"],
+  ...(counts?.hops === 0 ? ([["import", "Bring in a logbook"]] as Entry[]) : []),
+  ["backup", "Back up now"],
 ];
 
 /**
  * The top bar's left end: the menu button with what a session needs only now and then behind it,
  * and the sidebar toggle.
  */
-// @spec APP-UI-001, APP-UI-002, APP-UI-012, APP-UI-013
-export const Menu = forwardRef<HTMLButtonElement, Props>(function Menu({ counts, open, onOpenChange, onChoose, columnHidden, onToggleColumn }, buttonRef) {
+// @spec APP-UI-001, APP-UI-002, APP-UI-012, APP-UI-013, APP-UI-037, APP-UI-038
+export const Menu = forwardRef<HTMLButtonElement, Props>(function Menu({ counts, open, onOpenChange, onChoose, onBackup, columnHidden, onToggleColumn }, buttonRef) {
   const wrap = useRef<HTMLDivElement>(null);
   const close = useCallback(() => onOpenChange(false), [onOpenChange]);
   useDismiss(wrap, open, close);
@@ -58,7 +65,7 @@ export const Menu = forwardRef<HTMLButtonElement, Props>(function Menu({ counts,
                 {counts.aircraft} aircraft · {counts.hops} hops · {counts.airports.toLocaleString()} airports · {counts.runways.toLocaleString()} runways
               </div>
             )}
-            {ENTRIES.map(([key, label]) => (
+            {entries(counts).map(([key, label]) => (
               <button
                 key={key}
                 type="button"
@@ -67,7 +74,8 @@ export const Menu = forwardRef<HTMLButtonElement, Props>(function Menu({ counts,
                 disabled={!counts}
                 onClick={() => {
                   close();
-                  onChoose(key);
+                  if (key === "backup") onBackup?.();
+                  else onChoose(key);
                 }}
               >
                 {label}

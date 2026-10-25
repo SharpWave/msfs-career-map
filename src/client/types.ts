@@ -29,6 +29,8 @@ export interface Airport {
   local_code: string | null;
   wikipedia_link: string | null;
   home_link: string | null;
+  /** 1 for an airport kept after OurAirports dropped it, because a hop references it. */
+  unlisted?: number;
   /** Longest open runway in feet, null when OurAirports has no runway data. */
   rwy_max_ft: number | null;
   rwy_count: number;

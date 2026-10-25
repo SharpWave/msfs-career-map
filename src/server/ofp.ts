@@ -1,3 +1,4 @@
+import { USER_AGENT } from "./version.ts";
 /**
  * SimBrief: fetch a pilot's latest OFP and boil it down to what the app stores and shows.
  *
@@ -69,7 +70,7 @@ export function fetcherUrl(user: string): string {
 
 /** Latest OFP for a SimBrief alias or pilot ID. Throws with SimBrief's own message on failure. */
 export async function fetchLatestOfp(user: string): Promise<FetchedOfp> {
-  const res = await fetch(fetcherUrl(user), { headers: { accept: "application/json" }, signal: AbortSignal.timeout(20000) });
+  const res = await fetch(fetcherUrl(user), { headers: { "user-agent": USER_AGENT, accept: "application/json" }, signal: AbortSignal.timeout(20000) });
   let data: unknown = null;
   try {
     data = await res.json();

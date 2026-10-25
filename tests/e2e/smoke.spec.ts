@@ -13,7 +13,7 @@ test.describe("browser-test servers", () => {
     expect(await res.json()).toMatchObject({ ok: true, airports: fixtureCounts().airports, runways: fixtureCounts().runways });
   });
 
-  // @spec APP-RUN-012, APP-UI-001, APP-UI-012
+  // @spec APP-RUN-012, APP-UI-001, APP-UI-012, APP-UI-037
   test("the page loads with the top bar over the map, the sidebar's cards in order, and the counts in the menu", async ({ page }) => {
     await page.goto("/");
     const bar = page.locator(".top-bar");
@@ -23,7 +23,7 @@ test.describe("browser-test servers", () => {
     await bar.getByRole("button", { name: "Career Map" }).click();
     const { airports, runways } = fixtureCounts();
     await expect(page.getByRole("menu")).toContainText(new RegExp(`\\d+ aircraft · \\d+ hops · ${airports} airports · ${runways} runways`));
-    await expect(page.getByRole("menuitem")).toHaveText(["Log a hop", "Fleet"]);
+    await expect(page.getByRole("menuitem")).toHaveText(["Log a hop", "Fleet", "Back up now"]);
   });
 
   // @spec APP-RUN-012

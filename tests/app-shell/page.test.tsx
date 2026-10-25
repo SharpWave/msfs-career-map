@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppState } from "../../src/client/types.ts";
 import type { LiveState } from "../../src/client/tracker.ts";
 import { answerFetch } from "../support/fetch-guard.ts";
+import { statusBody } from "../support/page-server.ts";
 import { aircraft, airport, appState, hop, liveState, planResult, trackerStatus } from "../support/page-data.ts";
 
 const stub = vi.hoisted(() => ({
@@ -36,6 +37,8 @@ const scrolled: Element[] = [];
 
 function answerPage(state: AppState = STATE) {
   answerFetch("/api/state", () => Response.json(state));
+  answerFetch("/api/status", () => Response.json(statusBody()));
+  answerFetch("/api/logbook/offer", () => Response.json({ hops: state.hops.length, aircraft: state.aircraft.length, offers: [], lastAttempt: null }));
   answerFetch("/api/settings", () => Response.json({ simbrief_username: null }));
   answerFetch("/api/simbrief/aircraft", () => Response.json({ types: [], source: "test", fetched_at: null }));
   answerFetch(/\/api\/airports\/[A-Z0-9]+$/, (url) => Response.json(airport(url.pathname.split("/").pop()!)));

@@ -84,6 +84,7 @@ function airborneCheckpoint(T: number) {
       origin: "KPVD", departed_at: T, touchdown_at: null, landings: [],
       track: [[41.7246, -71.4282, 55, s, 0, 0, 0, 300], [41.8, -71.4, 1500, s + 60, 100, 500, 95, 298]],
       fuel_start_lb: 300, weight_start_lb: 2400, max_alt_ft: 1500, max_gs_kts: 100,
+      sim_departed_at: null, sim_touchdown_at: null, paused_ms: 0, touchdown_paused_ms: null,
     },
     pending: [],
     briefing: null,

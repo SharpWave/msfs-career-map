@@ -173,7 +173,7 @@ export function pendingLeg(over: Partial<PendingLeg> = {}): PendingLeg {
 }
 
 export function liveState(status: TrackerStatus | null = null, over: Partial<LiveState> = {}): LiveState {
-  return { status, track: [], path: [], online: true, ...over };
+  return { status, track: [], path: [], online: true, connection: 1, ...over };
 }
 
 export function planResult(aircraftId: number, candidates: string[]): PlanResult {

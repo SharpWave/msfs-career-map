@@ -95,6 +95,8 @@ export function AirportPopup({ airport, extra, onUse, simbrief, leg, flags }: Pr
           {airport.ident} · {airport.name}
         </div>
         {where && <div className="tip-sub">{where}</div>}
+        {/* @spec APT-DATA-009 */}
+        {airport.unlisted ? <div className="tip-sub">No longer listed by OurAirports</div> : null}
       </div>
 
       {wiki !== "loading" && wiki?.thumbnail && (

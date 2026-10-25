@@ -42,7 +42,7 @@ place at [db.ts:177-179](../../../src/server/db.ts#L177-L179)).
 | `seq` | Position in that aircraft's tour, 1..n | logbook (renumbering), tracker (append) |
 | `origin`, `dest` | Canonical OurAirports idents; may be the same airport | logbook, tracker |
 | `departed_at`, `arrived_at` | Real-world departure and arrival, ISO 8601 UTC, optional | logbook, tracker |
-| `sim_departed_at`, `sim_arrived_at` | The same moments on the sim's own clock (its zulu date and time), ISO 8601, optional — **intended; not yet in the schema** | tracker; logbook on edit |
+| `sim_departed_at`, `sim_arrived_at` | The same moments on the sim's own clock (its zulu date and time), ISO 8601, optional | tracker; logbook through the hop API |
 | `duration_min` | Flight time in whole real-world minutes, optional | logbook (typed), tracker (measured) |
 | `notes` | Free text, `''` when empty | logbook |
 | `track`, `landings`, `stats` | JSON payloads of a flown leg; null on hand-logged hops | tracker only |
@@ -125,8 +125,10 @@ the continuous case the default instead (below).
   the same airport, for pattern work and local flights. A stored ident keeps resolving: the airport
   lists' refreshes never drop an airport a hop uses (airports).
 - **Two clocks.** A hop records when it was flown in the real world and when it happened in the
-  sim's world, which runs its own date and time of day. Real-world times are the ones in use today;
-  sim-clock times are intended and not yet stored. Flight time (`duration_min`) is real-world
+  sim's world, which runs its own date and time of day. The tracker records both; the hop API takes
+  `sim_departed_at` / `sim_arrived_at` as it takes the real-world times (below), each optional, and
+  an edit that leaves them out keeps them. The page shows and edits only the real-world times
+  (Deferred). Flight time (`duration_min`) is real-world
   minutes, which can differ from elapsed sim time when the sim runs faster than real time; a
   flight time the tracker measures leaves out time the sim was paused (live-tracking).
 - **Real-world times.** `departed_at` / `arrived_at` are optional. Blank is stored as null; anything
@@ -302,7 +304,7 @@ page.
   when that hop no longer exists; the server answers only on 127.0.0.1, so the page's time zone is
   the pilot's PC's; a logbook brought in from another data folder arrives whole, through SQLite's own
   backup, and never replaces one that holds hops; schema changes to `hops` go through
-  `addColumnIfMissing()`, so every added column is nullable or has a default.
+  the schema step's added columns (`ADDED_COLUMNS` in schema.ts), so every added column is nullable or has a default.
 - **airports** — the airport lists' refreshes never drop an airport a hop uses, so a stored ident
   keeps resolving.
 
@@ -317,8 +319,8 @@ page.
 - HLD: [docs/high-level-design.md](../../high-level-design.md) — System Design (the data folder; the
   server listening only on 127.0.0.1) and Rules every segment follows (Order and position, Airport
   codes, Time, Schema changes)
-- Writes from other segments: live-tracking `insertHop` ([tracker.ts:346-365](../../../src/server/tracker.ts#L346-L365)),
-  which is also to capture sim-clock times; simbrief `POST /hops/:id/briefing`
+- Writes from other segments: live-tracking `insertHop` ([tracker.ts](../../../src/server/tracker.ts)),
+  real-world and sim-clock times both; simbrief `POST /hops/:id/briefing`
 - Consumers of the parked position and hop order: tour-map (`paths.ts`), planner (`Planner.tsx`,
   `/plan`), live-tracking (takeoff airport tie-break)
 - Consumers of hop ids: flight-panel, simbrief (a plan's hop), the page's `#hop=<id>` address

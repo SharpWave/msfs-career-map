@@ -34,15 +34,14 @@ window can send to the pilot's browser ([Desktop › Relies On](../desktop/deskt
 OurAirports is a free, worldwide, regularly updated dataset with codes, coordinates, elevations,
 runways and Wikipedia links, which suits an open, keyless local tool. Every request this segment
 makes to OurAirports, aviationweather.gov and Wikipedia carries the server's User-Agent, naming the
-app, its version and the project's address as contact (app-shell, APP-API-005; today the OurAirports
-downloads send none, [airports.ts:64-70](../../../src/server/airports.ts#L64-L70)).
+app, its version and the project's address as contact (app-shell, APP-API-005).
 
 ## Reference Data
 
 ### Where the lists live
 
 The airport and runway lists come from OurAirports' CSV mirror
-([airports.ts:4-6](../../../src/server/airports.ts#L4-L6)) as `airports.csv` and `runways.csv`,
+([airport-data.ts:15-17](../../../src/server/airport-data.ts#L15-L17)) as `airports.csv` and `runways.csv`,
 kept in the data folder beside the database: `%LOCALAPPDATA%\MSFS Career Map` for the installed app,
 `<folder>\data` in the desktop app's test mode, and the database's folder (`data/` by default) for a
 copy run from source (app-shell).
@@ -63,8 +62,7 @@ from ever falling due.
 once it is complete, so a download that fails leaves the list on disk and its time as they were. A
 download fails when no data arrives for 60 s or when it has not finished within 10 minutes, and a
 failed download names the HTTP status when there is one
-([airports.ts:64-70](../../../src/server/airports.ts#L64-L70)). (Intended; today a download has no
-time limit, writes the list in place and records no time.)
+([airport-data.ts:94-151](../../../src/server/airport-data.ts#L94-L151)).
 
 ### Preparing airport data at start
 
@@ -89,7 +87,7 @@ start order). Preparation:
    sim link, which starts only once preparation has ended.
 4. **Imports** the airport list when the database holds no airports, and the runway list when it holds
    no runways or no runway with a heading (a database from before headings were stored)
-   ([airports.ts:197-209](../../../src/server/airports.ts#L197-L209)). Each import takes the data
+   ([airport-data.ts:709-727](../../../src/server/airport-data.ts#L709-L727)). Each import takes the data
    folder's list: the one already there, else the one just seeded, else the one just downloaded.
 
 A logbook brought in from another data folder, or restored from a backup, comes with the airport data
@@ -124,8 +122,9 @@ keeps its download time, so each list, its time and the imported data are wholly
 or wholly as after it. An import works in batches of at most about 100 ms (Importing), so it stops
 within one, well inside the few seconds a shutdown is given.
 
-(Intended; today the server seeds nothing and imports each list in one synchronous step rather than
-in batches, so a shutdown cannot stop an import partway, [airports.ts](../../../src/server/airports.ts).)
+Preparation, the daily checks and requested re-imports are run one at a time by `AirportWork`
+([airport-data.ts:569-797](../../../src/server/airport-data.ts#L569-L797)), which app-shell's startup gives the database, the data and program
+folders, the status report and the in-the-sim check.
 
 ### Airport downloads on or off
 
@@ -142,8 +141,7 @@ since someone asked for it, and tests of the download path answer it from fixtur
 ### The monthly refresh
 
 OurAirports keeps changing, so the server keeps its lists current by itself. In the installed app
-this is the only refresh: it has no terminal command, and the page offers none. (Intended; today the
-lists are only downloaded on first run.)
+this is the only refresh: it has no terminal command, and the page offers none.
 
 - **When.** Checks run as preparation at start ends and every 24 hours after that.
   - When the last preparation — the one at start, or one a check repeated — failed, a check prepares
@@ -191,7 +189,7 @@ lists are only downloaded on first run.)
   run in a process of its own and so outside the server's one-import-at-a-time rule; the installed
   app refreshes by itself.
 - `POST /api/airports/reimport[?download=1]` re-imports from the files on disk, downloading both first
-  with `download=1` ([routes.ts:106-114](../../../src/server/routes.ts#L106-L114)), and answers
+  with `download=1` ([routes.ts:108-117](../../../src/server/routes.ts#L108-L117)), and answers
   `409 "airport data is already being imported"` while another import is under way. The page has no
   control for it.
 
@@ -206,22 +204,20 @@ Both start straight away, whatever the sim is doing: someone asked for them.
   The new rows go into staging tables; the airport data the server had stays in use until the new
   lists have been read and checked, and they then replace it in one short transaction, so readers
   see either the old lists or the new ones, and a failure before that moment leaves the old ones
-  unchanged. (Intended; today an import parses the whole list and writes every row in one
-  synchronous step that holds the server for seconds,
-  [airports.ts:12-61](../../../src/server/airports.ts#L12-L61),
-  [airports.ts:78-116](../../../src/server/airports.ts#L78-L116),
-  [airports.ts:140-194](../../../src/server/airports.ts#L140-L194).)
-- **Airports** ([airports.ts:78-116](../../../src/server/airports.ts#L78-L116)): each import
-  replaces every row in one transaction. Rows of type `closed` and rows without numeric coordinates
+  unchanged ([airport-data.ts:395-467](../../../src/server/airport-data.ts#L395-L467), [airport-data.ts:469-524](../../../src/server/airport-data.ts#L469-L524)). The swap empties the airports table in one step
+  and builds its indexes again in one pass each, which keeps it to a few hundred milliseconds for
+  OurAirports' lists.
+- **Airports** ([airport-data.ts:331-357](../../../src/server/airport-data.ts#L331-L357)): each import
+  replaces every row but those kept below. Rows of type `closed` and rows without numeric coordinates
   are skipped; blank text fields become null; a blank elevation is null.
-- **Runways** ([airports.ts:140-194](../../../src/server/airports.ts#L140-L194)): each import
-  replaces every row in one transaction. Rows without an airport ident are skipped. Length and
+- **Runways** ([airport-data.ts:359-393](../../../src/server/airport-data.ts#L359-L393)): each import
+  replaces every row but those of airports kept below. Rows without an airport ident are skipped. Length and
   width are rounded, and blank or non-positive values are null. `lighted`/`closed` are 1 only for
   `"1"`. Each end's heading is the CSV's true heading normalised to 0–360, else derived from a
   two-digit runway number (`16L` → 160°, `36` → 0°), else null; a missing high-end heading is the
   low end's + 180°.
 - A missing required CSV column fails the import with the file and column named
-  ([airports.ts:53-61](../../../src/server/airports.ts#L53-L61)). The CSV reader handles quoted
+  ([airport-data.ts:408-417](../../../src/server/airport-data.ts#L408-L417)). The CSV reader handles quoted
   fields, doubled quotes, embedded commas and newlines, and CRLF or LF line ends.
 
 ### Airports that leave the dataset
@@ -231,43 +227,45 @@ itself does not: the map cannot place a hop whose airport is missing, the planne
 from it, and editing the hop fails because its codes no longer resolve. Airports most often leave
 the dataset by being marked `closed`, which the import skips.
 
-The intended rule (today every re-import drops them): a re-import keeps the last-known record and
-runways of every airport that a hop references and that the new lists omit or mark closed. Such an
+A re-import keeps the last-known record and runways of every airport that a hop references and that the new lists omit or mark closed. Such an
 airport is flagged as no longer listed. It still resolves by code — so its hops draw, plan and edit
 as before — but it is not offered as a planner candidate or chosen as a nearest airport, and its
-popup says "No longer listed by OurAirports".
+popup says "No longer listed by OurAirports". The flag is the airports table's `unlisted` column,
+set in the swap ([airport-data.ts:469-524](../../../src/server/airport-data.ts#L469-L524)); an airport
+the lists bring back is listed again, and one no hop references any more is dropped at the next
+re-import.
 
 ### Surface classes
 
 OurAirports surfaces are free text ("ASPH-G", "TURF-F", "PIÇARRA"…). Each runway is also given one
 of seven classes — paved, grass, gravel, dirt, water, snow, unknown — by testing the upper-cased
 text against token lists in that order, first match winning; single letters G, S, C and D map to
-grass, dirt, paved and dirt ([airports.ts:120-137](../../../src/server/airports.ts#L120-L137)).
+grass, dirt, paved and dirt ([airport-data.ts:276-291](../../../src/server/airport-data.ts#L276-L291)).
 
 ### Runway summary
 
 After every runway import the per-airport summary `airport_rwy` is rebuilt from **open** runways
 only: longest length, widest width, count, the distinct surface classes, whether any is paved,
 whether any is lit, and the distinct rounded headings
-([airports.ts:180-187](../../../src/server/airports.ts#L180-L187)). Every airport query LEFT JOINs
+([airport-data.ts:506-512](../../../src/server/airport-data.ts#L506-L512)). Every airport query LEFT JOINs
 it, so an airport without open runways reads as count 0 and not paved or lit
-([airports.ts:257-261](../../../src/server/airports.ts#L257-L261)). The summary is what search
+([airports.ts:82-86](../../../src/server/airports.ts#L82-L86)). The summary is what search
 results, planner candidates and map dots carry; full runway lists are attached only where needed.
 
 ## Finding Airports
 
 **By code.** A code is trimmed, upper-cased and matched against the ident, ICAO, GPS, IATA and local
 codes, preferring an ident match, then ICAO, then GPS, then the rest
-([airports.ts:263-271](../../../src/server/airports.ts#L263-L271)). This is the resolution the
+([airports.ts:88-96](../../../src/server/airports.ts#L88-L96)). This is the resolution the
 logbook relies on to store canonical idents. `GET /api/airports/:code` returns the airport with
 all its runways, open first and longest first, or `404 "airport not found: X"`
-([routes.ts:71-75](../../../src/server/routes.ts#L71-L75), [airports.ts:295-302](../../../src/server/airports.ts#L295-L302)).
+([routes.ts:73-77](../../../src/server/routes.ts#L73-L77), [airports.ts:125-127](../../../src/server/airports.ts#L125-L127)).
 
 **Search.** A blank query returns nothing. Otherwise codes are prefix-matched and name and city
 substring-matched; results rank exact code matches first, then code prefixes, then name matches,
 then by class (large, medium, small, seaplane base, heliport, other), then by name
-([airports.ts:277-293](../../../src/server/airports.ts#L277-L293)). `GET /api/airports/search`
-caps results at 1–50, default 12 ([routes.ts:65-69](../../../src/server/routes.ts#L65-L69)).
+([airports.ts:98-118](../../../src/server/airports.ts#L98-L118)). `GET /api/airports/search`
+caps results at 1–50, default 12 ([routes.ts:67-71](../../../src/server/routes.ts#L67-L71)).
 
 **Airport input** — the code box used by the hop form, the pending-leg form and the planner's From
 field ([AirportInput.tsx](../../../src/client/components/AirportInput.tsx)):
@@ -286,12 +284,12 @@ field ([AirportInput.tsx](../../../src/client/components/AirportInput.tsx)):
 **Nearest airport.** Given a point and a radius, returns the airport that minimises distance plus
 a class handicap — large 0, medium 0.3 nm, small 0.8 nm, any other type 2 nm — so a main field
 wins over its own heliport or a strip next door; nothing beyond the radius is considered
-([airports.ts:555-581](../../../src/server/airports.ts#L555-L581)). The tracker uses it with a
+([airports.ts:381-419](../../../src/server/airports.ts#L381-L419)). The tracker uses it with a
 5 nm radius. It is meant to work across the 180° meridian like the planner's search does; today
 its search box does not wrap, so near the meridian airports on the far side are missed.
 
 **Geodesy.** Great-circle distance (Earth radius 3440.065 nm) and initial bearing
-([airports.ts:478-489](../../../src/server/airports.ts#L478-L489)) are shared by the planner and
+([airports.ts:302-313](../../../src/server/airports.ts#L302-L313)) are shared by the planner and
 the tracker.
 
 ## Airport Details
@@ -350,15 +348,15 @@ With only the summary known it shows one line: "longest ft · surfaces · n rwys
 - **Source.** aviationweather.gov's METAR API, fetched in batches of 150 stations, 12 s timeout,
   each station cached in server memory for 5 minutes. A station that reports nothing is cached as
   null for the same time; when a station returns several reports the newest wins
-  ([airports.ts:397-471](../../../src/server/airports.ts#L397-L471)).
+  ([airports.ts:221-295](../../../src/server/airports.ts#L221-L295)).
 - **Cache size.** A server that runs for weeks in the tray would otherwise keep every station it was
   ever asked about. Each time fetched reports are stored, entries more than 5 minutes old are dropped,
   so the cache holds only the stations asked about in the last 5 minutes. (Intended; today an expired
   entry stays until its station is asked about again,
-  [airports.ts:438-466](../../../src/server/airports.ts#L438-L466).)
+  [airports.ts:262-289](../../../src/server/airports.ts#L262-L289).)
 - **API.** `GET /api/metar/:icao` (400 unless 4 letters/digits; 404 "no current METAR for X") and
   `GET /api/metars?ids=` (non-4-character ids dropped; 400 when none remain or more than 500)
-  ([routes.ts:86-104](../../../src/server/routes.ts#L86-L104)).
+  ([routes.ts:88-106](../../../src/server/routes.ts#L88-L106)).
 - **Station rule.** An airport's METAR station is its ICAO code when that is 4 letters/digits, else
   its ident when that is 4 letters, else none ([metar.ts:27-31](../../../src/client/metar.ts#L27-L31)).
 - **Freshness.** A METAR is fresh when observed under 90 minutes ago; only a fresh report's flight
@@ -375,7 +373,7 @@ With only the summary known it shows one line: "longest ft · surfaces · n rwys
 
 `GET /api/airports/:code/wiki` returns the page summary for an airport's `wikipedia_link`: title,
 extract, thumbnail and full image (tracking parameters stripped), and the article URL
-([airports.ts:338-379](../../../src/server/airports.ts#L338-L379), [routes.ts:78-84](../../../src/server/routes.ts#L78-L84)).
+([airports.ts:162-203](../../../src/server/airports.ts#L162-L203), [routes.ts:79-86](../../../src/server/routes.ts#L79-L86)).
 Summaries are cached in `wiki_cache` for 30 days. An airport without a link, or whose link is not a
 wikipedia.org article, has no summary (404). A failed refresh returns the stale cached summary
 when one exists; today that fallback covers an HTTP error status but not a network error or
@@ -444,24 +442,26 @@ app-shell's.
    the tracker or typed in a form. Not yet encountered; revisit if it happens, for example with
    user-defined airports.
 2. **Search wildcards** — `%` and `_` typed by the user act as SQL wildcards
-   ([airports.ts:292](../../../src/server/airports.ts#L292)).
-3. **One-digit runway numbers** ("9/27") get no derived heading ([airports.ts:159](../../../src/server/airports.ts#L159)).
+   ([airports.ts:117](../../../src/server/airports.ts#L117)).
+3. **One-digit runway numbers** ("9/27") get no derived heading ([airport-data.ts:374](../../../src/server/airport-data.ts#L374)).
 4. **Old databases keep empty link columns** — preparation at start re-imports runways missing
-   headings but not airports missing `wikipedia_link`/`home_link` ([airports.ts:198](../../../src/server/airports.ts#L198));
+   headings but not airports missing `wikipedia_link`/`home_link` ([airport-data.ts:715](../../../src/server/airport-data.ts#L715));
    the monthly refresh fills them within a month.
 5. **METAR formatting is written twice** — the popup and the tooltip line format wind and ceiling
    separately ([AirportPopup.tsx:220-230](../../../src/client/components/AirportPopup.tsx#L220-L230),
    [metar.ts:54-63](../../../src/client/metar.ts#L54-L63)).
 6. **One failed METAR batch fails the whole request**, even when earlier batches succeeded
-   ([airports.ts:450-463](../../../src/server/airports.ts#L450-L463)).
+   ([airports.ts:274-288](../../../src/server/airports.ts#L274-L288)).
 
 ## References
 
 - HLD: [docs/high-level-design.md](../../high-level-design.md) — Approach (free, public data), System
   Design (the data folder, the server's start), Segments → airports, Rules every segment follows
   (airport codes), Tenets (out of the pilot's way while flying; the page stays a web page)
-- Code: [src/server/airports.ts](../../../src/server/airports.ts) (all but `planCandidates`, which
-  belongs to planner), [src/server/routes.ts](../../../src/server/routes.ts) (airports section 63-114),
+- Code: [src/server/airport-data.ts](../../../src/server/airport-data.ts) (the lists, their download
+  times, downloads, seeding, the staged import and swap, `AirportWork`),
+  [src/server/airports.ts](../../../src/server/airports.ts) (all but `planCandidates`, which
+  belongs to planner), [src/server/routes.ts](../../../src/server/routes.ts) (airports section 65-117),
   [scripts/import-airports.ts](../../../scripts/import-airports.ts),
   [src/client/metar.ts](../../../src/client/metar.ts),
   [src/client/components/AirportInput.tsx](../../../src/client/components/AirportInput.tsx),

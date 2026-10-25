@@ -1,5 +1,9 @@
+import fs from "node:fs";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
+
+/** The app's version, built into the page as vite.config.ts builds it in (APP-API-005). */
+const version: string = JSON.parse(fs.readFileSync(new URL("./package.json", import.meta.url), "utf8")).version;
 
 // Nothing here may import from src/server: db.ts opens the database the moment it loads, and this
 // file is evaluated before any test file has its own data folder (APP-RUN-013).
@@ -23,6 +27,7 @@ export default defineConfig({
       },
       {
         plugins: [react()],
+        define: { __MSFS_CAREER_MAP_VERSION__: JSON.stringify(version) },
         test: {
           name: "components",
           include: ["tests/**/*.test.tsx"],

@@ -10,7 +10,7 @@ export const TOP_BAR_H = 40;
 /** Windows narrower than this get the narrow column. */
 export const NARROW_BELOW = 960;
 
-export type DrawerKey = "log" | "fleet";
+export type DrawerKey = "log" | "fleet" | "import";
 
 /** Distances in px from each edge of the window to the clear part of the map. */
 export interface Insets {
@@ -49,7 +49,7 @@ export interface ColumnState {
   drawer: DrawerKey | null;
 }
 
-export type ColumnAction = { type: "toggle" } | { type: "open"; drawer: DrawerKey } | { type: "close" };
+export type ColumnAction = { type: "toggle" } | { type: "open"; drawer: DrawerKey } | { type: "close" } | { type: "sidebar" };
 
 export const initialColumn: ColumnState = { hidden: false, drawer: null };
 
@@ -62,5 +62,7 @@ export function columnReducer(state: ColumnState, action: ColumnAction): ColumnS
       return { hidden: false, drawer: action.drawer };
     case "close":
       return { ...state, drawer: null };
+    case "sidebar":
+      return { hidden: false, drawer: null };
   }
 }

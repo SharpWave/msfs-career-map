@@ -523,6 +523,25 @@ button.icon.bar-button:hover:not(:disabled) {
   }
 }
 
+/* the airport-data and version notices, at the top of the clear part */
+/* @spec APP-UI-031, APP-UI-036 */
+.notices {
+  position: absolute;
+  z-index: var(--z-panels);
+  top: calc(var(--clear-top) + 8px);
+  left: calc(var(--clear-left) + 12px);
+  right: var(--gutter);
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.notices .notice {
+  pointer-events: auto;
+}
+
 /* a map layer that failed to render, at the top of the clear part */
 .map-notice {
   position: absolute;
@@ -2214,6 +2233,26 @@ fieldset.perf legend em {
 
   .fp-chart,
   .fp-side {
+    min-height: auto;
+    overflow: visible;
+  }
+}
+
+/* A window below 800 × 600: the whole panel scrolls, its header included, so every card and button
+   stays reachable however little room the left column leaves it. */
+/* @spec APP-UI-041 */
+@media (max-width: 799px), (max-height: 599px) {
+  .flight-panel {
+    overflow-y: auto;
+  }
+
+  .flight-panel .fp-body {
+    flex: none;
+    overflow: visible;
+  }
+
+  .flight-panel .fp-chart,
+  .flight-panel .fp-side {
     min-height: auto;
     overflow: visible;
   }

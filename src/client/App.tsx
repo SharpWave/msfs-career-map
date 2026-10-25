@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties } from "react";
-import { api } from "./api";
+import { api, ApiError, type LogbookOffer, type ServerStatus } from "./api";
 import type { LatLng } from "./geo";
 import { buildRenderData, focusPoints, planZoomPoints } from "./paths";
 import { METAR_REUSE_MS, metarStation, type MetarMap } from "./metar";
@@ -8,6 +8,9 @@ import { useTracker } from "./tracker";
 import { fmtDuration } from "./format";
 import { clearInsets, columnReducer, initialColumn, type DrawerKey } from "./layout";
 import { readPref, writePref } from "./prefs";
+import { clearFragment, parseFragment, reloadPage } from "./navigation";
+import { PAGE_TIMING, airportNotice, startingText, versionNotice, type AirportDataReport } from "./notices";
+import { PAGE_VERSION } from "./version";
 import type { AppState, Briefing, HazardKind, Hop, OfpFix, PlanCandidate, PlanResult, SimAircraft } from "./types";
 import { MapView, type Basemap, type Focus } from "./components/MapView";
 import { Sidebar } from "./components/Sidebar";
@@ -17,6 +20,8 @@ import { MapToolbar, HAZARD_TOGGLES } from "./components/MapToolbar";
 import { LeftColumn, type DrawerRequest } from "./components/Drawer";
 import { Fleet, type FleetForm } from "./components/Fleet";
 import { HopForm, type HopPreset } from "./components/HopForm";
+import { BringIn } from "./components/BringIn";
+import type { PendingLogging } from "./components/LivePanel";
 
 /** Mountain obscuration rides with IFR; ash and cyclones with convective. */
 const HAZARD_GROUPS: Record<string, HazardKind[]> = {
@@ -25,6 +30,11 @@ const HAZARD_GROUPS: Record<string, HazardKind[]> = {
   IFR: ["IFR", "MT_OBSC"],
   CONVECTIVE: ["CONVECTIVE", "VA", "TC"],
 };
+
+/** The server version this tab last reloaded itself for, in its session storage (APP-UI-036). */
+const RELOADED_FOR = "msfs-career-map.reloadedFor";
+const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const readBasemap = () => readPref<Basemap>("basemap", "dark", (v) => (v === "light" || v === "satellite" ? v : "dark"));
 const windowSize = () => ({ width: window.innerWidth, height: window.innerHeight });
@@ -37,6 +47,15 @@ const windowSize = () => ({ width: window.innerWidth, height: window.innerHeight
 export function App() {
   const [state, setState] = useState<AppState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** "Starting… (<step>)" while the first load is answered 503. */
+  const [starting, setStarting] = useState<string | null>(null);
+  const [airportData, setAirportData] = useState<AirportDataReport | null>(null);
+  const [versionWarning, setVersionWarning] = useState<string | null>(null);
+  const [offer, setOffer] = useState<LogbookOffer | null>(null);
+  /** The logbook id the server reported as the map state first loaded (APP-UI-042). */
+  const firstLogbookId = useRef<string | null | undefined>(undefined);
+  const stateRef = useRef<AppState | null>(null);
+  stateRef.current = state;
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [column, dispatchColumn] = useReducer(columnReducer, initialColumn);
   const [drawerRequest, setDrawerRequest] = useState<DrawerRequest | null>(null);
@@ -147,13 +166,111 @@ export function App() {
       setState(s);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errMsg(e));
     }
   }, []);
 
+  /**
+   * A server of another version: send no further change and reload, once for that version; after
+   * that, a notice. Returns whether the page is reloading.
+   */
+  // @spec APP-UI-036
+  const checkVersion = useCallback((st: ServerStatus): boolean => {
+    if (st.version === PAGE_VERSION) {
+      setVersionWarning(null);
+      return false;
+    }
+    let reloadedFor: string | null = null;
+    try {
+      reloadedFor = sessionStorage.getItem(RELOADED_FOR);
+    } catch {
+      // no session storage: reload as for a first time
+    }
+    if (reloadedFor !== st.version) {
+      try {
+        sessionStorage.setItem(RELOADED_FOR, st.version);
+      } catch {
+        // the next load asks again
+      }
+      api.freezeChanges();
+      reloadPage();
+      return true;
+    }
+    setVersionWarning(versionNotice(PAGE_VERSION, st.version));
+    return false;
+  }, []);
+
+  // The first load: while the server's start-up work answers 503, say which step it is at and load
+  // again every second; then note the logbook's id, and check the version after a 503.
+  // @spec APP-UI-030, APP-UI-036, APP-UI-042
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    let cancelled = false;
+    void (async () => {
+      let after503 = false;
+      for (;;) {
+        try {
+          const s = await api.state();
+          if (cancelled) return;
+          setState(s);
+          setError(null);
+          setStarting(null);
+          break;
+        } catch (e) {
+          if (cancelled) return;
+          if (!(e instanceof ApiError && e.status === 503)) {
+            setError(errMsg(e));
+            return;
+          }
+          after503 = true;
+          let step: string | null = null;
+          try {
+            step = (await api.status()).startup;
+          } catch {
+            step = null;
+          }
+          if (cancelled) return;
+          setStarting(startingText(step));
+          await wait(PAGE_TIMING.startingRetryMs);
+          if (cancelled) return;
+        }
+      }
+      try {
+        const st = await api.status();
+        if (cancelled) return;
+        firstLogbookId.current = st.logbookId;
+        if (after503) checkVersion(st);
+      } catch {
+        firstLogbookId.current = null;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [checkVersion]);
+
+  // Airport preparation: asked at load, then every 2 s until the server reports it done.
+  // @spec APP-UI-031
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const ask = async () => {
+      let done = false;
+      try {
+        const st = await api.status();
+        if (cancelled) return;
+        setAirportData(st.airportData);
+        done = st.airportData?.state === "done";
+      } catch {
+        // asked again below
+      }
+      if (!cancelled && !done) timer = setTimeout(() => void ask(), PAGE_TIMING.airportPollMs);
+    };
+    void ask();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, []);
 
   // Live tracker stream. A leg the server logs refreshes the map, drops stale planner results and
   // shows a toast for a few seconds.
@@ -162,6 +279,8 @@ export function App() {
   const [panel, setPanel] = useState<PanelSource | null>(null);
   const [panelBriefing, setPanelBriefing] = useState<Briefing | null>(null);
   const [briefingVersion, setBriefingVersion] = useState(0);
+  /** The takeoff time of the leg the live panel last showed: its hop carries the same (PANEL-OPEN-013). */
+  const liveDeparted = useRef<string | null>(null);
   const live = useTracker(
     useCallback(
       (hop: Hop) => {
@@ -169,12 +288,100 @@ export function App() {
         setPlan(null);
         setHopPreset(null);
         setToast(`Logged ${hop.origin} → ${hop.dest}${hop.duration_min != null ? ` · ${fmtDuration(hop.duration_min)}` : ""}`);
-        // A live panel follows the leg into the logbook.
-        setPanel((p) => (p?.kind === "live" ? { kind: "hop", hopId: hop.id } : p));
+        // A live panel follows its own leg into the logbook, and no other hop.
+        // @spec PANEL-OPEN-005, PANEL-OPEN-013
+        setPanel((p) => (p?.kind === "live" && liveDeparted.current != null && hop.departed_at === liveDeparted.current ? { kind: "hop", hopId: hop.id } : p));
       },
       [reload],
     ),
   );
+  const liveStatus = useRef(live.status);
+  liveStatus.current = live.status;
+  useEffect(() => {
+    const dep = live.status?.leg?.departed_at;
+    if (panel?.kind === "live" && dep) liveDeparted.current = dep;
+  }, [panel, live.status?.leg?.departed_at]);
+
+  // Each connection of the tracker stream after the first: check the logbook and the version, then
+  // reload the map and the lists. `synced` is the last connection whose reload has loaded.
+  const [synced, setSynced] = useState(0);
+  const seenConnection = useRef(0);
+  // @spec LIVE-API-005, APP-UI-042, APP-UI-036, PLAN-RUN-006, PLAN-RUN-007, PANEL-OPEN-014
+  useEffect(() => {
+    const n = live.connection;
+    if (n <= seenConnection.current) return;
+    const first = seenConnection.current === 0;
+    seenConnection.current = n;
+    if (first) {
+      setSynced(n);
+      return;
+    }
+    void (async () => {
+      let st: ServerStatus | null = null;
+      try {
+        st = await api.status();
+      } catch {
+        st = null;
+      }
+      if (st) {
+        if (firstLogbookId.current != null && st.logbookId !== firstLogbookId.current) {
+          api.freezeChanges();
+          reloadPage();
+          return;
+        }
+        if (checkVersion(st)) return;
+      }
+      const held = new Set((stateRef.current?.hops ?? []).map((h) => h.id));
+      try {
+        const s = await api.state();
+        setState(s);
+        setError(null);
+        // A hop logged while the stream was away: the planner's result and hand-off are stale.
+        if (s.hops.some((h) => !held.has(h.id))) {
+          setPlan(null);
+          setHopPreset(null);
+        }
+        // A live panel whose leg ended while the stream was away shows the hop that leg became.
+        const dep = liveDeparted.current;
+        if (dep != null && liveStatus.current?.leg?.departed_at !== dep) {
+          const became = s.hops.find((h) => h.departed_at === dep);
+          if (became) setPanel((p) => (p?.kind === "live" ? { kind: "hop", hopId: became.id } : p));
+        }
+      } catch (e) {
+        setError(errMsg(e));
+      }
+      setSynced((s) => Math.max(s, n));
+    })();
+  }, [live.connection, checkVersion]);
+
+  /** Fresh state from the server: the map state, and the stream open with its status and its reload loaded. */
+  const fresh = state != null && live.online && live.connection >= 1 && synced === live.connection;
+
+  // Pending legs being logged with Log hop on this page: the panel showing one follows it to its hop.
+  const loggingHere = useRef(new Set<string>());
+  // @spec PANEL-OPEN-006
+  const pendingLogging: PendingLogging = useMemo(
+    () => ({
+      onLogging: (id) => {
+        loggingHere.current.add(id);
+      },
+      onLogged: (id, hop) => {
+        loggingHere.current.delete(id);
+        setPanel((p) => (p?.kind === "pending" && p.id === id ? { kind: "hop", hopId: hop.id } : p));
+      },
+      onLogFailed: (id) => {
+        loggingHere.current.delete(id);
+      },
+    }),
+    [],
+  );
+  // A pending leg shown in the panel that leaves the list any other way closes the panel.
+  useEffect(() => {
+    if (panel?.kind !== "pending" || !fresh) return;
+    if (live.status?.pending.some((p) => p.id === panel.id)) return;
+    if (loggingHere.current.has(panel.id)) return;
+    setPanel(null);
+  }, [panel, live.status, fresh]);
 
   const panelHop = panel?.kind === "hop" && state ? state.hops.find((h) => h.id === panel.hopId) : undefined;
   const panelBriefingId = panel?.kind === "hop" ? (panelHop?.briefing_id ?? null) : panel?.kind === "live" ? (live.status?.briefing?.id ?? null) : null;
@@ -195,10 +402,15 @@ export function App() {
     };
   }, [panelBriefingId, briefingVersion]);
 
-  // Close the panel if its hop was deleted.
+  // Close the panel if its hop was deleted: there in the last map state, gone from this one.
+  const lastState = useRef<AppState | null>(null);
   useEffect(() => {
-    if (panel?.kind === "hop" && state && !state.hops.some((h) => h.id === panel.hopId)) setPanel(null);
-  }, [panel, state]);
+    const prev = lastState.current;
+    lastState.current = state;
+    if (panel?.kind !== "hop" || !prev || !state) return;
+    if (prev.hops.some((h) => h.id === panel.hopId) && !state.hops.some((h) => h.id === panel.hopId)) setPanel(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   // SimBrief routes to draw: the plan for the flight being flown, plus the opened hop's plan.
   const routes = useMemo(() => {
@@ -289,6 +501,71 @@ export function App() {
     setDrawerRequest({ key: ++seq.current, target, opener });
   };
 
+  // The hand-off fragment, acted on only on fresh state, then cleared.
+  const [hashTick, setHashTick] = useState(0);
+  useEffect(() => {
+    const changed = () => setHashTick((t) => t + 1);
+    window.addEventListener("hashchange", changed);
+    return () => window.removeEventListener("hashchange", changed);
+  }, []);
+  const [showPending, setShowPending] = useState<{ key: number; id: string } | null>(null);
+  // @spec APP-UI-032, APP-UI-033, APP-UI-034, APP-UI-035, PANEL-OPEN-009, PANEL-OPEN-010, PANEL-OPEN-011
+  useEffect(() => {
+    if (!fresh || !state) return;
+    const f = parseFragment(window.location.hash);
+    if (!f) return;
+    clearFragment();
+    if (f.kind === "hop") {
+      const h = state.hops.find((x) => x.id === f.id);
+      if (h) openHop(h);
+      else setToast("That hop no longer exists");
+    } else if (live.status?.pending.some((p) => p.id === f.id)) {
+      dispatchColumn({ type: "sidebar" });
+      setShowPending({ key: ++seq.current, id: f.id });
+      setPanel({ kind: "pending", id: f.id });
+    } else {
+      setToast("That leg has already been logged or discarded");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fresh, hashTick, state, live.status]);
+
+  // A logbook with no hops: what can be brought in, the drawer opened at load when anything is.
+  // @spec APP-UI-038
+  const offerAsked = useRef(false);
+  useEffect(() => {
+    if (!state || offerAsked.current) return;
+    offerAsked.current = true;
+    if (state.hops.length > 0) return;
+    api
+      .logbookOffer()
+      .then((o) => {
+        setOffer(o);
+        if (o.offers.length > 0) openDrawer("import");
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  const chooseDrawer = (d: DrawerKey) => {
+    if (d === "import") {
+      api
+        .logbookOffer()
+        .then(setOffer)
+        .catch(() => {});
+    }
+    openDrawer(d);
+  };
+
+  // @spec APP-UI-037
+  const backUp = async () => {
+    try {
+      const r = await api.backup();
+      setToast(`Backed up to ${r.file}`);
+    } catch (e) {
+      setToast(`Backup failed: ${errMsg(e)}`);
+    }
+  };
+
   // Auto-run the planner from the URL, e.g. ?plan=1&minutes=90 (handy for bookmarks and testing).
   const autoPlanned = useRef(false);
   useEffect(() => {
@@ -329,6 +606,8 @@ export function App() {
     openDrawer("fleet", `#aircraft-${id}`);
   };
 
+  const notice = airportNotice(airportData);
+
   const vars = {
     "--clear-top": `${clear.top}px`,
     "--clear-left": `${clear.left}px`,
@@ -343,7 +622,8 @@ export function App() {
           counts={state ? { aircraft: state.aircraft.length, hops: state.hops.length, airports: state.airportCount, runways: state.runwayCount } : null}
           open={openMenu === "app"}
           onOpenChange={(o) => setOpenMenu((m) => (o ? "app" : m === "app" ? null : m))}
-          onChoose={(d) => openDrawer(d)}
+          onChoose={chooseDrawer}
+          onBackup={() => void backUp()}
           columnHidden={column.hidden}
           onToggleColumn={() => dispatchColumn({ type: "toggle" })}
         />
@@ -389,9 +669,10 @@ export function App() {
               live={live}
               onFocusLive={focusLive}
               onOpenLive={() => setPanel({ kind: "live" })}
-              // The flight panel cannot show a pending leg yet, so a pending leg's Profile opens nothing.
-              onOpenPending={() => {}}
+              onOpenPending={(id) => setPanel({ kind: "pending", id })}
               onNewFromSim={newFromSim}
+              showPending={showPending}
+              logging={pendingLogging}
             />
           }
           drawers={{
@@ -410,6 +691,10 @@ export function App() {
                   }}
                 />
               ),
+            },
+            import: {
+              title: "Bring in a logbook",
+              body: <BringIn offer={offer} />,
             },
             fleet: {
               title: "Fleet",
@@ -469,9 +754,24 @@ export function App() {
             clear={clear}
           />
         ) : (
-          <div className="loading">{error ? "" : "Loading…"}</div>
+          <div className="loading">{error ? "" : (starting ?? "Loading…")}</div>
         )}
       </main>
+
+      {(notice || versionWarning) && (
+        <div className="notices">
+          {notice && (
+            <div className="notice airport-notice glass" role="status">
+              {notice}
+            </div>
+          )}
+          {versionWarning && (
+            <div className="notice version-notice glass" role="status">
+              {versionWarning}
+            </div>
+          )}
+        </div>
+      )}
 
       {state && state.hops.length === 0 && (
         <div className="map-empty glass">

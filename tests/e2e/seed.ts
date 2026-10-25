@@ -16,7 +16,7 @@ export async function seedTour(request: APIRequestContext, over: Record<string, 
 }
 
 /** Open the menu and choose one of its entries. */
-export async function chooseFromMenu(page: Page, entry: "Log a hop" | "Fleet") {
+export async function chooseFromMenu(page: Page, entry: "Log a hop" | "Fleet" | "Bring in a logbook" | "Back up now") {
   await page.getByRole("button", { name: "Career Map" }).click();
   await page.getByRole("menuitem", { name: entry }).click();
 }

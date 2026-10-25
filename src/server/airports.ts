@@ -1,236 +1,34 @@
-import fs from "node:fs";
-import { db, AIRPORTS_CSV, RUNWAYS_CSV, airportCount, runwayCount, reportCounts } from "./db.ts";
+import { db, DATA_DIR, reportCounts } from "./db.ts";
+import { currentInputs } from "./inputs.ts";
 import { setAirportData } from "./status.ts";
+import { AirportWork, type SurfaceClass } from "./airport-data.ts";
+import { USER_AGENT } from "./version.ts";
 
-const DATA_BASE = "https://davidmegginson.github.io/ourairports-data";
-export const AIRPORTS_URL = `${DATA_BASE}/airports.csv`;
-export const RUNWAYS_URL = `${DATA_BASE}/runways.csv`;
+export { AIRPORTS_URL, RUNWAYS_URL, surfaceClass, type SurfaceClass } from "./airport-data.ts";
 
 export const AIRPORT_TYPES = ["large_airport", "medium_airport", "small_airport", "seaplane_base", "heliport", "balloonport"] as const;
 
-// ---------------------------------------------------------------- CSV
-
-/** Minimal RFC-4180 CSV parser: quoted fields, embedded commas, doubled quotes, newlines. */
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = "";
-  let inQuotes = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (text[i + 1] === '"') {
-          field += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        field += c;
-      }
-    } else if (c === '"') {
-      inQuotes = true;
-    } else if (c === ",") {
-      row.push(field);
-      field = "";
-    } else if (c === "\n" || c === "\r") {
-      if (c === "\r" && text[i + 1] === "\n") i++;
-      row.push(field);
-      field = "";
-      if (row.length > 1 || row[0] !== "") rows.push(row);
-      row = [];
-    } else {
-      field += c;
-    }
-  }
-  if (field !== "" || row.length) {
-    row.push(field);
-    rows.push(row);
-  }
-  return rows;
-}
-
-function readCsv(file: string): { header: string[]; rows: string[][]; col: (name: string) => number } {
-  const rows = parseCsv(fs.readFileSync(file, "utf8"));
-  const header = rows.shift()!;
-  const col = (name: string) => {
-    const i = header.indexOf(name);
-    if (i < 0) throw new Error(`${file}: missing column ${name}`);
-    return i;
-  };
-  return { header, rows, col };
-}
-
-async function download(url: string, dest: string): Promise<void> {
-  console.log(`[data] downloading ${url} ...`);
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`download failed: ${res.status} ${res.statusText}`);
-  fs.writeFileSync(dest, Buffer.from(await res.arrayBuffer()));
-  console.log(`[data] saved to ${dest}`);
-}
-
-export const downloadAirportsCsv = () => download(AIRPORTS_URL, AIRPORTS_CSV);
-export const downloadRunwaysCsv = () => download(RUNWAYS_URL, RUNWAYS_CSV);
-
-// ---------------------------------------------------------------- airports import
-
-/** Import the OurAirports airports CSV, replacing existing rows. */
-export function importAirportsCsv(): number {
-  const { rows, col } = readCsv(AIRPORTS_CSV);
-  const c = {
-    ident: col("ident"), type: col("type"), name: col("name"),
-    lat: col("latitude_deg"), lon: col("longitude_deg"), elev: col("elevation_ft"),
-    country: col("iso_country"), region: col("iso_region"), muni: col("municipality"),
-    icao: col("icao_code"), iata: col("iata_code"), gps: col("gps_code"), local: col("local_code"),
-    wiki: col("wikipedia_link"), home: col("home_link"),
-  };
-  const insert = db.prepare(`
-    INSERT OR REPLACE INTO airports
-      (ident,type,name,lat,lon,elevation_ft,iso_country,iso_region,municipality,icao_code,iata_code,gps_code,local_code,wikipedia_link,home_link)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
-
-  let n = 0;
-  db.exec("BEGIN");
-  try {
-    db.exec("DELETE FROM airports");
-    for (const r of rows) {
-      if (r[c.type] === "closed") continue;
-      const lat = Number(r[c.lat]);
-      const lon = Number(r[c.lon]);
-      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-      const elev = r[c.elev] === "" ? null : Number(r[c.elev]);
-      insert.run(
-        r[c.ident], r[c.type], r[c.name], lat, lon, elev,
-        r[c.country] || null, r[c.region] || null, r[c.muni] || null,
-        r[c.icao] || null, r[c.iata] || null, r[c.gps] || null, r[c.local] || null,
-        r[c.wiki] || null, r[c.home] || null,
-      );
-      n++;
-    }
-    db.exec("COMMIT");
-  } catch (e) {
-    db.exec("ROLLBACK");
-    throw e;
-  }
-  reportCounts();
-  return n;
-}
-
-// ---------------------------------------------------------------- runways import
-
-export type SurfaceClass = "paved" | "grass" | "gravel" | "dirt" | "water" | "snow" | "unknown";
-
-/** Collapse OurAirports' free-text surface codes ("ASPH-G", "TURF-F", "PIÇARRA"...) into a few classes. */
-export function surfaceClass(raw: string): SurfaceClass {
-  const u = raw.trim().toUpperCase();
-  if (!u || u === "UNK" || u === "UNKNOWN" || u === "N" || u === "X") return "unknown";
-  if (/ASP|ASF|CON|CEM|BIT|PEM|TAR|MAC|PAV|BRI|METAL|ALU|PSP|MATS|STEEL|HARD|SEALED/.test(u)) return "paved";
-  if (/GRS|GRASS|TURF|SOD|GRE|GRAS|LAWN|MEADOW/.test(u)) return "grass";
-  if (/GRVL|GRAVEL|GVL|CRUSH|ROCK|STONE|SHELL|CORAL|LATERITE|PIÇARRA|PICARRA|SHALE|SCORIA/.test(u)) return "gravel";
-  if (/DIRT|SOIL|CLAY|EARTH|SAND|GRADED|UNPAVED|VOLCANIC|CINDER|MUD|LOAM|SILT|NATURAL/.test(u)) return "dirt";
-  if (/WATER|WAT|LAKE|SEA|RIVER|BAY|OCEAN/.test(u)) return "water";
-  if (/SNOW|ICE|GLACIER/.test(u)) return "snow";
-  if (/^G$/.test(u)) return "grass";
-  if (/^S$/.test(u)) return "dirt";
-  if (/^C$/.test(u)) return "paved";
-  if (/^D$/.test(u)) return "dirt";
-  return "unknown";
-}
-
-/** Import the OurAirports runways CSV and rebuild the per-airport summary. */
-export function importRunwaysCsv(): number {
-  const { rows, col } = readCsv(RUNWAYS_CSV);
-  const c = {
-    id: col("id"), ident: col("airport_ident"), len: col("length_ft"), wid: col("width_ft"),
-    surface: col("surface"), lighted: col("lighted"), closed: col("closed"),
-    le: col("le_ident"), he: col("he_ident"), leHdg: col("le_heading_degT"), heHdg: col("he_heading_degT"),
-  };
-  const insert = db.prepare(`
-    INSERT OR REPLACE INTO runways
-      (id, airport_ident, length_ft, width_ft, surface, surface_class, lighted, closed, le_ident, he_ident, le_heading, he_heading)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`);
-  const num = (s: string) => {
-    const n = Number(s);
-    return s === "" || !Number.isFinite(n) || n <= 0 ? null : Math.round(n);
-  };
-  /** True heading from the CSV, else derived from the runway number ("16L" -> 160). */
-  const heading = (deg: string, ident: string): number | null => {
-    const n = Number(deg);
-    if (deg !== "" && Number.isFinite(n)) return ((n % 360) + 360) % 360;
-    const m = /^(\d{2})[LRC]?$/.exec(ident.trim());
-    return m ? (Number(m[1]) * 10) % 360 : null;
-  };
-
-  let n = 0;
-  db.exec("BEGIN");
-  try {
-    db.exec("DELETE FROM runways");
-    for (const r of rows) {
-      const ident = r[c.ident];
-      if (!ident) continue;
-      const le = r[c.le] ?? "";
-      const he = r[c.he] ?? "";
-      const leH = heading(r[c.leHdg] ?? "", le);
-      const heH = heading(r[c.heHdg] ?? "", he) ?? (leH != null ? (leH + 180) % 360 : null);
-      insert.run(
-        Number(r[c.id]), ident, num(r[c.len]), num(r[c.wid]), r[c.surface] || null, surfaceClass(r[c.surface] ?? ""),
-        r[c.lighted] === "1" ? 1 : 0, r[c.closed] === "1" ? 1 : 0, le || null, he || null, leH, heH,
-      );
-      n++;
-    }
-    db.exec(`
-      DELETE FROM airport_rwy;
-      INSERT INTO airport_rwy (ident, max_length_ft, max_width_ft, runway_count, surfaces, paved, lighted, headings)
-      SELECT airport_ident, MAX(length_ft), MAX(width_ft), COUNT(*), GROUP_CONCAT(DISTINCT surface_class),
-             MAX(surface_class = 'paved'), MAX(lighted),
-             (SELECT GROUP_CONCAT(DISTINCT CAST(ROUND(le_heading) AS INTEGER))
-                FROM runways r2 WHERE r2.airport_ident = runways.airport_ident AND r2.closed = 0 AND r2.le_heading IS NOT NULL)
-      FROM runways WHERE closed = 0 GROUP BY airport_ident;`);
-    db.exec("COMMIT");
-  } catch (e) {
-    db.exec("ROLLBACK");
-    throw e;
-  }
-  reportCounts();
-  return n;
-}
-
-/** Download a list when it is missing and downloads are on, then import it, reporting each step. */
-async function prepareList(
-  list: "airports" | "runways",
-  file: string,
-  fetchList: () => Promise<void>,
-  importList: () => number,
-  downloads: boolean,
-): Promise<void> {
-  if (!fs.existsSync(file)) {
-    if (!downloads) throw new Error(`${list}.csv is missing and airport downloads are off`);
-    setAirportData({ state: "downloading", list });
-    await fetchList();
-  }
-  setAirportData({ state: "importing", list });
-  console.log(`[data] importing ${list} ...`);
-  console.log(`[data] imported ${importList()} ${list}`);
-}
+/**
+ * The server's airport work on its own database and data folder, seeding from the program folder
+ * its inputs give, reporting in the status (airport-data.ts).
+ */
+// @spec APP-SRV-008, APT-DATA-017
+export const airportWork = new AirportWork({
+  db,
+  dataFolder: DATA_DIR,
+  programFolder: currentInputs().programFolder,
+  report: setAirportData,
+  counts: reportCounts,
+});
 
 /**
- * On startup: make sure airports and runways are loaded, downloading a missing list only when
- * downloads are on, and report each step in the status. A failure is reported, then rethrown.
+ * Preparation at start: leftovers cleared, lists seeded, a list an import needs downloaded only
+ * when downloads are on, airports and runways imported into empty tables, each step reported in the
+ * status. A failure is reported, then rethrown.
  */
 // @spec APP-API-010, APP-SRV-023
-export async function ensureReferenceData(o: { downloads: boolean }): Promise<void> {
-  try {
-    if (airportCount() === 0) await prepareList("airports", AIRPORTS_CSV, downloadAirportsCsv, importAirportsCsv, o.downloads);
-    const withHeadings = (db.prepare(`SELECT COUNT(*) AS n FROM runways WHERE le_heading IS NOT NULL`).get() as { n: number }).n;
-    if (runwayCount() === 0 || withHeadings === 0) {
-      await prepareList("runways", RUNWAYS_CSV, downloadRunwaysCsv, importRunwaysCsv, o.downloads);
-    }
-  } catch (e) {
-    setAirportData({ state: "failed", error: e instanceof Error ? e.message : String(e) });
-    throw e;
-  }
-  setAirportData({ state: "done" });
+export function ensureReferenceData(o: { downloads: boolean }): Promise<void> {
+  return airportWork.prepareAtStart(o);
 }
 
 // ---------------------------------------------------------------- queries
@@ -264,6 +62,8 @@ export interface AirportRow {
   local_code: string | null;
   wikipedia_link: string | null;
   home_link: string | null;
+  /** 1 for an airport kept after the lists dropped it, because a hop references it. */
+  unlisted: number;
   /** Longest open runway, feet (null when no runway data). */
   rwy_max_ft: number | null;
   rwy_count: number;
@@ -328,7 +128,6 @@ export function attachRunways<T extends AirportRow>(rows: T[]): (T & { runways: 
 
 // ---------------------------------------------------------------- live extras (Wikipedia, METAR)
 
-const USER_AGENT = "MSFSCareerMap/0.6 (personal flight-sim logbook; local use)";
 const WIKI_TTL_MS = 30 * 24 * 3600 * 1000;
 const METAR_TTL_MS = 5 * 60 * 1000;
 
@@ -538,7 +337,8 @@ export function planCandidates(origin: AirportRow, o: PlanOptions): { candidates
   const cosLat = Math.max(0.05, Math.cos(toRad(origin.lat)));
   const dLon = o.rangeNm / (60 * cosLat);
 
-  const where: string[] = ["a.lat BETWEEN ? AND ?", `a.type IN (${types.map(() => "?").join(",")})`, "a.ident <> ?"];
+  // @spec APT-DATA-008
+  const where: string[] = ["a.unlisted = 0", "a.lat BETWEEN ? AND ?", `a.type IN (${types.map(() => "?").join(",")})`, "a.ident <> ?"];
   const params: (string | number)[] = [origin.lat - dLat, origin.lat + dLat, ...types, origin.ident];
   if (dLon < 180) {
     const lo = origin.lon - dLon;
@@ -577,30 +377,43 @@ export function planCandidates(origin: AirportRow, o: PlanOptions): { candidates
 
 // ---------------------------------------------------------------- live tracker
 
+// @spec APT-DATA-008
 const nearestStmt = db.prepare(`${SELECT}
-  WHERE a.lat BETWEEN ? AND ? AND a.lon BETWEEN ? AND ? AND a.type IN (${AIRPORT_TYPES.map(() => "?").join(",")})`);
+  WHERE a.unlisted = 0 AND a.lat BETWEEN ? AND ? AND a.lon BETWEEN ? AND ? AND a.type IN (${AIRPORT_TYPES.map(() => "?").join(",")})`);
 
 /** Smaller classes give way to a big airport next door so the main field wins over its heliport. */
 const CLASS_PENALTY_NM: Record<string, number> = { large_airport: 0, medium_airport: 0.3, small_airport: 0.8 };
 
 /**
- * The open airport nearest to a point, within `maxNm`. Used to name where a tracked flight took
- * off and where it stopped.
+ * The open airport nearest to a point, within `maxNm`, ranked by distance plus class handicap. Used
+ * to name where a tracked flight took off and where it stopped. With `prefer`, that airport wins
+ * when it is within `maxNm` and ranks within `withinNm` of the nearest.
  */
-export function nearestAirport(lat: number, lon: number, maxNm: number): (AirportRow & { distance_nm: number }) | undefined {
+export function nearestAirport(
+  lat: number,
+  lon: number,
+  maxNm: number,
+  o?: { prefer: string; withinNm: number },
+): (AirportRow & { distance_nm: number }) | undefined {
   const dLat = maxNm / 60;
   const dLon = maxNm / (60 * Math.max(0.05, Math.cos(toRad(lat))));
   const rows = nearestStmt.all(lat - dLat, lat + dLat, lon - dLon, lon + dLon, ...AIRPORT_TYPES) as unknown as AirportRow[];
   let best: (AirportRow & { distance_nm: number }) | undefined;
   let bestScore = Number.POSITIVE_INFINITY;
+  let preferred: (AirportRow & { distance_nm: number; score: number }) | undefined;
   for (const a of rows) {
     const d = distanceNm(lat, lon, a.lat, a.lon);
     if (d > maxNm) continue;
     const score = d + (CLASS_PENALTY_NM[a.type] ?? 2);
+    if (o && a.ident === o.prefer) preferred = { ...a, distance_nm: d, score };
     if (score < bestScore) {
       bestScore = score;
       best = { ...a, distance_nm: d };
     }
+  }
+  if (o && preferred && preferred.score <= bestScore + o.withinNm) {
+    const { score: _score, ...airport } = preferred;
+    return airport;
   }
   return best;
 }

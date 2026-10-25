@@ -15,6 +15,14 @@ export interface ShutdownParts {
   db?: { exec(sql: string): void; close(): void } | null;
   /** Once taken. */
   lock?: { release(): void } | null;
+  /** The start-up work's worker, while it runs: stopped (a swap under way finishing first). */
+  startupWork?: { stop(): Promise<void> } | null;
+  /** The backups: the one under way abandoned, settled once its unfinished file is deleted. */
+  backups?: { abandon(): Promise<void> | void } | null;
+  /** The airport work: the step under way stopped, settled once its unfinished files and staging are gone. */
+  airportWork?: { stop(): Promise<void> } | null;
+  /** A logbook copy being made: its unfinished file deleted. */
+  importCopy?: { abandon(): void } | null;
 }
 
 export interface ShutdownOptions {
@@ -55,13 +63,14 @@ function closeServer(http: NonNullable<ShutdownParts["http"]>): Promise<void> {
 
 /**
  * Shut the server down, in this order: stop the sim link (so nothing more reaches the tracker),
- * the tracker's final checkpoint (casual mode off when quitting), every open connection and event
+ * the tracker's final checkpoint (casual mode off when quitting), the airport work, the start-up
+ * work, backups and a logbook copy stopped, every open connection and event
  * stream ended, the server closed and waited for, the database checkpointed and closed, the lock
  * removed, then exit 0. Exits 0 at the deadline if the steps have not finished by then, and exits
  * exactly once for each parts object. A plain function: a second call with the same parts returns
  * the very same promise, running nothing again.
  */
-// @spec APP-SRV-016, LIVE-LINK-011, LIVE-SAVE-005, LIVE-CASUAL-013
+// @spec APP-SRV-016, LIVE-LINK-011, LIVE-SAVE-005, LIVE-CASUAL-013, APT-DATA-025
 export function shutDown(parts: ShutdownParts, o: ShutdownOptions): Promise<void> {
   const running = begun.get(parts);
   if (running) return running;
@@ -81,7 +90,34 @@ export function shutDown(parts: ShutdownParts, o: ShutdownOptions): Promise<void
     if (link) attempt("stopping the sim link", () => link.stop());
     const tracker = parts.tracker;
     if (tracker) attempt("the tracker's final checkpoint", () => tracker.shutdown({ quitting: o.quitting }));
-    // (Later milestones: stop the airport work; abandon a backup or a copy, finish a swap, roll back an upgrade.)
+    // The airport work stopped, the start-up work stopped (an upgrade under way rolls back, a swap
+    // finishes), a backup or a logbook copy under way abandoned.
+    const airports = parts.airportWork;
+    if (airports) {
+      try {
+        await airports.stop();
+      } catch (e) {
+        console.error("[server] shutting down: stopping the airport work failed:", e);
+      }
+    }
+    const work = parts.startupWork;
+    if (work) {
+      try {
+        await work.stop();
+      } catch (e) {
+        console.error("[server] shutting down: stopping the start-up work failed:", e);
+      }
+    }
+    const backups = parts.backups;
+    if (backups) {
+      try {
+        await backups.abandon();
+      } catch (e) {
+        console.error("[server] shutting down: abandoning the backup failed:", e);
+      }
+    }
+    const copy = parts.importCopy;
+    if (copy) attempt("abandoning the logbook copy", () => copy.abandon());
     const http = parts.http;
     if (http) {
       attempt("ending the open connections", () => http.closeAllConnections());

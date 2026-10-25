@@ -6,19 +6,38 @@ description, API table and roadmap.
 ## Stack
 
 - Node 22.16+ with the built-in `node:sqlite` (no native modules). Server is Express 4 in TypeScript
-  run via `tsx`; schema lives in `src/server/db.ts`.
+  run via `tsx`; the schema step lives in `src/server/schema.ts` (`applySchema`, one transaction),
+  run by `db.ts` as it opens the database.
 - The server's entries are `src/server/index.ts` (a copy run from source) and `bundled.ts` (the
   desktop app's); both only call `runServer` in `src/server/server.ts`, which reads the inputs
-  (`inputs.ts`) and holds the start order. The shutdown order is in `shutdown.ts`, and
-  `tracking.ts` starts the sim link, the fake feed or nothing by the `--sim` mode.
+  (`inputs.ts`) and holds the start order. The start-up work on the logbook (finishing a logbook
+  brought in, a restored backup's icons, the logbook id in `settings`, the backup before an upgrade)
+  runs in a worker thread (`startup-worker.ts` → `startup-work.ts`) before `db.ts` loads. The
+  shutdown order is in `shutdown.ts`, and `tracking.ts` starts the sim link, the fake feed or
+  nothing by the `--sim` mode. Backups are `backup.ts` (taken one at a time by `backup-service.ts`),
+  bringing in a logbook `logbook-import.ts`.
 - Client is Vite + React 18 + react-leaflet 4. Vite root is `src/client`, build output is `dist/`,
-  which the server serves when present.
-- Airport and runway data are the OurAirports CSVs, imported into `airports` / `runways` on first
-  run. `airport_rwy` is a per-airport summary (longest runway, surfaces, paved/lit flags) rebuilt by
-  every runway import; airport queries LEFT JOIN it. Surface free-text is normalised by
-  `surfaceClass()` in `src/server/airports.ts`.
-- Schema changes to existing tables go through `addColumnIfMissing()` in `src/server/db.ts` so
-  older databases upgrade in place.
+  which the server serves when present. The page is built with the app's version
+  (`__MSFS_CAREER_MAP_VERSION__`, defined in vite.config.ts and vitest.config.ts; `src/client/version.ts`).
+  App.tsx holds what the page does with its server: the starting state and airport notice
+  (`notices.ts`, whose `PAGE_TIMING` tests shrink), the reload of the map and lists on each reconnect
+  of the tracker stream (`LiveState.connection`), reloading itself for another version or logbook
+  (`api.freezeChanges()` first), and the `#hop=` / `#pending=` hand-off (`navigation.ts`), acted on
+  only on fresh state. Component tests stub `reloadPage` from navigation.ts.
+- Airport and runway data are the OurAirports CSVs in the data folder (each with a `.downloaded`
+  time), imported into `airports` / `runways`. Everything that writes them is
+  `src/server/airport-data.ts`: seeding from the program folder, bounded downloads under `.partial`
+  names, the import in batches into `*_staging` tables and one short swap (`stageList`, `swapIn`),
+  and `AirportWork` (preparation at start, the daily checks with the monthly refresh held while the
+  pilot is in the sim — `pilotInSim` in tracking.ts — and re-imports, one at a time). The swap keeps
+  airports a hop references that the lists drop (`airports.unlisted = 1`), which nearest-airport
+  and planner queries leave out. `airport_rwy` is a per-airport summary (longest runway, surfaces,
+  paved/lit flags) rebuilt by every runway swap; airport queries LEFT JOIN it. Surface free-text
+  is normalised by `surfaceClass()`. Queries, METAR and Wikipedia stay in `src/server/airports.ts`.
+- Every request to an outside service sends `USER_AGENT` from `src/server/version.ts`.
+- Schema changes only ever add: a table to `TABLES_SQL` or a column to `ADDED_COLUMNS` in
+  `src/server/schema.ts` (nullable or with a default), so older databases upgrade in place and an
+  older server still opens a newer one. A logbook that needs an addition is backed up first.
 - Live tracking: `src/server/simconnect.ts` wraps node-simconnect (pure TypeScript, no SDK DLL)
   and only produces position samples and system events; `src/server/tracker.ts` is the
   sim-independent state machine (`feed(sample)`), checkpointed to the `tracker_state` row so a
@@ -84,7 +103,7 @@ description, API table and roadmap.
 - Data locations come from `dataLocations()` in `src/server/locations.ts`, given the database the
   server's inputs name: `currentInputs().dbPath` in `src/server/inputs.ts`, which is `--data`'s
   `career.db`, else `CAREER_DB`, else `data/career.db`. `images/`, `airports.csv`, `runways.csv`
-  and the server's `career.db.lock` sit beside it. The app itself is built by `createApp()` in
+  the server's `career.db.lock` and, for a copy run from source, `backups/` sit beside it. The app itself is built by `createApp()` in
   `src/server/app.ts`, which starts nothing; tests must not import `src/server/index.ts` or
   `bundled.ts` (they start them as processes, `tests/support/server-process.ts`; an entry
   listens, takes the data folder's lock, and links to the sim when started with `--sim=link`).

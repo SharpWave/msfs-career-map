@@ -180,4 +180,27 @@ describe("the page's tracker stream", () => {
     act(() => vi.advanceTimersByTime(10_000));
     expect(FakeEventSource.all).toHaveLength(2);
   });
+
+  // @spec LIVE-API-005, APP-UI-032
+  it("counts each connection once its first status has arrived, so the page knows a reconnect and fresh state", () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useTracker(() => {}));
+    const first = FakeEventSource.last;
+    expect(result.current.connection).toBe(0);
+    act(() => first.onopen?.());
+    expect(result.current.connection).toBe(0);
+    act(() => first.play("status", trackerStatus()));
+    expect(result.current.connection).toBe(1);
+    act(() => first.play("status", trackerStatus({ phase: "airborne" })));
+    expect(result.current.connection).toBe(1);
+
+    act(() => first.onerror?.());
+    expect(result.current.connection).toBe(1);
+    act(() => vi.advanceTimersByTime(3000));
+    const second = FakeEventSource.all[1];
+    act(() => second.onopen?.());
+    expect(result.current.connection).toBe(1);
+    act(() => second.play("status", trackerStatus()));
+    expect(result.current.connection).toBe(2);
+  });
 });

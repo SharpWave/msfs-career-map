@@ -1,9 +1,10 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, ApiError } from "../api";
 import { aircraftLabel, fmtDuration, fmtTimeShort } from "../format";
 import { shownTouchdown } from "../landing";
 import type { LiveState } from "../tracker";
-import type { Aircraft, BriefingSummary, PendingLeg, Settings, SimAircraft, TrackerStatus } from "../types";
+import { prefersReducedMotion } from "../prefs";
+import type { Aircraft, BriefingSummary, Hop, PendingLeg, Settings, SimAircraft, TrackerStatus } from "../types";
 import { AirportInput } from "./AirportInput";
 import { IconButton } from "./Icon";
 import { LandingBadge } from "./LandingBadge";
@@ -23,6 +24,16 @@ interface Props {
   /** Open, or collapsed to the one-line status strip. */
   open: boolean;
   onToggle: () => void;
+  /** A pending leg the page asks the card to show (the `#pending=` hand-off); a new key asks again. */
+  showPending?: { key: number; id: string } | null;
+  /** Around **Log hop** on a pending leg: before the request, once it is logged (and reloaded), when it failed. */
+  logging?: PendingLogging;
+}
+
+export interface PendingLogging {
+  onLogging(id: string): void;
+  onLogged(id: string, hop: Hop): void;
+  onLogFailed(id: string): void;
 }
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -192,9 +203,19 @@ function CasualSwitch({ on, busy, onSwitch }: { on: boolean; busy: boolean; onSw
  * one block each, oldest first. Collapsed, it is a one-line status strip; its body stays mounted,
  * so nothing typed is lost. The Casual switch sits in both, so casual mode is never on unseen.
  */
-// @spec LIVE-CARD-001, LIVE-CARD-003, LIVE-CARD-005, LIVE-CARD-006, LIVE-CARD-008, LIVE-CARD-010, LIVE-CARD-011, LIVE-CARD-012, LIVE-CARD-013, LIVE-CARD-014
-export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onOpenPending, onSelect, onNewFromSim, open, onToggle }: Props) {
+// @spec LIVE-CARD-001, LIVE-CARD-003, LIVE-CARD-005, LIVE-CARD-006, LIVE-CARD-008, LIVE-CARD-010, LIVE-CARD-011, LIVE-CARD-012, LIVE-CARD-013, LIVE-CARD-014, LIVE-CARD-015
+export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onOpenPending, onSelect, onNewFromSim, open, onToggle, showPending, logging }: Props) {
   const { status: s, online } = live;
+  const body = useRef<HTMLDivElement>(null);
+  // A hand-off to a pending leg: once the card is open, bring that leg's block into view, once per ask.
+  const shownKey = useRef<number | null>(null);
+  useEffect(() => {
+    if (!showPending || !open || shownKey.current === showPending.key) return;
+    const block = [...(body.current?.querySelectorAll<HTMLElement>(".pending[data-pending-id]") ?? [])].find((el) => el.dataset.pendingId === showPending.id);
+    if (!block) return;
+    shownKey.current = showPending.key;
+    block.scrollIntoView({ block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  }, [showPending, open, s?.pending]);
   const [bindId, setBindId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -283,7 +304,7 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onO
         </div>
       )}
 
-      <div className="card-body live-body" hidden={!open}>
+      <div className="card-body live-body" hidden={!open} ref={body}>
         {casual && (
           <p className="muted small casual-note">
             Casual mode: the path you fly is drawn on the map and nothing is logged until you switch casual mode off, quit the app or close MSFS.
@@ -434,7 +455,9 @@ export function LivePanel({ live, aircraft, reload, onFocusLive, onOpenLive, onO
         {error && <div className="error">{error}</div>}
 
         {/* Keyed by the leg's id, so each block keeps what was typed into it as the list changes. */}
-        {s?.pending.map((p) => <PendingForm key={p.id} p={p} aircraft={aircraft} reload={reload} onOpen={() => onOpenPending(p.id)} />)}
+        {s?.pending.map((p) => (
+          <PendingForm key={p.id} p={p} aircraft={aircraft} reload={reload} onOpen={() => onOpenPending(p.id)} logging={logging} />
+        ))}
       </div>
     </>
   );
@@ -452,7 +475,19 @@ const shortTime = (v: unknown): string => (typeof v === "string" && !Number.isNa
  * the wrong type, reads "—" (or leaves its input empty), so one odd leg never breaks the others.
  */
 // @spec LIVE-BIND-003, LIVE-CARD-008
-function PendingForm({ p, aircraft, reload, onOpen }: { p: PendingLeg; aircraft: Aircraft[]; reload: () => Promise<void>; onOpen: () => void }) {
+function PendingForm({
+  p,
+  aircraft,
+  reload,
+  onOpen,
+  logging,
+}: {
+  p: PendingLeg;
+  aircraft: Aircraft[];
+  reload: () => Promise<void>;
+  onOpen: () => void;
+  logging?: PendingLogging;
+}) {
   const sim = p.sim != null && typeof p.sim === "object" ? p.sim : null;
   const title = str(sim?.title) ?? DASH;
   const livery = str(sim?.livery);
@@ -474,10 +509,13 @@ function PendingForm({ p, aircraft, reload, onOpen }: { p: PendingLeg; aircraft:
   const save = async () => {
     setBusy(true);
     setError(null);
+    logging?.onLogging(p.id);
     try {
-      await api.trackerSavePending(p.id, { aircraft_id: aircraftId ? Number(aircraftId) : null, origin: origin || null, dest: dest || null });
+      const hop = await api.trackerSavePending(p.id, { aircraft_id: aircraftId ? Number(aircraftId) : null, origin: origin || null, dest: dest || null });
       await reload();
+      logging?.onLogged(p.id, hop);
     } catch (e) {
+      logging?.onLogFailed(p.id);
       setError(errMsg(e));
     } finally {
       setBusy(false);
@@ -497,7 +535,7 @@ function PendingForm({ p, aircraft, reload, onOpen }: { p: PendingLeg; aircraft:
   };
 
   return (
-    <div className="pending">
+    <div className="pending" data-pending-id={p.id}>
       <div>
         <b>Leg waiting to be logged</b> · {title}
         {livery && <> · {livery}</>}

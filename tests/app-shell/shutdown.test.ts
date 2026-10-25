@@ -137,6 +137,47 @@ describe("shutDown with spy parts", () => {
     expect(errors).not.toHaveBeenCalled();
   });
 
+  // @spec APP-SRV-016, APT-DATA-025
+  it("stops the airport work after the tracker's final checkpoint and before the backups, waiting for it before closing the server", async () => {
+    const { parts, exit, closed } = spyParts();
+    let stopped!: () => void;
+    const withWork = {
+      ...parts,
+      airportWork: {
+        stop: vi.fn(() => {
+          calls.push("airportWork.stop");
+          return new Promise<void>((r) => (stopped = r));
+        }),
+      },
+      backups: { abandon: step("backups.abandon") },
+    };
+    const p = shutDown(withWork, { quitting: false, exit });
+    await flush();
+    expect(calls).toEqual([`log ${SHUTTING_DOWN_LINE}`, "link.stop", 'tracker.shutdown({"quitting":false})', "airportWork.stop"]);
+
+    stopped();
+    await flush();
+    expect(calls.slice(4, 7)).toEqual(["backups.abandon", "http.closeAllConnections", "http.close"]);
+    closed();
+    await vi.advanceTimersByTimeAsync(0);
+    await p;
+    expect(calls.at(-1)).toBe("exit(0)");
+  });
+
+  // @spec APP-SRV-016, APT-DATA-025
+  it("goes on to close the server when stopping the airport work fails", async () => {
+    const { parts, exit, closed } = spyParts();
+    const err = new Error("airport work would not stop");
+    const p = shutDown({ ...parts, airportWork: { stop: () => Promise.reject(err) } }, { quitting: false, exit });
+    await flush();
+    expect(calls).toContain("http.close");
+    closed();
+    await vi.advanceTimersByTimeAsync(0);
+    await p;
+    expect(wroteOut(err)).toBe(true);
+    expect(exit.mock.calls).toEqual([[0]]);
+  });
+
   // @spec APP-SRV-016, LIVE-CASUAL-013
   it("skips the parts it does not have, null or absent, and passes quitting on as given", async () => {
     const none = vi.fn();

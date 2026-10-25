@@ -1,10 +1,10 @@
+import { USER_AGENT } from "./version.ts";
 /**
  * Terrain along a leg, sampled from Open-Meteo's elevation API (Copernicus DEM, 90 m).
  * Up to 100 points per request; results are cached per rounded coordinate.
  */
 
 const OPEN_METEO = "https://api.open-meteo.com/v1/elevation";
-const USER_AGENT = "MSFSCareerMap/0.6 (personal flight-sim logbook; local use)";
 const FT_PER_M = 3.28084;
 
 const cache = new Map<string, number>();

@@ -1,8 +1,8 @@
 import { db } from "./db.ts";
+import { USER_AGENT } from "./version.ts";
 
 /** SimBrief publishes its aircraft profile list for integrations. */
 const SIMBRIEF_INPUTS_URL = "https://www.simbrief.com/api/inputs.list.json";
-const USER_AGENT = "MSFSCareerMap/0.6 (personal flight-sim logbook; local use)";
 const CACHE_KEY = "simbrief_aircraft";
 const TTL_MS = 24 * 3600 * 1000;
 

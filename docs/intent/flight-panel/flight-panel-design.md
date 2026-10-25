@@ -42,8 +42,7 @@ and leave the app's window for the pilot's default browser as every outside link
 The panel opens for a hop when its path is clicked on the map (MAP-PATH-004) or its row in an
 aircraft card (LOG-LIST-003), for the live leg from the live card's **Profile** (LIVE-CARD-005),
 and for a pending leg from that leg's **Profile** in the live card (LIVE-CARD-010). One flight
-shows at a time; opening another replaces it ([App.tsx:161-201](../../../src/client/App.tsx#L161-L201)).
-Pending legs cannot be opened today.
+shows at a time; opening another replaces it ([App.tsx:279-291](../../../src/client/App.tsx#L279-L291)).
 
 The page's address can also name a flight to open: `#hop=<id>` opens that hop as its row does, and
 `#pending=<id>` opens that pending leg as its **Profile** does. The desktop shell sets this fragment
@@ -55,7 +54,7 @@ click on the same notification acts again. For a pending leg the route also show
 opens the live card at that leg's block, where the leg is logged; for a hop the map fits it, as for
 any hop opened in the panel (tour-map, MAP-ZOOM-004). For an id that names nothing — "That hop no
 longer exists", "That leg has already been logged or discarded" — the route shows a short note, and
-the panel stays as it was: the flight it showed, or closed. Neither fragment opens anything today.
+the panel stays as it was: the flight it showed, or closed.
 
 Which flight is open belongs to one load of the page. Each load starts with the panel closed — a
 reload, the page reloading itself for a new version of the app (app-shell, APP-UI-036), or the
@@ -91,7 +90,7 @@ logbook never gives to another hop (LOG-REC-014).
 
 ## Header
 
-([FlightPanel.tsx:70-79](../../../src/client/components/FlightPanel.tsx#L70-L79))
+([FlightPanel.tsx:131-138](../../../src/client/components/FlightPanel.tsx#L131-L138))
 
 - The aircraft's color dot and label; for an unbound live leg, the sim aircraft's title.
 - The route: `ORIG → DEST` for a hop; `ORIG → …` for the live leg (`?` when the departure is
@@ -104,7 +103,7 @@ logbook never gives to another hop (LOG-REC-014).
 
 Once the live leg has touched down, the detail line is meant to say so — "off TIME · landed TIME ·
 N points". Today it keeps saying "airborne since" until the leg is logged
-([FlightPanel.tsx:50](../../../src/client/components/FlightPanel.tsx#L50)).
+([FlightPanel.tsx:109](../../../src/client/components/FlightPanel.tsx#L109)).
 
 ## Profile Chart
 
@@ -146,7 +145,7 @@ plot without a second axis; the real values live in the legend and the crosshair
 
 ## Landing Card
 
-([FlightPanel.tsx:107-184](../../../src/client/components/FlightPanel.tsx#L107-L184))
+([FlightPanel.tsx:170-248](../../../src/client/components/FlightPanel.tsx#L170-L248))
 
 The card shows the touchdown that stands for the flight — the first touchdown of its final
 landing (below, **Which Touchdown Stands for a Flight**):
@@ -164,7 +163,7 @@ Without a landing it reads "No touchdown recorded."
 
 The scale's G note says "A peak G above 1.6 / 2.0 / 2.6 / 3.5 bumps the class up", but a G of
 exactly a threshold already counts (LIVE-LAND-003); it is meant to read "of 1.6 / 2.0 / 2.6 / 3.5
-or more" ([FlightPanel.tsx:180](../../../src/client/components/FlightPanel.tsx#L180)).
+or more" ([FlightPanel.tsx:243](../../../src/client/components/FlightPanel.tsx#L243)).
 
 ## Which Touchdown Stands for a Flight
 
@@ -206,7 +205,7 @@ live card the compact one. Each shows the touchdown that stands for its flight.
 
 ## Flight Card
 
-([FlightPanel.tsx:186-227](../../../src/client/components/FlightPanel.tsx#L186-L227))
+([FlightPanel.tsx:249-290](../../../src/client/components/FlightPanel.tsx#L249-L290))
 
 | Line | Shows |
 |---|---|
@@ -223,7 +222,7 @@ For the live leg the card is meant to show everything known so far: fuel at take
 used, weight at takeoff, highest altitude and ground speed, distance flown so far, and samples;
 the tracker's status carries those figures (LIVE-API-006). Today it carries only fuel used,
 current fuel and highest altitude, so the rest reads "—"
-([FlightPanel.tsx:54-65](../../../src/client/components/FlightPanel.tsx#L54-L65)).
+([FlightPanel.tsx:112-124](../../../src/client/components/FlightPanel.tsx#L112-L124)).
 
 For a pending leg the card shows the statistics recorded when the leg closed, and the direct
 distance once both airports are known; the leg is fetched in full, track included, when the panel
@@ -259,32 +258,22 @@ opens it (LIVE-API-007).
 
 ### Deferred
 
-1. **Live header after touchdown** says "airborne since" ([FlightPanel.tsx:50](../../../src/client/components/FlightPanel.tsx#L50)).
-2. **Live flight card** shows only fuel used, current fuel and highest altitude ([FlightPanel.tsx:54-65](../../../src/client/components/FlightPanel.tsx#L54-L65)).
-3. **Scale wording** says "above" for G thresholds that apply at the threshold ([FlightPanel.tsx:180](../../../src/client/components/FlightPanel.tsx#L180)).
+1. **Live header after touchdown** says "airborne since" ([FlightPanel.tsx:109](../../../src/client/components/FlightPanel.tsx#L109)).
+2. **Live flight card** shows only fuel used, current fuel and highest altitude ([FlightPanel.tsx:112-124](../../../src/client/components/FlightPanel.tsx#L112-L124)).
+3. **Scale wording** says "above" for G thresholds that apply at the threshold ([FlightPanel.tsx:243](../../../src/client/components/FlightPanel.tsx#L243)).
 4. **Rating bands restated** — the scale's fpm bands and G note repeat the server's thresholds
    ([landing.ts:17-23](../../../src/client/landing.ts#L17-L23), [tracker.ts:57-60](../../../src/server/tracker.ts#L57-L60)).
 5. **Another great-circle formula** — the direct distance is computed in the panel
-   ([FlightPanel.tsx:97-105](../../../src/client/components/FlightPanel.tsx#L97-L105)).
+   ([FlightPanel.tsx:163-168](../../../src/client/components/FlightPanel.tsx#L163-L168)).
 6. **"At landing" weight** is read where the aircraft stopped, after taxiing in.
 7. **Which clock the header shows** follows logbook's open question on showing two clocks.
 8. **Table size** — every sample is a row, so a long flight renders thousands
    ([ProfileChart.tsx:236-243](../../../src/client/components/ProfileChart.tsx#L236-L243)).
-9. **Pending legs cannot be opened** — the tracker status leaves out their tracks and the live card
-   has no way to open one.
-10. **No opening from the address** — the page does not read a `#hop=` or `#pending=` fragment
-    ([App.tsx](../../../src/client/App.tsx)).
-11. **The live panel follows any hop** — it switches to whatever hop the tracker logs, a pending
-    leg's included, while the live leg is still being flown
-    ([App.tsx:172-173](../../../src/client/App.tsx#L172-L173)).
-12. **A live leg kept as a pending leg** — when the sim disconnects in flight (LIVE-LEG-008), or a leg
-    restored at server start cannot continue (live-tracking), the leg leaves the live view for the
-    pending list, and the panel showing it falls back to "nothing being flown". Whether it follows the
-    leg into the list, as a logged leg follows into the logbook, waits on pending legs opening in the
-    panel (PANEL-OPEN-002) and on the tracker saying which pending leg the live leg became.
-13. **A live leg logged while the event stream was down** — the page switches the panel only on a
-    `hop` event, so after a reconnect a live panel whose leg was logged while the stream was down
-    shows "nothing being flown" ([App.tsx:172-173](../../../src/client/App.tsx#L172-L173)).
+9. **A live leg kept as a pending leg** — when the sim disconnects in flight (LIVE-LEG-008), or a leg
+   restored at server start cannot continue (live-tracking), the leg leaves the live view for the
+   pending list, and the panel showing it falls back to "nothing being flown". Whether it follows the
+   leg into the list, as a logged leg follows into the logbook, waits on the tracker saying which
+   pending leg the live leg became.
 
 ## References
 

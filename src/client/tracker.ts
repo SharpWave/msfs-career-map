@@ -9,6 +9,12 @@ export interface LiveState {
   /** The casual path's segments (empty while casual mode is off). */
   path: TrackPoint[][];
   online: boolean;
+  /**
+   * How many connections of the stream have brought their first status: 0 before the first, then
+   * +1 for each, so a rise past 1 is a reconnect and any value from 1 means the status is that
+   * connection's own.
+   */
+  connection: number;
 }
 
 /** How long the page waits after the stream ends before it opens it again. */
@@ -26,6 +32,7 @@ export function useTracker(onHop: (hop: Hop) => void): LiveState {
   const [track, setTrack] = useState<TrackPoint[]>([]);
   const [path, setPath] = useState<TrackPoint[][]>([]);
   const [online, setOnline] = useState(false);
+  const [connection, setConnection] = useState(0);
   const hopCb = useRef(onHop);
   hopCb.current = onHop;
 
@@ -38,6 +45,7 @@ export function useTracker(onHop: (hop: Hop) => void): LiveState {
       reopen = null;
       const src = new EventSource("/api/tracker/events");
       es = src;
+      let counted = false;
       src.onopen = () => setOnline(true);
       src.onerror = () => {
         setOnline(false);
@@ -46,7 +54,13 @@ export function useTracker(onHop: (hop: Hop) => void): LiveState {
         es = null;
         reopen = setTimeout(open, REOPEN_MS);
       };
-      src.addEventListener("status", (e) => setStatus(parse(e) as TrackerStatus));
+      src.addEventListener("status", (e) => {
+        setStatus(parse(e) as TrackerStatus);
+        if (!counted) {
+          counted = true;
+          setConnection((n) => n + 1);
+        }
+      });
       src.addEventListener("track", (e) => setTrack(parse(e) as TrackPoint[]));
       src.addEventListener("point", (e) => {
         const p = parse(e) as TrackPoint;
@@ -70,7 +84,7 @@ export function useTracker(onHop: (hop: Hop) => void): LiveState {
     };
   }, []);
 
-  return { status, track, path, online };
+  return { status, track, path, online, connection };
 }
 
 /** Parse a hop's stored track, tolerating old rows and bad JSON. */

@@ -22,15 +22,15 @@ function Harness({ counts = COUNTS, onChoose = () => {} }: { counts?: Counts | n
 const menuButton = () => screen.getByRole("button", { name: "Career Map" });
 
 describe("the menu", () => {
-  // @spec APP-UI-012
-  it("shows the count line and the entries Log a hop and Fleet", () => {
+  // @spec APP-UI-012, APP-UI-037
+  it("shows the count line and the entries Log a hop, Fleet and Back up now", () => {
     render(<Harness />);
     expect(screen.queryByRole("menu")).toBeNull();
     fireEvent.click(menuButton());
     const menu = screen.getByRole("menu");
     expect(menu.textContent).toContain("7 aircraft · 25 hops · 72,609 airports · 48,291 runways");
     const items = screen.getAllByRole("menuitem");
-    expect(items.map((i) => i.textContent)).toEqual(["Log a hop", "Fleet"]);
+    expect(items.map((i) => i.textContent)).toEqual(["Log a hop", "Fleet", "Back up now"]);
     expect(items.every((i) => !(i as HTMLButtonElement).disabled)).toBe(true);
   });
 

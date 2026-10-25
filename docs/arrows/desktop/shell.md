@@ -130,23 +130,15 @@ channel). No tests yet.
    lock's takeover), seeding a data folder from the program folder's airport lists and the input that
    turns airport downloads off, a backup before every schema upgrade, the README, and pending legs kept
    in a list (LIVE-HOP-003).
-   Of these, built and tested: the bundled server's inputs, taken from its arguments alone, among them
-   `--fresh-run`, passed to the tracker before the start-up is done so casual mode starts off
-   (APP-SRV-006, 011; LIVE-CASUAL-015); listening first on 127.0.0.1 with the Host and change checks
-   (APP-SRV-005; APP-API-011, 012); `/api/status` answered from memory from the moment of listening,
-   with `startup`, `airportData`, `ready`, the version and the process id, and the start-up stand-in's
-   503 elsewhere (APP-SRV-009; APP-API-004, 008 to 010 but for the logbook's id and the preparation's
-   detail); the exit codes 1, 10 and 11 and the exit at once on an error outside the handlers
-   (APP-SRV-013, 014, 020); the data-folder lock, `career.db.lock`, taken over when stale
-   (APP-DATA-007, 008); the private channel on Electron's `parentPort` with `save` answered `saved`
-   by id and `shutdown` running the shutdown order within 5 s — link stopped, casual mode off, final
-   checkpoint, streams closed, database closed, lock removed (APP-SRV-016, 019, 022; LIVE-LINK-011,
-   LIVE-SAVE-004, 005, LIVE-CASUAL-013); the sim mode from `--sim` (LIVE-LINK-012) and `sim_mode` and
-   `sim_host` in the status; and the page reopening its event stream after the stand-in's 503.
-   Still to come: the start-up worker (APP-SRV-010), the logbook's id, backups and the `backup`
-   request, bringing in a logbook and exit 12, the User-Agent, the fragment route, the page below
-   800 × 600, the sim-link claim and `link_holder` (LIVE-LINK-010, 014, 015, LIVE-API-013), the
-   merged checkpoint, and the page's reload on reconnecting (LIVE-API-005).
+   Of these, all of app-shell's and live-tracking's are built and tested: the bundled server's inputs,
+   the start-up worker behind the stand-in's 503, `/api/status` from memory with the logbook's id and
+   airport preparation's detail, the exit codes 1, 10, 11 and 12, the data-folder lock, the private
+   channel's `save`, `backup` and `shutdown`, backups and bringing in a logbook, seeding and airport
+   downloads off, the User-Agent, the sim-link claim and `link_holder`, the merged checkpoint, and the
+   page's starting state, fragment route, reloads and layout below 800 × 600. Still to come: airports'
+   official-site link (APT-POP-007), simbrief's links kept to other origins (SB-CARD-009) and fleet's
+   icon addresses (FLEET-REC-018); and, seen only under `tsx` from source, the start-up worker in
+   Electron's utility process and the one-file bundle.
 3. **Platform behaviour not yet seen working** — notification clicks with no window, the registry keys
    notifications write and the switch Electron 45's notification activation adds to a start; session end
    on a hidden window; Windows 11 hiding a new program's tray icon and the Settings path the one-time

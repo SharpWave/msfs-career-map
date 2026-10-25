@@ -4,12 +4,9 @@ import path from "node:path";
 import { db, IMAGES_DIR, airportCount, runwayCount } from "./db.ts";
 import {
   AIRPORT_TYPES,
+  airportWork,
   attachRunways,
-  downloadAirportsCsv,
-  downloadRunwaysCsv,
   findAirport,
-  importAirportsCsv,
-  importRunwaysCsv,
   latestMetar,
   latestMetars,
   planCandidates,
@@ -17,11 +14,15 @@ import {
   wikiSummary,
   type AirportFull,
 } from "./airports.ts";
+import { AirportsBusy } from "./airport-data.ts";
 import { simbriefAircraftTypes } from "./simbrief.ts";
 import { currentHazards } from "./hazards.ts";
 import { terrainAlong } from "./terrain.ts";
 import { blockMinutes, maxRangeNm, profileFor } from "./performance.ts";
-import { CasualRefused, ShuttingDown, TrackerRefused, tracker } from "./tracker.ts";
+import { CasualRefused, ImportUnderWay, ShuttingDown, TrackerRefused, tracker } from "./tracker.ts";
+import { backupQueue } from "./backup-service.ts";
+import { BackupFailed } from "./backup.ts";
+import { ImportRefused, bringIn, offer } from "./logbook-import.ts";
 import { fetchLatestOfp, type BriefingSummary, type FetchedOfp } from "./ofp.ts";
 import { statusRoute } from "./status.ts";
 
@@ -104,14 +105,15 @@ api.get("/metar/:icao", wrap(async (req, res) => {
   res.json(m);
 }));
 
+/** Re-import both lists from disk, downloading both first with ?download=1; 409 while another import is under way. */
+// @spec APT-DATA-016, APT-DATA-024
 api.post("/airports/reimport", wrap(async (req, res) => {
-  if (req.query.download === "1") {
-    await downloadAirportsCsv();
-    await downloadRunwaysCsv();
+  try {
+    res.json(await airportWork.reimport({ download: req.query.download === "1" }));
+  } catch (e) {
+    if (e instanceof AirportsBusy) throw new HttpError(409, e.message);
+    throw e;
   }
-  const airports = importAirportsCsv();
-  const runways = importRunwaysCsv();
-  res.json({ airports, runways });
 }));
 
 // ---------- aircraft ----------
@@ -321,6 +323,9 @@ export interface HopRow {
   dest: string;
   departed_at: string | null;
   arrived_at: string | null;
+  /** The same moments on the sim's clock (LOG-REC-002). */
+  sim_departed_at: string | null;
+  sim_arrived_at: string | null;
   duration_min: number | null;
   notes: string;
   track: string | null;
@@ -379,11 +384,14 @@ api.post("/hops", wrap((req, res) => {
   const dest = resolveIdent(b.dest, "destination");
   const departed = parseTime(b.departed_at, "departed_at");
   const arrived = parseTime(b.arrived_at, "arrived_at");
+  // @spec LOG-REC-002
+  const simDeparted = parseTime(b.sim_departed_at, "sim_departed_at");
+  const simArrived = parseTime(b.sim_arrived_at, "sim_arrived_at");
   const duration = optInt(b.duration_min, "duration");
   const seqRow = db.prepare(`SELECT COALESCE(MAX(seq),0)+1 AS s FROM hops WHERE aircraft_id = ?`).get(aircraftId) as { s: number };
   const r = db.prepare(`
-    INSERT INTO hops (aircraft_id, seq, origin, dest, departed_at, arrived_at, duration_min, notes)
-    VALUES (?,?,?,?,?,?,?,?)`).run(aircraftId, seqRow.s, origin, dest, departed, arrived, duration, optStr(b.notes) ?? "");
+    INSERT INTO hops (aircraft_id, seq, origin, dest, departed_at, arrived_at, sim_departed_at, sim_arrived_at, duration_min, notes)
+    VALUES (?,?,?,?,?,?,?,?,?,?)`).run(aircraftId, seqRow.s, origin, dest, departed, arrived, simDeparted, simArrived, duration, optStr(b.notes) ?? "");
   res.status(201).json(requireHop(Number(r.lastInsertRowid)));
 }));
 
@@ -395,6 +403,9 @@ api.put("/hops/:id", wrap((req, res) => {
   const dest = b.dest === undefined ? cur.dest : resolveIdent(b.dest, "destination");
   const departed = b.departed_at === undefined ? cur.departed_at : parseTime(b.departed_at, "departed_at");
   const arrived = b.arrived_at === undefined ? cur.arrived_at : parseTime(b.arrived_at, "arrived_at");
+  // @spec LOG-REC-002
+  const simDeparted = b.sim_departed_at === undefined ? cur.sim_departed_at : parseTime(b.sim_departed_at, "sim_departed_at");
+  const simArrived = b.sim_arrived_at === undefined ? cur.sim_arrived_at : parseTime(b.sim_arrived_at, "sim_arrived_at");
   const duration = b.duration_min === undefined ? cur.duration_min : optInt(b.duration_min, "duration");
   const notes = b.notes === undefined ? cur.notes : optStr(b.notes) ?? "";
   let aircraftId = cur.aircraft_id;
@@ -406,8 +417,8 @@ api.put("/hops/:id", wrap((req, res) => {
     seq = seqRow.s;
   }
   db.prepare(`
-    UPDATE hops SET aircraft_id=?, seq=?, origin=?, dest=?, departed_at=?, arrived_at=?, duration_min=?, notes=?
-    WHERE id=?`).run(aircraftId, seq, origin, dest, departed, arrived, duration, notes, id);
+    UPDATE hops SET aircraft_id=?, seq=?, origin=?, dest=?, departed_at=?, arrived_at=?, sim_departed_at=?, sim_arrived_at=?, duration_min=?, notes=?
+    WHERE id=?`).run(aircraftId, seq, origin, dest, departed, arrived, simDeparted, simArrived, duration, notes, id);
   if (aircraftId !== cur.aircraft_id) renumber(cur.aircraft_id);
   res.json(requireHop(id));
 }));
@@ -450,7 +461,13 @@ api.put("/aircraft/:id/hops/order", wrap((req, res) => {
  * has written its final checkpoint, 503 before the route validates, looks up or fetches anything.
  */
 // @spec LIVE-API-016
-const unlessShutDown = (_req: Request, _res: Response, next: NextFunction) => next(tracker.isShutDown() ? new ShuttingDown() : undefined);
+// @spec LIVE-API-015, LIVE-API-016
+const unlessShutDown = (_req: Request, _res: Response, next: NextFunction) =>
+  next(tracker.isPausedForImport() ? new ImportUnderWay() : tracker.isShutDown() ? new ShuttingDown() : undefined);
+
+/** Ahead of the casual path's clearing and the fake feed: 409 while tracking is paused to bring in a logbook. */
+// @spec LIVE-API-015
+const unlessImporting = (_req: Request, _res: Response, next: NextFunction) => next(tracker.isPausedForImport() ? new ImportUnderWay() : undefined);
 
 // @spec LIVE-API-001, LIVE-API-013
 api.get("/tracker", wrap((_req, res) => res.json(tracker.status())));
@@ -572,7 +589,7 @@ api.put("/tracker/casual", unlessShutDown, wrap((req, res) => {
 }));
 
 // @spec LIVE-API-009
-api.delete("/tracker/path", wrap((_req, res) => {
+api.delete("/tracker/path", unlessImporting, wrap((_req, res) => {
   tracker.clearPath();
   res.json(tracker.status());
 }));
@@ -582,7 +599,7 @@ api.delete("/tracker/path", wrap((_req, res) => {
  * call (see scripts/sim-fake.ts). After the final checkpoint the tracker ignores it.
  */
 // @spec LIVE-API-004
-api.post("/tracker/sample", wrap((req, res) => {
+api.post("/tracker/sample", unlessImporting, wrap((req, res) => {
   if (tracker.status().sim_mode !== "fake") {
     throw new HttpError(403, "the fake feed is off: start the server with --sim=fake to accept synthetic samples");
   }
@@ -884,6 +901,42 @@ api.get("/state", wrap((_req, res) => {
 
 api.get("/status", statusRoute);
 
+// ---------- backups and bringing in a logbook ----------
+
+/** **Back up now**: the pilot's own copy, into the backups folder. */
+// @spec APP-BAK-002
+api.post("/backups", wrap(async (_req, res) => {
+  try {
+    const file = await backupQueue.request("manual");
+    res.status(201).json({ file: path.basename(file) });
+  } catch (e) {
+    if (!(e instanceof BackupFailed)) throw e;
+    console.error(`[backup] failed: ${e.reason}`);
+    res.status(500).json({ error: e.reason, short: e.short });
+  }
+}));
+
+// @spec APP-IMP-001, APP-IMP-005
+api.get("/logbook/offer", wrap(async (_req, res) => {
+  res.json(await offer());
+}));
+
+// @spec APP-IMP-002, APP-IMP-003
+api.post("/logbook/import", wrap(async (req, res) => {
+  let accepted: Awaited<ReturnType<typeof bringIn>>;
+  try {
+    accepted = await bringIn(req.body);
+  } catch (e) {
+    if (e instanceof ImportRefused) {
+      res.status(e.status).json({ error: e.message });
+      return;
+    }
+    throw e;
+  }
+  res.on("finish", accepted.answered);
+  res.status(202).json({ restart: accepted.restart });
+}));
+
 // ---------- errors ----------
 
 api.use((_req, res) => res.status(404).json({ error: "not found" }));
@@ -891,6 +944,9 @@ api.use((_req, res) => res.status(404).json({ error: "not found" }));
 api.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof HttpError) {
     res.status(err.status).json({ error: err.message });
+  } else if (err instanceof ImportUnderWay) {
+    // @spec LIVE-API-015
+    res.status(409).json({ error: err.message });
   } else if (err instanceof ShuttingDown) {
     // @spec LIVE-API-016
     // The guard's own answer, and that of an action already past it that reached the tracker after

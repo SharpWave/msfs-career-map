@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Flag } from "../constraints";
 import type { MetarMap } from "../metar";
 import { readPref, writePref } from "../prefs";
@@ -6,7 +6,7 @@ import type { LiveState } from "../tracker";
 import type { AppState, PlanCandidate, PlanResult, SimAircraft } from "../types";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { IconButton } from "./Icon";
-import { LivePanel } from "./LivePanel";
+import { LivePanel, type PendingLogging } from "./LivePanel";
 import { Planner } from "./Planner";
 
 interface Props {
@@ -31,6 +31,9 @@ interface Props {
   onOpenPending: (id: string) => void;
   /** Open the new-aircraft form in the Fleet drawer, prefilled from what the sim reports. */
   onNewFromSim: (sim: SimAircraft) => void;
+  /** A pending leg handed to the live card (`#pending=`): the card opens at that leg's block. */
+  showPending?: { key: number; id: string } | null;
+  logging?: PendingLogging;
 }
 
 /** Whether a card was left open (default) or collapsed, remembered in the browser. */
@@ -48,10 +51,18 @@ function useCardOpen(key: string): [boolean, () => void] {
  * What a session uses again and again: the live card above the planner card. Collapsing a card
  * hides its body without discarding it.
  */
-// @spec APP-UI-001, APP-UI-010, APP-UI-029
+// @spec APP-UI-001, APP-UI-010, APP-UI-029, LIVE-CARD-015
 export function Sidebar(p: Props) {
   const [liveOpen, toggleLive] = useCardOpen("card.live");
   const [planOpen, togglePlan] = useCardOpen("card.plan");
+
+  // A hand-off to a pending leg opens a collapsed live card, as a click on it would.
+  const handled = useRef<number | null>(null);
+  useEffect(() => {
+    if (!p.showPending || handled.current === p.showPending.key) return;
+    handled.current = p.showPending.key;
+    if (!liveOpen) toggleLive();
+  }, [p.showPending, liveOpen, toggleLive]);
 
   return (
     <aside className="sidebar">
@@ -68,6 +79,8 @@ export function Sidebar(p: Props) {
             onNewFromSim={p.onNewFromSim}
             open={liveOpen}
             onToggle={toggleLive}
+            showPending={p.showPending}
+            logging={p.logging}
           />
         </ErrorBoundary>
       </section>

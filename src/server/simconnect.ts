@@ -12,7 +12,8 @@ import {
  * asks for the user aircraft's state once a second, watches a few variables every frame to catch
  * the exact moment of touchdown, and hands samples plus system events to the caller. A record it
  * cannot read is dropped and written out, never passed on. It knows nothing about hops; see
- * tracker.ts for that.
+ * tracker.ts for that. A caller may put a gate in front of each connection (the server's tracking
+ * does, for the PC-wide sim-link claim); without one, as for sim-probe, it connects whenever it can.
  */
 
 export interface SimAircraft {
@@ -58,6 +59,8 @@ export interface SimSample extends SimAircraft {
   weight_lb: number;
   /** Set on the first sample after a touchdown the frame watcher caught. */
   touchdown?: Touchdown;
+  /** The sim's own zulu date and time as the sample arrived, epoch ms; null when the link has not read it. */
+  sim_t?: number | null;
 }
 
 export interface SimLinkHandlers {
@@ -83,14 +86,28 @@ export interface SimLinkOptions {
   port?: number;
   retryMs?: number;
   appName?: string;
+  /**
+   * Asked before each connection attempt and once a connection has opened: `mayConnect` false skips
+   * the attempt until the next retry; `take` false closes the new connection at once, unseen by any
+   * handler, and retries. `release` is called when a connection taken ends or the link stops.
+   */
+  gate?: SimLinkGate;
+}
+
+export interface SimLinkGate {
+  mayConnect(): Promise<boolean>;
+  take(): Promise<boolean>;
+  release(): void;
 }
 
 const DEF_POSITION = 1;
 const DEF_LIVERY = 2;
 const DEF_FRAME = 3;
+const DEF_CLOCK = 4;
 const REQ_POSITION = 1;
 const REQ_LIVERY = 2;
 const REQ_FRAME = 3;
+const REQ_CLOCK = 4;
 const EV_PAUSE = 1;
 const EV_SIM = 2;
 const EV_FLIGHT_LOADED = 3;
@@ -101,7 +118,26 @@ const G_WINDOW_MS = 1000;
 const LIVERY_WAIT_MS = 5000;
 
 /** Each data definition, as the lines about records the link cannot read name it. */
-type RecordKind = "position" | "livery" | "per-frame";
+type RecordKind = "position" | "livery" | "per-frame" | "clock";
+
+/** The sim's zulu date (year, month 1-12, day) and seconds since midnight as epoch ms, or null when they make no date. */
+function zuluMs(year: number, month: number, day: number, seconds: number): number | null {
+  if (![year, month, day, seconds].every(Number.isFinite)) return null;
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
+  if (month < 1 || month > 12 || day < 1 || seconds < 0 || seconds > 86_400) return null;
+  const midnight = Date.UTC(year, month - 1, day);
+  // Date.UTC rolls 31 April over to 1 May; such a date is not one.
+  if (new Date(midnight).getUTCDate() !== day) return null;
+  return midnight + Math.round(seconds * 1000);
+}
+
+const closeQuietly = (hd: SimConnectConnection) => {
+  try {
+    hd.close();
+  } catch {
+    /* already closed */
+  }
+};
 
 /**
  * Start the link. It keeps reconnecting until `stop()` is called; from then on it calls no handler,
@@ -137,20 +173,63 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
     timer = setTimeout(connect, retryMs);
   };
 
+  const gate = o.gate;
+
   const connect = () => {
     timer = null;
     if (stopped) return;
+    if (!gate) {
+      attempt();
+      return;
+    }
+    gate.mayConnect().then(
+      (ok) => {
+        if (stopped) return;
+        if (ok) attempt();
+        else schedule();
+      },
+      (e: unknown) => {
+        if (stopped) return;
+        log(`could not check whether to connect (${e instanceof Error ? e.message : String(e)}); retrying`);
+        schedule();
+      },
+    );
+  };
+
+  /**
+   * Pass the gate with a connection just opened. False when it cannot be taken, or the connection
+   * ended or the link stopped meanwhile: the connection is then closed unseen and nothing is held.
+   */
+  const passGate = async (hd: SimConnectConnection): Promise<boolean> => {
+    if (!gate) return true;
+    // Until the handlers are on, an end of the connection is only noted (and an "error" never thrown).
+    let ended = false;
+    const end = () => {
+      ended = true;
+    };
+    hd.on("quit", end);
+    hd.on("close", end);
+    hd.on("error", end);
+    const took = await gate.take().catch(() => false);
+    hd.off("quit", end);
+    hd.off("close", end);
+    hd.off("error", end);
+    if (took && !ended && !stopped) return true;
+    if (took) gate.release();
+    closeQuietly(hd);
+    if (!stopped) schedule();
+    return false;
+  };
+
+  const attempt = () => {
     open(o.appName ?? "MSFS Career Map", Protocol.FSX_SP2, options)
-      .then(({ recvOpen, handle: hd }) => {
+      .then(async ({ recvOpen, handle: hd }) => {
         if (stopped) {
           // Stopped while this attempt was opening: close it unseen.
-          try {
-            hd.close();
-          } catch {
-            /* already closed */
-          }
+          closeQuietly(hd);
           return;
         }
+        if (!(await passGate(hd))) return;
         handle = hd;
         attempts = 0;
         let livery = "";
@@ -237,6 +316,18 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
         add(DEF_POSITION, "ATC ID", null, SimConnectDataType.STRING32);
         // Livery lives in its own definition so a sim that lacks the variable only loses that field.
         const liverySendId = add(DEF_LIVERY, "LIVERY NAME", null, SimConnectDataType.STRING128);
+        // @spec LIVE-LINK-008
+        // The sim's own clock, also in a definition of its own: a sim that rejects one of its
+        // variables loses only the sim-clock times. Each sample carries the latest reading, moved on
+        // by the time since it arrived.
+        const clockSendIds = new Set([
+          add(DEF_CLOCK, "ZULU YEAR", "number", SimConnectDataType.FLOAT64),
+          add(DEF_CLOCK, "ZULU MONTH OF YEAR", "number", SimConnectDataType.FLOAT64),
+          add(DEF_CLOCK, "ZULU DAY OF MONTH", "number", SimConnectDataType.FLOAT64),
+          add(DEF_CLOCK, "ZULU TIME", "seconds", SimConnectDataType.FLOAT64),
+        ]);
+        let clock: { sim: number; at: number } | null = null;
+        let clockRejected = false;
         // Every frame: just enough to catch the touchdown.
         add(DEF_FRAME, "SIM ON GROUND", "bool", SimConnectDataType.INT32);
         add(DEF_FRAME, "VERTICAL SPEED", "feet per minute", SimConnectDataType.FLOAT64);
@@ -246,6 +337,7 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
         hd.requestDataOnSimObject(REQ_POSITION, DEF_POSITION, SimConnectConstants.OBJECT_ID_USER, SimConnectPeriod.SECOND, 0, 0, 0, 0);
         hd.requestDataOnSimObject(REQ_LIVERY, DEF_LIVERY, SimConnectConstants.OBJECT_ID_USER, SimConnectPeriod.SECOND, 0, 0, 0, 0);
         hd.requestDataOnSimObject(REQ_FRAME, DEF_FRAME, SimConnectConstants.OBJECT_ID_USER, SimConnectPeriod.SIM_FRAME, 0, 0, 0, 0);
+        hd.requestDataOnSimObject(REQ_CLOCK, DEF_CLOCK, SimConnectConstants.OBJECT_ID_USER, SimConnectPeriod.SECOND, 0, 0, 0, 0);
         hd.subscribeToSystemEvent(EV_PAUSE, "Pause");
         hd.subscribeToSystemEvent(EV_SIM, "Sim");
         hd.subscribeToSystemEvent(EV_FLIGHT_LOADED, "FlightLoaded");
@@ -264,6 +356,18 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
             if (read == null) return;
             livery = read;
             if (!liveryKnown) release();
+            return;
+          }
+          if (d.requestID === REQ_CLOCK) {
+            const read = readRecord("clock", d.data, () => ({
+              year: d.data.readFloat64(),
+              month: d.data.readFloat64(),
+              day: d.data.readFloat64(),
+              seconds: d.data.readFloat64(),
+            }));
+            if (!read) return;
+            const ms = clockRejected ? null : zuluMs(read.year, read.month, read.day, read.seconds);
+            clock = ms == null ? null : { sim: ms, at: Date.now() };
             return;
           }
           if (d.requestID === REQ_FRAME) {
@@ -315,8 +419,10 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
           if (!rec) return;
           const { lat, lon, alt_ft, on_ground, gs_kts, hdg_deg, vs_fpm, ias_kts, g, fuel_lb, weight_lb, tdNormalFps, tdPitch, tdBank, title, atc_id } = rec;
           if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(alt_ft)) return;
+          const now = Date.now();
           const sample: Omit<SimSample, "livery"> = {
-            t: Date.now(),
+            t: now,
+            sim_t: clock ? clock.sim + (now - clock.at) : null,
             lat,
             lon,
             alt_ft,
@@ -366,6 +472,10 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
             call("onLiveryUnsupported", () => h.onLiveryUnsupported?.());
             if (!liveryKnown) release();
           } else {
+            if (clockSendIds.has(ex.sendId)) {
+              clockRejected = true;
+              clock = null;
+            }
             const datum = datumBySend.get(ex.sendId);
             log(`SimConnect exception ${ex.exceptionName ?? ex.exception}${datum ? ` on "${datum}"` : ` (send ${ex.sendId}, index ${ex.index})`}`);
           }
@@ -380,11 +490,8 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
           handle = null;
           writeDropped = null;
           writeCounts();
-          try {
-            hd.close();
-          } catch {
-            /* already closed */
-          }
+          closeQuietly(hd);
+          gate?.release();
           call("onDisconnect", () => h.onDisconnect(reason, quit));
           schedule();
         };
@@ -421,11 +528,8 @@ export function startSimLink(h: SimLinkHandlers, o: SimLinkOptions = {}): { stop
       const counts = writeDropped;
       writeDropped = null;
       if (hd) counts?.();
-      try {
-        hd?.close();
-      } catch {
-        /* ignore */
-      }
+      if (hd) closeQuietly(hd);
+      if (hd) gate?.release();
     },
     connected: () => handle !== null,
   };

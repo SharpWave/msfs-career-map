@@ -17,6 +17,7 @@ import type {
   TrackerStatus,
   WikiSummary,
 } from "./types";
+import type { AirportDataReport } from "./notices";
 
 /** A failed API call: the server's message, with the HTTP status and the answer's body (null when not JSON). */
 export class ApiError extends Error {
@@ -30,8 +31,12 @@ export class ApiError extends Error {
   }
 }
 
+/** Set once the page is about to reload itself: from then on it sends the server no change. */
+let frozen = false;
+
 // @spec APP-API-006, APP-API-007
 async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
+  if (frozen && method !== "GET") throw new ApiError("The page is reloading", 0, null);
   const res = await fetch(url, {
     method,
     headers: body !== undefined ? { "content-type": "application/json" } : undefined,
@@ -45,8 +50,38 @@ async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
   return (data ?? {}) as T;
 }
 
+/** The server as `/api/status` describes it (app-shell, APP-API-004). */
+export interface ServerStatus {
+  version: string;
+  pid: number;
+  logbookId: string | null;
+  startup: string;
+  airportData: AirportDataReport;
+  ready: boolean;
+}
+
+export type OfferedLogbook =
+  | { kind: "folder"; folder: string; hops: number; newestHop: string | null }
+  | { kind: "backup"; file: string; time: string; hops: number; newestHop: string | null };
+
+export interface LogbookOffer {
+  hops: number;
+  aircraft: number;
+  offers: OfferedLogbook[];
+  lastAttempt: { outcome: "brought-in" | "not-brought-in"; reason?: string; at: string } | null;
+}
+
 export const api = {
+  /** From now on every call that would change something is refused without being sent (APP-UI-036, APP-UI-042). */
+  freezeChanges: () => {
+    frozen = true;
+  },
+
   state: () => req<AppState>("GET", "/api/state"),
+  status: () => req<ServerStatus>("GET", "/api/status"),
+  backup: () => req<{ file: string }>("POST", "/api/backups"),
+  logbookOffer: () => req<LogbookOffer>("GET", "/api/logbook/offer"),
+  bringIn: (body: { folder: string } | { backup: string }) => req<{ restart: "automatic" | "manual" }>("POST", "/api/logbook/import", body),
 
   searchAirports: (q: string, limit = 10) =>
     req<Airport[]>("GET", `/api/airports/search?q=${encodeURIComponent(q)}&limit=${limit}`),

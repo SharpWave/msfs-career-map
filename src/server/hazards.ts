@@ -4,7 +4,8 @@
  * icing, turbulence, volcanic ash, tropical cyclones). Normalised to one shape and cached.
  */
 
-const USER_AGENT = "MSFSCareerMap/0.6 (personal flight-sim logbook; local use)";
+import { USER_AGENT } from "./version.ts";
+
 const AWC = "https://aviationweather.gov/api/data";
 const TTL_MS = 10 * 60 * 1000;
 

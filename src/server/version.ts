@@ -13,3 +13,7 @@ export const VERSION: string =
   typeof __MSFS_CAREER_MAP_VERSION__ === "string"
     ? __MSFS_CAREER_MAP_VERSION__
     : (JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")) as { version: string }).version;
+
+/** Sent on every request the server makes to an outside service; names the project, never a person, as the contact. */
+// @spec APP-API-005
+export const USER_AGENT = `MSFSCareerMap/${VERSION} (+https://github.com/SharpWave/msfs-career-map)`;

@@ -6,9 +6,13 @@ import { InputError, readInputs, useInputs, type ServerForm, type ServerInputs }
 import { FolderInUse, takeLock } from "./lock.ts";
 import { installStopSignals, shutDown, shutdownBegun, type ShutdownParts } from "./shutdown.ts";
 import { createStandIn } from "./standin.ts";
-import { setStartup } from "./status.ts";
+import { setLogbookId, setStartup, type StartupStep } from "./status.ts";
+import { Worker } from "node:worker_threads";
+import { backupQueue } from "./backup-service.ts";
+import { abandonImport, setImportFinish, setImportRestart, setImportTracking, setLastAttempt } from "./logbook-import.ts";
+import { StartupFailed, type StartupWorkOptions, type StartupWorkResult } from "./startup-work.ts";
 import type { Tracker } from "./tracker.ts";
-import { startTracking } from "./tracking.ts";
+import { pilotInSim, startTracking } from "./tracking.ts";
 import { VERSION } from "./version.ts";
 
 /**
@@ -54,7 +58,7 @@ export async function runServer(form: ServerForm, argv: string[], env: NodeJS.Pr
  * at any step: each part goes to the shutdown order the moment it exists, a step is not begun once
  * a shutdown has, and a step that finishes after one has begun is disposed of here.
  */
-// @spec APP-SRV-001, APP-SRV-005, APP-SRV-009, APP-SRV-011, APP-SRV-013, APP-SRV-014, APP-SRV-015, APP-SRV-016, APP-SRV-020, APP-SRV-021, APP-DATA-001
+// @spec APP-SRV-001, APP-SRV-005, APP-SRV-009, APP-SRV-011, APP-SRV-012, APP-SRV-013, APP-SRV-014, APP-SRV-015, APP-SRV-016, APP-SRV-020, APP-SRV-021, APP-DATA-001
 export async function startServer(inputs: ServerInputs, opts: StartOptions): Promise<void> {
   const exit = opts.exit ?? ((code: number) => process.exit(code));
   const parts: ShutdownParts = {};
@@ -76,14 +80,22 @@ export async function startServer(inputs: ServerInputs, opts: StartOptions): Pro
   // 2. The inputs, before anything that reads them loads; then the channel and the stop signals.
   useInputs(inputs);
   setStartup("opening");
+  // Backups asked for during the start-up work wait for it; an unfinished one is abandoned at shutdown.
+  backupQueue.hold("start");
+  parts.backups = backupQueue;
+  parts.importCopy = { abandon: abandonImport };
   let restored: Tracker | null = null;
   if (opts.channel) {
     serveChannel(opts.channel, {
       // Before the tracker has restored there is nothing to save, and the answer goes out at once.
       save: () => restored?.saveNow(),
       shutdown: () => void shutDown(parts, { quitting: true, exit }),
+      backup: (kind, onProgress) => backupQueue.request(kind, onProgress),
     });
   }
+  // A logbook brought in: the server shuts down, casual mode as it is, and exits 12 to be started again.
+  setImportRestart(opts.channel ? "automatic" : "manual");
+  setImportFinish(() => void shutDown(parts, { quitting: false, exit: () => exit(12) }));
   // Ctrl+C and the like leave casual mode as it is.
   if (opts.stopSignals) installStopSignals(() => void shutDown(parts, { quitting: false, exit }));
 
@@ -152,8 +164,31 @@ export async function startServer(inputs: ServerInputs, opts: StartOptions): Pro
     fail(line);
   };
 
-  // (1c: finish bringing in a logbook.)
+  // The start-up work on the logbook, off the event loop: an import finished, the logbook opened,
+  // its icons and id, its backup and upgrade. Then the modules holding the server's own connection.
   if (begun()) return;
+  let work: StartupWorkResult;
+  try {
+    const worker = runStartupWorker({
+      dataFolder: inputs.dataFolder,
+      dbPath: inputs.dbPath,
+      backups: inputs.backups,
+      version: VERSION,
+    });
+    parts.startupWork = worker;
+    work = await worker.done;
+  } catch (e) {
+    if (begun()) return;
+    if (e instanceof StartupFailed) return failHolding(e.line);
+    return failHolding(`Cannot start: cannot open the database ${inputs.dbPath}: ${messageOf(e)}`);
+  } finally {
+    parts.startupWork = null;
+  }
+  if (begun()) return;
+  setLogbookId(work.logbookId);
+  if (work.outcome) setLastAttempt(work.outcome);
+  setStartup("opening");
+
   let database: typeof import("./db.ts");
   try {
     database = await import("./db.ts");
@@ -171,7 +206,6 @@ export async function startServer(inputs: ServerInputs, opts: StartOptions): Pro
   }
   parts.db = database.db;
 
-  // (1c: a restored backup's icons, the logbook's id, the backup and the upgrade.)
   if (begun()) return;
   let tracking: typeof import("./tracker.ts");
   let createApp: typeof import("./app.ts").createApp;
@@ -192,18 +226,82 @@ export async function startServer(inputs: ServerInputs, opts: StartOptions): Pro
   setStartup("done");
   handler = app;
   console.log("[server] start-up done");
+  backupQueue.release("start");
 
   // 7. The airport data; a failure is written out and the server goes on.
   if (begun()) return;
-  const { ensureReferenceData } = await import("./airports.ts");
+  const { airportWork } = await import("./airports.ts");
+  parts.airportWork = airportWork;
   try {
-    await ensureReferenceData({ downloads: inputs.airportDownloads });
+    await airportWork.prepareAtStart({ downloads: inputs.airportDownloads });
   } catch (e) {
-    console.error(`[data] airport preparation failed: ${messageOf(e)}`);
+    if (!begun()) console.error(`[data] airport preparation failed: ${messageOf(e)}`);
   }
   if (begun()) return;
   console.log("[server] ready");
 
   // 8. Tracking, only now that the preparation has ended.
-  parts.link = startTracking(tracking.tracker, { sim: inputs.sim, simHost: inputs.simHost, simPort: inputs.simPort });
+  // The sim-link claim names this server the installed app when bundled, a copy run from source otherwise.
+  const live = startTracking(tracking.tracker, {
+    sim: inputs.sim,
+    simHost: inputs.simHost,
+    simPort: inputs.simPort,
+    holder: inputs.form === "bundled" ? "installed" : "source",
+    dataFolder: inputs.dataFolder,
+  });
+  parts.link = live;
+  setImportTracking(live);
+
+  // 9. The daily airport checks, held while the pilot is in the sim.
+  airportWork.startChecks(pilotInSim(tracking.tracker));
+}
+
+/**
+ * The start-up work in a worker thread with its own database connection (startup-worker.ts), its
+ * steps reported in the status. `stop()` ends it at shutdown: a swap of a logbook brought in is let
+ * finish, anything else is stopped where it is — an upgrade under way rolls back, being one
+ * transaction — and an unfinished backup's file is deleted.
+ */
+// @spec APP-SRV-010, APP-SRV-016
+function runStartupWorker(o: StartupWorkOptions): { done: Promise<StartupWorkResult>; stop(): Promise<void> } {
+  const worker = new Worker(new URL("./startup-worker.ts", import.meta.url), { workerData: o });
+  let step: StartupStep = "opening";
+  const done = new Promise<StartupWorkResult>((resolve, reject) => {
+    worker.on("message", (m: { type: string; step?: StartupStep; logbookId?: string; outcome?: StartupWorkResult["outcome"]; line?: string; message?: string }) => {
+      if (m.type === "step" && m.step) {
+        step = m.step;
+        setStartup(m.step);
+      } else if (m.type === "done") resolve({ logbookId: m.logbookId!, outcome: m.outcome ?? null });
+      else if (m.type === "failed") reject(new StartupFailed(m.line!));
+      else if (m.type === "error") reject(new Error(m.message));
+    });
+    worker.on("error", reject);
+    worker.on("exit", (code) => reject(new Error(`the start-up work ended with code ${code}`)));
+  });
+  done.catch(() => {});
+  return {
+    done,
+    async stop() {
+      if (step === "bringing-in") await Promise.race([done.catch(() => {}), new Promise((r) => setTimeout(r, 3000))]);
+      await worker.terminate();
+      // An unfinished backup the worker was writing.
+      const folders = [o.dataFolder, ...(o.backups.kind === "folder" ? [o.backups.folder] : [])];
+      for (const folder of folders) {
+        let names: string[] = [];
+        try {
+          names = fs.readdirSync(folder);
+        } catch {
+          continue;
+        }
+        for (const name of names) {
+          if (!/^career[-.].*\.db\.partial(-wal|-shm|-journal)?$/.test(name) || name.startsWith("career.db.incoming")) continue;
+          try {
+            fs.rmSync(`${folder}/${name}`, { force: true });
+          } catch {
+            // not a file of ours
+          }
+        }
+      }
+    },
+  };
 }

@@ -25,16 +25,18 @@ export function fleetAircraft(sim = PLANE, name = "Test Comanche", livery = "N1T
  * Flies a tracker by hand, one sample a second, moving north while it has ground speed. The clock
  * follows the samples so the tracker's checkpoints are taken as they would be in flight.
  */
-export function pilot(tr: Tracker, sim: typeof PLANE = PLANE) {
+export function pilot(tr: Tracker, sim: typeof PLANE = PLANE, o: { simClockOffsetMs?: number } = {}) {
   let target = tr;
   let t = Date.parse("2026-10-12T12:00:00Z");
+  /** With an offset, each sample carries the sim's clock as `sim_t`: the sample's time plus the offset. */
+  const simClock = (at: number): Partial<SimSample> => (o.simClockOffsetMs === undefined ? {} : { sim_t: at + o.simClockOffsetMs });
   let lat = KPVD.lat;
   let lon = KPVD.lon;
   vi.setSystemTime(t);
   const feed = (over: Partial<SimSample>): SimSample => {
     const s: SimSample = {
       t, lat, lon, alt_ft: 60, on_ground: true, gs_kts: 0, hdg_deg: 0, vs_fpm: 0, ias_kts: 0, g: 1,
-      fuel_lb: 300, weight_lb: 2400, ...sim, ...over,
+      fuel_lb: 300, weight_lb: 2400, ...sim, ...simClock(t), ...over,
     };
     target.feed(s);
     if (s.gs_kts >= 1) lat += s.gs_kts / 3600 / 60; // nm per second as degrees of latitude

@@ -13,7 +13,7 @@ tab: the page and the hop API are the same in each.
 ## The Hop Record
 
 - [x] **LOG-REC-001**: The system shall store each hop with its fleet aircraft, its position in that aircraft's sequence, an origin and a destination airport, optional real-world departure and arrival times, an optional flight time in whole minutes, and notes.
-- [ ] **LOG-REC-002**: The system shall store each hop's departure and arrival on the sim's clock (the sim's zulu date and time) as well as on the real-world clock, each optional, the sim-clock times in nullable columns added to the `hops` table in place, so an older version of the app can still log a hop on that logbook.
+- [x] **LOG-REC-002**: The system shall store each hop's departure and arrival on the sim's clock (the sim's zulu date and time) as well as on the real-world clock, each optional, the sim-clock times in nullable columns added to the `hops` table in place, so an older version of the app can still log a hop on that logbook.
 - [x] **LOG-REC-003**: When a hop is created or updated with an airport code (ICAO ident, GPS, IATA or local code), the system shall store the canonical OurAirports ident that the code resolves to.
 - [x] **LOG-REC-004**: If a hop is created or updated with a blank origin or destination, then the system shall reject it with HTTP 400 "origin is required" or "destination is required".
 - [x] **LOG-REC-005**: If a hop is created or updated with an airport code that matches no airport, then the system shall reject it with HTTP 400 naming the unknown code.

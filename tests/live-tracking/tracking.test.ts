@@ -39,6 +39,15 @@ const FIRST_IPV4 = LISTED.find((a) => a.family === "IPv4")?.address ?? "127.0.0.
 /** Let real time pass, for a reconnect the link schedules (only Date is faked here). */
 const realWait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+/**
+ * Wait until the link has made `n` connection attempts, then let the last one's answer run. A link
+ * to a sim on this PC checks the sim-link claim (real pipe I/O) before each attempt.
+ */
+async function attempted(n = 1): Promise<void> {
+  for (let i = 0; i < 300 && vi.mocked(open).mock.calls.length < n; i++) await realWait(5);
+  await settle();
+}
+
 /** The options `open` was given on its nth call. */
 const openOptions = (n = 0) => vi.mocked(open).mock.calls[n]?.[2] as { remote?: { host: string; port: number } } | undefined;
 
@@ -100,7 +109,7 @@ describe("starting tracking in each sim mode", () => {
   it("in sim mode link opens the link once, with no remote option when no host is given, and reports no sim host", async () => {
     const tr = new Tracker();
     const t = start(tr);
-    await settle();
+    await attempted();
 
     expect(open).toHaveBeenCalledTimes(1);
     expect(openOptions()?.remote).toBeUndefined();
@@ -132,7 +141,7 @@ describe("starting tracking in each sim mode", () => {
     async (host) => {
       const tr = new Tracker();
       start(tr, { simHost: host, simPort: null });
-      await settle();
+      await attempted();
 
       expect(open).toHaveBeenCalledTimes(1);
       expect(openOptions()).toEqual({ remote: { host, port: 500 } });
@@ -154,7 +163,7 @@ describe("starting tracking in each sim mode", () => {
 
       const linked = new Tracker();
       start(linked, { sim: "link" });
-      await settle();
+      await attempted();
       expect(open).toHaveBeenCalledTimes(1);
       expect(openOptions()?.remote).toBeUndefined();
       expect(linked.status()).toMatchObject({ sim_mode: "link", sim_host: null });
@@ -228,7 +237,7 @@ describe("the link startTracking starts", () => {
     const tr = new Tracker();
     answerOpen(...handles);
     const t = start(tr, o);
-    await settle();
+    await attempted();
     expect(tr.status()).toMatchObject({ connected: true, sim_name: "Fake MSFS" });
     expect(t.connected()).toBe(true);
     handles[0].livery(LIVERY);
@@ -319,7 +328,7 @@ describe("the link startTracking starts", () => {
     vi.mocked(open).mockRejectedValueOnce(new Error("no sim here"));
     const tr = new Tracker();
     start(tr);
-    await settle();
+    await attempted();
     // The link's own words are simconnect.ts's; the wiring writes them as one line with [sim] in front.
     expect(simLines()).toHaveLength(1);
     expect(simLines()[0]).toMatch(/^\[sim\] \S.*no sim here/);

@@ -1,15 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api";
-import { aircraftLabel, fmtDateTime, fmtDuration, hopDurationMin } from "../format";
+import { aircraftLabel, fmtDateTime, fmtDuration, fmtTimeShort, hopDurationMin } from "../format";
 import { RATING_BANDS, RATING_META, parseLandings, parseStats, shownTouchdown } from "../landing";
 import { parseTrack, type LiveState } from "../tracker";
-import type { Aircraft, AppState, Briefing, Hop, HopStats, Landing, TrackPoint } from "../types";
+import type { Aircraft, Airport, AppState, Briefing, Hop, HopStats, Landing, PendingLeg, PendingLegDetail, TrackPoint } from "../types";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { IconButton } from "./Icon";
 import { ProfileChart } from "./ProfileChart";
 
-/** What the panel is showing: a logged hop, or the leg being flown right now. */
-export type PanelSource = { kind: "hop"; hopId: number } | { kind: "live" };
+/** What the panel is showing: a logged hop, the leg being flown right now, or a leg waiting to be logged. */
+export type PanelSource = { kind: "hop"; hopId: number } | { kind: "live" } | { kind: "pending"; id: string };
 
 interface Props {
   source: PanelSource;
@@ -23,11 +23,54 @@ interface Props {
 
 const num = (v: number | null | undefined, unit = "") => (v == null ? "—" : `${Math.round(v).toLocaleString()}${unit}`);
 
-// @spec PANEL-OPEN-003, APP-UI-005
+/** A pending leg in full, track included, fetched when the panel opens it (LIVE-API-007). */
+function usePendingDetail(id: string | null): PendingLegDetail | null {
+  const [detail, setDetail] = useState<PendingLegDetail | null>(null);
+  useEffect(() => {
+    setDetail(null);
+    if (id == null) return;
+    let cancelled = false;
+    api
+      .trackerPending(id)
+      .then((d) => !cancelled && setDetail(d))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+  return detail;
+}
+
+/** Both airports of a pending leg, once both are known, for its direct distance. */
+function useAirportPair(origin: string | null | undefined, dest: string | null | undefined, known: AppState["airports"]): [Airport, Airport] | null {
+  const [pair, setPair] = useState<[Airport, Airport] | null>(null);
+  useEffect(() => {
+    setPair(null);
+    if (!origin || !dest) return;
+    let cancelled = false;
+    const get = (code: string) => (known[code] ? Promise.resolve(known[code]) : api.getAirport(code));
+    Promise.all([get(origin), get(dest)])
+      .then(([a, b]) => !cancelled && setPair([a, b]))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [origin, dest]);
+  return pair;
+}
+
+// @spec PANEL-OPEN-003, APP-UI-005, PANEL-OPEN-002, PANEL-HEAD-005, PANEL-STAT-003
 export function FlightPanel({ source, state, live, briefing, onClose, onBriefingChanged }: Props) {
   const hop: Hop | undefined = source.kind === "hop" ? state.hops.find((h) => h.id === source.hopId) : undefined;
-  const aircraft: Aircraft | undefined =
-    source.kind === "hop" ? state.aircraft.find((a) => a.id === hop?.aircraft_id) : state.aircraft.find((a) => a.id === live.status?.aircraft_id);
+  const listed: PendingLeg | undefined = source.kind === "pending" ? live.status?.pending.find((p) => p.id === source.id) : undefined;
+  const detail = usePendingDetail(source.kind === "pending" ? source.id : null);
+  const pending = detail ?? listed;
+  const pair = useAirportPair(pending?.origin, pending?.dest, state.airports);
+  const aircraftId = source.kind === "hop" ? hop?.aircraft_id : source.kind === "pending" ? pending?.aircraft_id : live.status?.aircraft_id;
+  const aircraft: Aircraft | undefined = state.aircraft.find((a) => a.id === aircraftId);
+  let simTitle = live.status?.sim?.title;
+  let directNmShown: number | null = hop ? directNm(hop, state) : null;
 
   let title: string;
   let sub: string;
@@ -43,6 +86,22 @@ export function FlightPanel({ source, state, live, briefing, onClose, onBriefing
     track = parseTrack(hop.track);
     landings = parseLandings(hop.landings);
     stats = parseStats(hop.stats);
+  } else if (source.kind === "pending") {
+    if (!pending) return null;
+    title = `${pending.origin ?? "?"} → ${pending.dest ?? "?"}`;
+    sub = [
+      "waiting to be logged",
+      `off ${fmtTimeShort(pending.departed_at)}`,
+      `${pending.ended_in_air ? "last seen" : "down"} ${fmtTimeShort(pending.arrived_at)}`,
+      fmtDuration(pending.duration_min),
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    track = detail?.track ?? [];
+    landings = pending.landings ?? [];
+    stats = pending.stats ?? null;
+    simTitle = pending.sim?.title;
+    directNmShown = pair ? greatCircleNm(pair[0], pair[1]) : null;
   } else {
     const s = live.status;
     const leg = s?.leg;
@@ -71,7 +130,7 @@ export function FlightPanel({ source, state, live, briefing, onClose, onBriefing
     <section className="flight-panel glass">
       <header className="fp-head">
         {aircraft && <span className="dot" style={{ background: aircraft.color }} />}
-        <b>{aircraft ? aircraftLabel(aircraft) : live.status?.sim?.title ?? "aircraft"}</b>
+        <b>{aircraft ? aircraftLabel(aircraft) : simTitle ?? "aircraft"}</b>
         <span className="route code">{title}</span>
         <span className="muted small">{sub}</span>
         {source.kind === "live" && <span className="pill air">live</span>}
@@ -85,7 +144,7 @@ export function FlightPanel({ source, state, live, briefing, onClose, onBriefing
           </div>
           <aside className="fp-side">
             <LandingCard landing={landing} all={landings} />
-            <StatsCard stats={stats} points={track.length} directNm={hop ? directNm(hop, state) : null} />
+            <StatsCard stats={stats} points={track.length} directNm={directNmShown} />
             <BriefingCard hop={hop} briefing={briefing} onChanged={onBriefingChanged} />
           </aside>
         </div>
@@ -98,6 +157,10 @@ function directNm(hop: Hop, state: AppState): number | null {
   const a = state.airports[hop.origin];
   const b = state.airports[hop.dest];
   if (!a || !b) return null;
+  return greatCircleNm(a, b);
+}
+
+function greatCircleNm(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
   const toRad = (d: number) => (d * Math.PI) / 180;
   const h =
     Math.sin(toRad(b.lat - a.lat) / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(toRad(b.lon - a.lon) / 2) ** 2;

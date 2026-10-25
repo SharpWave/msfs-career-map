@@ -139,6 +139,33 @@ export class FakeSimHandle extends EventEmitter {
     this.emit("exception", { sendId: this.sendIdOf.get("LIVERY NAME"), exception: 7, exceptionName: "NAME_UNRECOGNIZED", index: 1 });
   }
 
+  /**
+   * The sim's zulu date and time (`at`, read as UTC), as the record of the definition holding
+   * `ZULU TIME`, its datums in the order the link added them: `ZULU YEAR`, `ZULU MONTH OF YEAR` and
+   * `ZULU DAY OF MONTH` as numbers, `ZULU TIME` as seconds since midnight. `over` replaces any value.
+   */
+  clock(at: string | Date, over: Partial<Record<string, number>> = {}): void {
+    const d = new Date(at);
+    const midnight = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    const values: Record<string, number> = {
+      "ZULU YEAR": d.getUTCFullYear(),
+      "ZULU MONTH OF YEAR": d.getUTCMonth() + 1,
+      "ZULU DAY OF MONTH": d.getUTCDate(),
+      "ZULU TIME": (d.getTime() - midnight) / 1000,
+      ...over,
+    };
+    const def = this.defOf.get("ZULU TIME");
+    const names = this.datumsOf.get(def ?? -1) ?? [];
+    const positionDef = this.defOf.get("PLANE LATITUDE");
+    if (def === undefined || def === positionDef) throw new Error("the link reads the sim's clock in no definition of its own");
+    this.emit("simObjectData", { requestID: this.requestForDef(def, "the sim's clock"), data: reader(names.map((n) => values[n])) });
+  }
+
+  /** The sim rejecting one of the clock's variables. */
+  rejectClock(datum = "ZULU YEAR"): void {
+    this.emit("exception", { sendId: this.sendIdOf.get(datum), exception: 7, exceptionName: "NAME_UNRECOGNIZED", index: 1 });
+  }
+
   /** The sim's Pause or Sim system event: `on` is paused, or running (false in menus and loading). */
   systemEvent(name: "Pause" | "Sim", on: boolean): void {
     this.emit("event", { clientEventId: this.eventFor(name), data: on ? 1 : 0 });

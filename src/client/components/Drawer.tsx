@@ -40,7 +40,7 @@ export function LeftColumn({
   column: ColumnState;
   request: DrawerRequest | null;
   sidebar: ReactNode;
-  drawers: Record<DrawerKey, DrawerContent>;
+  drawers: Partial<Record<DrawerKey, DrawerContent>>;
   onClose: () => void;
   /** Takes the focus back when whatever opened the drawer is gone, such as a closed map popup. */
   fallbackFocus?: HTMLElement | null;
@@ -66,9 +66,9 @@ export function LeftColumn({
         {sidebar}
       </div>
       {(Object.keys(drawers) as DrawerKey[])
-        .filter((k) => mounted.current.has(k))
+        .filter((k) => mounted.current.has(k) && drawers[k])
         .map((k) => (
-          <Drawer key={k} id={k} {...drawers[k]} open={shown === k} request={shown === k ? request : null} onClose={onClose} />
+          <Drawer key={k} id={k} {...drawers[k]!} open={shown === k} request={shown === k ? request : null} onClose={onClose} />
         ))}
     </div>
   );

@@ -143,9 +143,12 @@ the server running with tracking dead until its next start. The pause lasts as l
 takes to make, seconds for a career logbook; a leg in the air across it continues on the first
 sample after it.
 
-**Sim-clock times** are intended: the link is also to read the sim's zulu date and time, so each
-leg records its takeoff and touchdown on the sim's clock as well as the real one (logbook,
-LOG-REC-002). Today only wall-clock times are recorded.
+**The sim's clock.** The link also reads the sim's zulu date and time once a second, in a data
+definition of its own, so a sim that rejects one of its variables loses only the sim-clock times.
+Each sample carries the latest reading, moved on by the time since it arrived; it carries none
+before the first reading on a connection, after the sim has rejected a clock variable, or when the
+values make no date. Each leg records its takeoff and touchdown on the sim's clock as well as the
+real one (logbook, LOG-REC-002).
 
 ### One Link per PC
 
@@ -184,7 +187,10 @@ only one process listen on a pipe name and frees it when that process ends, a cr
   its addresses — reaches the sim on this PC, and that link takes and checks the claim as any other.
 
 The claim lives with the server's tracking ([tracking.ts](../../../src/server/tracking.ts), `startTracking`),
-around the link, not in the link module that `sim-probe` also uses. Whether a host names this PC is one
+around the link, not in the link module that `sim-probe` also uses: the pipe, its check and its
+answer are in [sim-link-claim.ts](../../../src/server/sim-link-claim.ts), and `startTracking` puts the
+claim in front of the link as a gate the link passes before each attempt and once SimConnect has
+opened, and releases when the connection ends or the link stops. Whether a host names this PC is one
 check, `isThisPc` ([this-pc.ts](../../../src/server/this-pc.ts)), made without a DNS lookup, which
 decides both which links take and check the claim and when the status's `sim_host` is null.
 
@@ -209,7 +215,7 @@ ground point.
 airport — by the same distance-plus-class-handicap ranking — the parked airport is the origin. A
 career aircraft usually departs from where it last landed, an airport's reference point can sit a
 mile from the runway end it lifts off from, and two fields sharing a boundary are often under a
-mile apart. Today the nearest always wins.
+mile apart.
 
 **Started in the air.** If tracking begins with the aircraft already airborne, a leg starts with
 no origin.
@@ -269,14 +275,14 @@ for the new pair. Since the link passes on no sample before it has read the live
 above), the first sample after a connection carries the real livery, so neither a leg restored
 after a server restart nor one started in the air is mistaken for an aircraft change.
 
-**Too short.** A leg is meant to be dropped when its flight time (below) is under a minute. Today
-the check uses the rounded duration, so legs of 30–59 s are kept
-([tracker.ts:866-871](../../../src/server/tracker.ts#L866-L871)). A dropped leg leaves the current
-SimBrief briefing for the next leg.
+**Too short.** A leg is dropped when its flight time (below) is under a minute, judged to the
+second before it is rounded. A dropped leg leaves the current SimBrief briefing for the next leg.
 
 **Pauses.** Time the sim spends paused does not count: not toward the 5 s takeoff confirmation or
-the 30 s stop, and not toward flight time. Today all three use wall-clock time, so a long pause
-counts in full and a stop timer running before a pause can fire on the first sample after it.
+the 30 s stop, and not toward flight time. The tracker takes no sample while the sim is paused, and
+the gap between the last sample before a pause and the first one after it counts as time paused,
+the second or so of flying on either side of it included. A takeoff confirmation or stop running
+before a pause goes on from where it stood; the time paused within a leg is checkpointed with it.
 
 **Time asleep.** When the PC sleeps, the sim and the server stop together, and the tracker sees only
 a gap between samples. It treats that gap as any other: as time flown, toward flight time and the
@@ -317,8 +323,9 @@ Without a G the rating comes from the descent rate alone. How a rating is drawn 
 - **Track**: a point at most every 5 s while airborne or landed, plus the stop point, each
   `[lat, lon, alt_ft, unix_seconds, gs_kts, vs_fpm, ias_kts, fuel_lb]` (logbook's track format)
   ([tracker.ts:297-306](../../../src/server/tracker.ts#L297-L306), [775-783](../../../src/server/tracker.ts#L775-L783)).
-- **Times**: departure at takeoff and arrival at the last touchdown, on the real-world clock (and,
-  intended, the sim's); flight time as the whole minutes between them less any time paused. For a
+- **Times**: departure at takeoff and arrival at the last touchdown, on the real-world clock and on
+  the sim's (none when the samples carried no sim clock); flight time as the whole minutes between
+  them less any time paused, rounded as the logbook stores flight times (LOG-REC-010). For a
   leg kept in the air — after a disconnect in flight, or restored and not resumed — the arrival is
   the last sample, and the pending leg is marked as ended in the air (Binding and Logging).
 - **Statistics** ([tracker.ts:873-883](../../../src/server/tracker.ts#L873-L883)): fuel at takeoff and
@@ -624,8 +631,8 @@ it gives none; `text` the words for it — or null); in menus; paused; whether
 liveries are supported; the sim aircraft (title, livery, ATC id) and the bound fleet aircraft; the
 phase; the latest position (altitude, ground speed, heading, vertical speed, airspeed, fuel, on
 ground, time); the leg (origin, departure, touchdown, point count, landings, and its statistics so
-far — fuel and weight at takeoff, fuel used, highest altitude and ground speed, distance flown — of
-which only fuel used and highest altitude are sent today); the pending legs, each with its id and
+far as `stats` — fuel and weight at takeoff, fuel used, highest altitude and ground speed, distance
+flown — in the shape a hop records them); the pending legs, each with its id and
 whether it ended in the air, without its track; the current briefing; casual mode — when it was switched on and the path's point
 count, or nothing while it is off; the last message and its time. The desktop shell's tray reads
 its status line, dot and waiting-legs count from these fields.
@@ -785,6 +792,9 @@ Both tools are run from the repository by a developer; neither is part of the in
 | Naming airports | Nearest within 5 nm of the last ground point and of the stop point, with a class handicap | Ask every time; the SimBrief plan's airports | Correct almost always without input; a miss becomes a pending leg or a correction (logbook). |
 | Near-tie at takeoff | Prefer the aircraft's parked airport when it ranks within 1 nm of the nearest | Nearest always; 0.5 nm; 2 nm | A career aircraft departs where it last landed; two close fields can otherwise swap. 1 nm covers a reference point a mile from the runway end without overriding a clearly nearer field. |
 | Flight time | Takeoff to last touchdown, less time paused | Wall-clock elapsed | A pause mid-flight is not flying; the logbook should not grow by a dinner break. |
+| Measuring a pause | The gap between the last sample before it and the first after it | The wall-clock time between the sim's Pause events | The timers and the flight time run on sample times, which a test can drive; the events carry no time of their own. The second or so of flying on either side that the gap includes is lost in whole minutes. |
+| A leg under a minute | Judged on the flight time to the second | Judged on the rounded flight time | Rounding would keep legs of 30–59 s, which are bounces, not flights. |
+| Reading the sim's clock | In a data definition of its own, the latest reading moved on to each sample by the time since it arrived | In the once-a-second position definition | As for the livery: a sim that rejects a clock variable loses only the sim-clock times, not every position record. |
 | Time the PC sleeps | Counted like any gap between samples | Leave out every gap longer than a few seconds | The tracker cannot tell a sleep from a server restart during which the sim flew on, which is real flying; a PC put to sleep mid-flight is rare. |
 | Landing measurement | Frame-rate watcher, with a provisional landing from 1 Hz data replaced within 6 s | 1 Hz only; the sim's touchdown velocity only | Frame data catches the real touchdown rate and G spike; the provisional landing keeps the fake feed and missed frames working. The sim's own figure is kept for comparison with other monitors. |
 | Rating | Worse of descent-rate and peak-G classes | Descent rate only | A gentle descent with a hard G spike is still a hard landing. |
@@ -851,29 +861,20 @@ Both tools are run from the repository by a developer; neither is part of the in
 
 ### Deferred
 
-1. **Near-tie at takeoff** — the nearest airport always wins ([tracker.ts:1202-1203](../../../src/server/tracker.ts#L1202-L1203)).
-2. **Sim-clock times** are not read or stored (LOG-REC-002).
-3. **Legs of 30–59 s are kept** ([tracker.ts:1394-1395](../../../src/server/tracker.ts#L1394-L1395)).
-4. **Paused time** counts toward flight time and the takeoff and stop timers.
-5. **Two fleet rows with the same title and livery** — the older wins silently; binding one does
+1. **Two fleet rows with the same title and livery** — the older wins silently; binding one does
    not unbind the other.
-6. **Wall-clock stamps** — samples are stamped on arrival, so a stalled link compresses or stretches
+2. **Wall-clock stamps** — samples are stamped on arrival, so a stalled link compresses or stretches
    the recorded timing; the sim's own time would not.
-7. **Touchdowns in casual mode** are neither measured nor rated; a rating would suit casual
+3. **Touchdowns in casual mode** are neither measured nor rated; a rating would suit casual
    flying, but nothing would keep it.
-8. **A profile of the casual path** — the flight panel shows only legs.
-9. **The PC-wide sim-link claim** is neither taken nor checked, so nothing stops two servers on
-   the sim link logging the same flight, and `link_holder` is always null
-   ([tracking.ts](../../../src/server/tracking.ts), `startTracking`).
-10. **A reconnect reloads nothing** — the page opens its event stream again 3 s after it ends and
-    takes the full state, but leaves the map and the lists as they were
-    ([client tracker.ts](../../../src/client/tracker.ts), `useTracker`).
+4. **A profile of the casual path** — the flight panel shows only legs.
 
 ## References
 
 - Code: [src/server/simconnect.ts](../../../src/server/simconnect.ts),
   [src/server/tracker.ts](../../../src/server/tracker.ts), [src/server/tracking.ts](../../../src/server/tracking.ts)
-  (`startTracking`: the sim mode, the link wired to the tracker, the sim-link claim),
+  (`startTracking`: the sim mode, the link wired to the tracker, the sim-link claim as its gate),
+  [src/server/sim-link-claim.ts](../../../src/server/sim-link-claim.ts) (the claim's pipe, check and answer),
   [src/server/this-pc.ts](../../../src/server/this-pc.ts) (`isThisPc`), [src/server/routes.ts](../../../src/server/routes.ts) (live tracker 446-628),
   [src/client/tracker.ts](../../../src/client/tracker.ts) (`useTracker`; `parseTrack` is shared with
   tour-map and flight-panel), [src/client/components/LivePanel.tsx](../../../src/client/components/LivePanel.tsx)

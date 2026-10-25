@@ -111,8 +111,8 @@ No tests yet.
    (LIVE-TOOL-003); a leg kept when the sim disconnects in flight and the restored-leg rule
    (LIVE-LEG-008, 016); pending legs in a list (LIVE-HOP-003). Still to come: the seed lists in the
    program folder and their download times, seeding (airports), the logbook's id and backup names
-   (app-shell's backups), and the sim-link claim (live-tracking), which no server takes yet — so a
-   fake-feed server already takes none.
+   (app-shell's backups). The sim-link claim (live-tracking) is built and tested, a fake-feed server
+   neither taking nor checking it (LIVE-LINK-015).
 3. **Before the first release** — the SimBrief OFP text shown as text and layout only (SB-CARD-006,
    SB-CARD-009 to 011), the open part of DESK-DIST-REL-012, whose live-tracking items (pending legs
    kept in a list, LIVE-HOP-003; a leg in the air kept when the sim disconnects, LIVE-LEG-008; a leg

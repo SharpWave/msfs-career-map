@@ -24,7 +24,10 @@ npm run dev:sim   # the same, with the server linked to the sim
 
 Then open http://127.0.0.1:5173. On first start the server downloads the
 [OurAirports](https://ourairports.com/data/) airport and runway lists (about 20 MB) into `data/`
-and imports them into the database. That takes a few seconds once.
+and imports them into the database, answering all the while (`/api/status` shows the progress).
+It checks the lists once a day and downloads them again once they are more than 30 days old,
+but never while it is linked to the sim or a leg is in progress. An airport a logged hop uses is
+kept when OurAirports drops it, and its popup says "No longer listed by OurAirports".
 
 For everyday use without the dev tooling:
 
@@ -52,8 +55,16 @@ on the left holds what a session uses again and again: **Live from the sim** abo
 hop**. Either card collapses to its header (the live card to a one-line status strip) and stays
 that way next time. **Career Map** at the top left opens the menu: the logbook's counts, **Log a
 hop** and **Fleet**, each of which opens as a drawer in the sidebar's place (close it to get the
-sidebar back). The button beside it hides the sidebar for a clear map. At the top right, **Layers**
-picks the basemap, night shading and weather hazards; **Fit all** zooms to every path.
+sidebar back), and **Back up now**, which copies the logbook into `data/backups/`. While the logbook
+holds no hops the menu also offers **Bring in a logbook**, listing other copies' logbooks and backups
+to bring in instead (it opens by itself when there are any). The button beside it hides the sidebar
+for a clear map. At the top right, **Layers** picks the basemap, night shading and weather hazards;
+**Fit all** zooms to every path.
+
+An address ending in `#hop=<id>` opens that hop in the flight panel, and `#pending=<id>` a leg waiting
+to be logged. While the server is starting the page says which step it is at; while it prepares
+airport data a notice shows the progress; and a page left open across an update or a logbook swap
+reloads itself.
 
 - **Fleet** (in the menu): click **+ Aircraft**, give it a name and livery/registration (that pairing is the unit
   of persistence for add-ons like A2A that track wear per livery), pick a path color, and choose an
@@ -192,10 +203,18 @@ beside the database named by `CAREER_DB`:
 | --- | --- |
 | `data/career.db` | SQLite database: aircraft, hops (with tracks, landings and stats), archived SimBrief briefings, settings, the live tracker's checkpoint, imported airports and runways |
 | `data/airports.csv`, `data/runways.csv` | OurAirports source lists, re-importable with `npm run import-airports` |
+| `data/airports.csv.downloaded`, `data/runways.csv.downloaded` | When each list was downloaded (ISO UTC); a list without one counts from its file date |
 | `data/images/` | Uploaded aircraft icons |
 | `data/career.db.lock` | The running server's process id and port, there while it runs: a second server started on the same folder refuses to start, and one left by a server that is gone is taken over at the next start |
+| `data/backups/` | Backups: `career-<UTC time>-<kind>-<logbook id>.db`, each one file holding the whole logbook with its uploaded icons. Taken by **Back up now** (`POST /api/backups`, `manual`, never pruned) and by the server before it upgrades an older logbook (`upgrade-<version>`) |
+| `data/career.before-*.db`, `data/images.before-restore-*` | What a logbook brought in, a restored backup, or a backup that could not go into `backups/` left beside the logbook |
 
-Back up `career.db` and `images/` and you have everything. Start the server with
+To restore a backup, stop the server, move `career.db` and its `-wal` and `-shm` files aside, copy
+the backup in as `career.db`, and start the server again: its icons come back with it (the `images/`
+folder it replaces is moved aside), and it gets a logbook id of its own. A logbook from another data
+folder (`--data=<folder>`) or a backup can also be brought in with `POST /api/logbook/import`, while
+the logbook here holds no hops; the server then exits with code 12 and swaps it in when started
+again. Start the server with
 `--data=<folder>` (for example `npm start -- --data=D:\career`) to use another data folder, or set
 `CAREER_DB` to a database path; `PORT` (or `--port=<n>`) changes the server port (default 3080). The icons and airport lists live
 in the same folder as the database in use, so a copy for testing belongs in a folder of its own
@@ -225,7 +244,10 @@ All JSON, under `/api`:
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/status` | The server itself: app, version, process id, data folder, sim mode, start-up step, airport-data report, `ready`, airport and runway counts (answered while the server starts too) |
+| GET | `/status` | The server itself: app, version, process id, data folder, logbook id, sim mode, start-up step, airport-data report, `ready`, airport and runway counts (answered while the server starts too) |
+| POST | `/backups` | Back the logbook up now into the backups folder: `{ file }`, or the failure's `{ error, short }` |
+| GET | `/logbook/offer` | While the logbook holds no hops, the logbooks that can be brought in (the folder `--offer` names, the newest backup of each other logbook), with the outcome of the last attempt |
+| POST | `/logbook/import` | Bring in a logbook: `{ folder }` or `{ backup }`; 202 and the server exits to swap it in at its next start, or 409 with the reason |
 | GET | `/state` | Aircraft, hops, and every airport they reference, in one call |
 | GET | `/airports/search?q=` | Search by code, name or city (includes a runway summary) |
 | GET | `/airports/:code` | Look up one airport by any code, with its runway list |
@@ -258,7 +280,7 @@ All JSON, under `/api`:
 | PUT | `/aircraft/:id/hops/order` | Reorder hops: `{ ids: [...] }` |
 | GET/POST | `/hops` | List (`?aircraft_id=`) / create |
 | PUT/DELETE | `/hops/:id` | Update / delete |
-| POST | `/airports/reimport?download=1` | Refresh the airport and runway lists |
+| POST | `/airports/reimport[?download=1]` | Re-import the airport and runway lists from `data/`, downloading both first with `download=1`; 409 while another import is under way |
 
 Timestamps are ISO 8601 UTC; the UI enters and displays them in local time. Aircraft carry
 optional `cruise_kts` and `min_runway_ft`; the planner needs the first and honours the second.

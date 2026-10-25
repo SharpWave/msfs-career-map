@@ -372,7 +372,7 @@ beside it (downloading them when missing). The repository keeps all of `data/` o
 ### Opening and Upgrading
 
 Every table is created if missing, and a column added in a later version is added to an existing
-table in place (`addColumnIfMissing`), so an older database upgrades without losing anything. The
+table in place (the schema step, [schema.ts](../../../src/server/schema.ts)), so an older database upgrades without losing anything. The
 schema only ever gains tables and columns — none is removed, renamed or retyped — so an older server
 run on a logbook a newer one upgraded (an older installer run by hand) finds nothing to change and
 leaves what it does not know as it is.
@@ -1097,6 +1097,7 @@ logbook in a folder of its own, and the data locations as the server's inputs gi
 | Pruning | Per logbook id: seven daily and three others, never `manual` copies or the newest `upgrade-…` | Counting every backup in the folder; by age | Counting another logbook's backups would let a new, empty logbook's dailies prune an old career's last copies within a week. The pilot's own copies are theirs to delete, and the backup taken before an upgrade is the one a broken upgrade is undone from. |
 | A failed backup's reason | A short reason in fixed words per cause, naming no folder, and a full reason naming the folder and the error | One free-text reason | The tray, the version line and a notification that names the folder itself show the short form, the log and the page the full one, and nothing has to be parsed out of free text. |
 | A backups folder that cannot be written | The backup before an update or an upgrade falls back into the data folder, one of each kept | Failing it; holding the update or upgrade until Documents can be written | Controlled folder access can refuse an unsigned program every write to Documents for good; a backup beside the logbook still guards the update or upgrade. |
+| Looking Documents up | The user's `Personal` value under `User Shell Folders` in the registry, read with `reg.exe` and its `%VARIABLES%` expanded | Asking PowerShell for the known folder; Electron's `app.getPath("documents")` passed in by the desktop shell | Node has no call for known folders. The registry value is where Windows keeps the folder's place and what OneDrive's folder backup changes; `reg.exe` answers in a few milliseconds, where PowerShell takes a second to start and can be held back by script policy. A path passed in at start would not follow a Documents folder moved while the app runs, and a copy run from source has no desktop shell. |
 | Where Documents is | Looked up through Windows' known folders at each backup, the path under it created, never Documents itself | Fixed at the server's start; creating Documents when missing | OneDrive's folder backup can move Documents while the app runs for days; a folder fixed at start would leave backups outside OneDrive and out of the pilot's sight, and a recreated Documents would hide them in a folder Explorer no longer shows. |
 | Bringing in a logbook | Through a restart: the copy and merged tracker state prepared beside the database, the server exiting with code 12, the next start checking for hops again and swapping before it opens anything | Swapping and reopening inside the running server | Most of the server's statements are prepared on its connection as modules load; a reopen would leave them bound to a closed connection, or need a rule every segment keeps. A swap before opening meets no open connection, no `-wal` or `-shm` of the old logbook and no backup running, and goes through the same opening, upgrade and backup rules as any start. |
 | What the swap replaces | Only a logbook with no hops, checked again at the swap; the replaced database and icons kept aside | Replacing whatever is there; deleting the replaced logbook | A hop logged while the copy was being made keeps the logbook it was logged in. A logbook with no hops may still hold aircraft created since install; kept aside, nothing is lost. |
@@ -1143,9 +1144,8 @@ logbook in a folder of its own, and the data locations as the server's inputs gi
 
 ### Open
 
-1. **Looking up Documents from the server** — Node has no call for Windows' known folders; reading the
-   user's `User Shell Folders` value from the registry and asking PowerShell for the folder are the
-   candidates, to be settled and checked against a Documents folder that OneDrive's folder backup has
+1. **Documents moved by OneDrive** — the lookup reads the `User Shell Folders` value (Decisions &
+   Alternatives); still to be checked against a Documents folder that OneDrive's folder backup has
    moved.
 2. **Worker threads in Electron's utility process** — the start-up work's worker thread with its own
    `node:sqlite` connection is still to be seen running in Electron 45's utility process; and the
@@ -1185,7 +1185,7 @@ logbook in a folder of its own, and the data locations as the server's inputs gi
   (`privateChannel`, `serveChannel`), [src/server/shutdown.ts](../../../src/server/shutdown.ts) (`shutDown`,
   `installStopSignals`), [src/server/app.ts](../../../src/server/app.ts)
   (`createApp`), [src/server/locations.ts](../../../src/server/locations.ts) (data locations),
-  [src/server/db.ts](../../../src/server/db.ts) (pragmas, `addColumnIfMissing`), [src/server/routes.ts](../../../src/server/routes.ts)
+  [src/server/db.ts](../../../src/server/db.ts) (pragmas), [src/server/schema.ts](../../../src/server/schema.ts) (the schema step, upgrade detection), [src/server/logbook-id.ts](../../../src/server/logbook-id.ts), [src/server/startup-work.ts](../../../src/server/startup-work.ts) and [startup-worker.ts](../../../src/server/startup-worker.ts) (the start-up work), [src/server/backup.ts](../../../src/server/backup.ts), [backup-service.ts](../../../src/server/backup-service.ts), [backup-queue.ts](../../../src/server/backup-queue.ts) and [documents.ts](../../../src/server/documents.ts) (backups), [src/server/logbook-import.ts](../../../src/server/logbook-import.ts) (bringing in a logbook), [src/server/routes.ts](../../../src/server/routes.ts)
   (helpers 28-62, `/status` 885, error handlers 887-903), [src/client/api.ts](../../../src/client/api.ts)
   (`req`), [src/client/App.tsx](../../../src/client/App.tsx) (layout, hand-offs to the drawers
   (`openDrawer`), loading, error banner), [src/client/layout.ts](../../../src/client/layout.ts) (panel
@@ -1203,10 +1203,14 @@ logbook in a folder of its own, and the data locations as the server's inputs gi
   [package.json](../../../package.json), [vite.config.ts](../../../vite.config.ts), `tsconfig*.json`,
   [.gitignore](../../../.gitignore), [scripts/make-ico.mjs](../../../scripts/make-ico.mjs),
   [README.md](../../../README.md), [CLAUDE.md](../../../CLAUDE.md)
-- Code (planned): the server's inputs, start order and start-up worker, the request checks, the
-  private channel and shutdown, backups, the data folder's lock and bringing in a logbook, in
-  `src/server/`; the page's starting state, **Bring in a logbook** drawer, hand-off fragment and version
-  check in `src/client/`
+- Code (the page's server-facing parts): [src/client/notices.ts](../../../src/client/notices.ts)
+  (the starting, airport-data and version texts and the page's polling times),
+  [src/client/navigation.ts](../../../src/client/navigation.ts) (reloading, the hand-off fragment),
+  [src/client/version.ts](../../../src/client/version.ts) (the version built into the page),
+  [src/client/components/BringIn.tsx](../../../src/client/components/BringIn.tsx) (the **Bring in a
+  logbook** drawer); the server's inputs, start order and start-up worker, the request checks, the
+  private channel and shutdown, backups, the data folder's lock and bringing in a logbook are in
+  `src/server/` (the arrow's Code list)
 - Tests: [vitest.config.ts](../../../vitest.config.ts), [playwright.config.ts](../../../playwright.config.ts),
   [tsconfig.test.json](../../../tsconfig.test.json), [tests/support/](../../../tests/support/) (shared setup,
   fetch guard, data folders, test servers), [tests/fixtures/](../../../tests/fixtures/),

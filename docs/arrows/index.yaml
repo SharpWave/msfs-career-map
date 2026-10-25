@@ -1,5 +1,5 @@
 schema_version: 2
-last_updated: 2026-10-24
+last_updated: 2026-10-25
 
 # Depth-2 mapping with one sub-HLD: every node sits directly under docs/high-level-design.md except
 # shell, start-lists and distribution, the segments under the desktop sub-HLD
@@ -14,7 +14,7 @@ arrows:
     blocks: [tour-map, planner, live-tracking, flight-panel]
     blockedBy: [fleet, airports]
     detail: logbook.md
-    next: "Add tests for the 34 implemented LOG specs that have none, first those the desktop app relies on (LOG-REC-013 to 016, LOG-FORM-008), then close the 7 gaps (atomic renumber, server-side time checks, tracked-hop corrections, sim-clock times, card errors)"
+    next: "Add tests for the 34 implemented LOG specs that have none, first those the desktop app relies on (LOG-REC-013 to 016, LOG-FORM-008), then close the 6 gaps (atomic renumber, server-side time checks, tracked-hop corrections, card errors)"
     drift: null
 
   fleet:
@@ -38,8 +38,8 @@ arrows:
     blocks: [logbook, tour-map, planner, live-tracking, flight-panel, shell, distribution]
     blockedBy: []
     detail: airports.md
-    next: "Close the must-fix gaps test-first, which the desktop app's first release relies on: airport preparation after the server listens and before the sim link, downloading only a list an import needs (APT-DATA-001, 002, 017, 018, 020 to 026), bounded downloads under temporary names (APT-DATA-019) and the official-site link (APT-POP-007); then keep airports that hops reference across re-imports (APT-DATA-007 to 009), landing with or before the daily check and monthly refresh (APT-DATA-003 to 005); then the other 5 gaps (nearest across 180°, Wikipedia fallback on network errors, latest search results only, expired METAR entries, blurb cut at a sentence) and tests for the 38 implemented APT specs"
-    drift: "LLD and specs cascaded 2026-10-23 from the desktop app's HLD, design and edge audit; the code lags them: it prepares airport data before listening and exits when an offline first run cannot download a list, seeds nothing, records no download times, cannot turn downloads off, imports in one synchronous step, never refreshes the lists, downloads with no time limit straight into place, links the raw home_link and keeps expired METAR entries (APT-DATA-001 to 005, 017 to 026, APT-POP-007, APT-WX-010)"
+    next: "Close the official-site link test-first (APT-POP-007), which the desktop shell relies on; then the other 5 gaps (nearest across 180°, Wikipedia fallback on network errors, latest search results only, expired METAR entries, blurb cut at a sentence) and tests for the 33 implemented APT specs that have none; see the monthly refresh run against the real OurAirports lists"
+    drift: null
 
   tour-map:
     status: MAPPED
@@ -62,7 +62,7 @@ arrows:
     blocks: []
     blockedBy: [logbook, fleet, airports, tour-map, simbrief, live-tracking]
     detail: planner.md
-    next: "Add tests for the 53 implemented PLAN specs that have none, then close the 12 gaps (12,500 ft oxygen altitude, METARs for small ICAO fields, full result total, cruise-altitude label, terrain cache bounded without dropping a point in use, METAR freshness test for a page left open, keep the plan across a reconnect but drop it and the handed destination when the reload brings a new hop — after LIVE-API-005 and app-shell's reload on a different logbook); settle LLD Open 1 (credit Copernicus/Open-Meteo on the terrain line, awaiting the user)"
+    next: "Add tests for the 53 implemented PLAN specs that have none, then close the 10 gaps (12,500 ft oxygen altitude, METARs for small ICAO fields, full result total, cruise-altitude label, terrain cache bounded without dropping a point in use, METAR freshness test for a page left open); settle LLD Open 1 (credit Copernicus/Open-Meteo on the terrain line, awaiting the user)"
     drift: null
 
   live-tracking:
@@ -74,8 +74,8 @@ arrows:
     blocks: [planner, flight-panel, simbrief, shell, distribution]
     blockedBy: [logbook, fleet, airports, tour-map]
     detail: live-tracking.md
-    next: "Close the 26 gaps test-first: first the PC-wide sim-link claim with link_holder and its release at shutdown, the sim's clock and the remaining leg rules — legs under a minute, paused time, the parked-airport tie-break, the live leg's statistics (LIVE-LINK-001, 008, 010, 011, 014, 015, LIVE-API-006, 013, LIVE-REC-003, 004, LIVE-LEG-013, 014, LIVE-NAME-002); then pausing tracking for an import and the merged checkpoint, with app-shell's import (LIVE-LINK-017, LIVE-API-015, 016, LIVE-SAVE-008 to 011, 015, LIVE-HOP-007, LIVE-CASUAL-013); the page's reload on a reconnect (LIVE-API-005) and the pending-leg hand-off (LIVE-CARD-015); settle whether PANEL-OPEN-002 gates merging (live-tracking.md Key Findings 1); then tests for the 29 implemented LIVE specs that have none"
-    drift: "The code does the LLD but for the PC-wide sim-link claim (so link_holder is always null and nothing stops two servers on the sim link at once), the sim's clock, legs under a minute, paused time, the parked-airport tie-break, the live leg's statistics, the import pause and merged checkpoint, and the page's reload on a reconnect; a pending-leg profile waits on flight-panel's PANEL-OPEN-002"
+    next: "Fly the sim-link claim and the sim's clock beside a real MSFS; add tests for the 25 implemented LIVE specs that have none, LIVE-HOP-001's takeoff time first; refresh the LLD's code line links"
+    drift: null
 
   flight-panel:
     status: MAPPED
@@ -86,7 +86,7 @@ arrows:
     blocks: []
     blockedBy: [logbook, fleet, airports, live-tracking]
     detail: flight-panel.md
-    next: "Close the 12 gaps test-first — pending legs in the panel (PANEL-OPEN-002, PANEL-OPEN-006, PANEL-HEAD-005, PANEL-STAT-003), opening the flight named in the page's address (PANEL-OPEN-009 to 011, with app-shell's fragment route), the live-panel guard (PANEL-OPEN-013, PANEL-OPEN-014), the live flight card, the live header after touchdown and the scale wording — then add tests for the 23 implemented PANEL specs that have none, PANEL-CHART-009 and PANEL-OPEN-012 first"
+    next: "Close the 3 gaps test-first (the live flight card, PANEL-STAT-002; landed in the live header, PANEL-HEAD-004; the G wording, PANEL-LAND-004); add tests for the 22 implemented PANEL specs that have none, PANEL-CHART-009 and PANEL-OPEN-012 first"
     drift: null
 
   simbrief:
@@ -161,5 +161,5 @@ arrows:
     blocks: []
     blockedBy: []
     detail: app-shell.md
-    next: "Tests first, then code, for the logbook's side of the desktop app's server work: the start-up worker off the event loop (APP-SRV-010); the logbook's id, upgrade detection in one transaction and the older-server test (APP-DATA-004 to 006, 009; APP-API-004, 008); backups with the private channel's backup request (APP-BAK-001 to 011; APP-SRV-014, 022); bringing in a logbook with exit 12 and its shutdown steps (APP-IMP-001 to 005; APP-SRV-001, 015, 016, 023); then airport preparation in detail with airports (APP-SRV-001, 008, 012; APP-API-009, 010) and one User-Agent (APP-API-005); then the page (APP-UI-030 to 042). Remove start.cmd and scripts/install-shortcut.ps1 once the installed app exists; add tests for the five implemented specs that have none."
-    drift: "The server process is built (inputs, listening first behind the start-up stand-in, /api/status from memory, request checks, the lock, the private channel's save and shutdown, the shutdown order, stop signals, exits, the development scripts and harness); not yet the start-up worker, the logbook's id, upgrade detection, backups, bringing in a logbook, airport preparation in detail, the User-Agent or the page's starting, hand-off and reload states (47 gaps)"
+    next: "Check by hand what the tests stand in for: the start-up worker in Electron's utility process and the bundle, the Documents lookup against a OneDrive-moved Documents folder, a real server restart under an open tab; remove start.cmd and scripts/install-shortcut.ps1 once the installed app exists; add tests for the four implemented specs that have none"
+    drift: null

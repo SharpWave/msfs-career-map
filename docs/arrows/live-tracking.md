@@ -26,14 +26,25 @@ run from source started without it), `sim_mode` and `sim_host` in the status wit
 whether a host names this PC (`isThisPc`); the server stopping the link first at shutdown, then the
 tracker's final checkpoint (app-shell's shutdown order), and saving on the private channel's
 request; the page opening its event stream again 3 s after it ends; the live card's pill and hints
-for each sim mode; `sim-fake` taking its airports wherever they appear and posting to 127.0.0.1.
+for each sim mode; `sim-fake` taking its airports wherever they appear and posting to 127.0.0.1;
+the PC-wide sim-link claim (`sim-link-claim.ts`), taken once SimConnect opens on a link to this PC,
+answered with the holder and its data folder, released when the connection ends or the link stops,
+checked before every attempt with a silent holder counted after 1 s, and its holder in the status as
+`link_holder`; the sim's clock read in a definition of its own and carried by each sample, with
+hops and pending legs recording takeoff and touchdown on it (logbook's sim-clock columns); legs under
+a minute of flight time dropped; paused time left out of the takeoff and stop timers and of flight
+time; the parked airport preferred on a near-tie at takeoff; the live leg's statistics in the status;
+tracking paused while a logbook is brought in (the link and its claim stopped, nothing taken, every
+change answered 409 "Bringing in a logbook") and resumed after an import that failed before its
+answer; the merged checkpoint written into the copy — this PC's flying kept with its plans copied
+and its pending legs' aircraft cleared, the source's pending legs added, its leg in progress kept as
+a pending leg "brought in from another logbook mid-leg", what cannot be read set aside, a source whose
+checkpoint cannot be read refused.
 
-Not built yet: the PC-wide sim-link claim, and with it `link_holder` and the claim's release at
-shutdown; the sim's clock; the remaining leg rules (legs under a full minute, paused time, the
-parked-airport tie-break) and the live leg's statistics; pausing tracking for an import and the
-merged checkpoint; the reload of the map and lists on a reconnect; the pending-leg hand-off; the
-flight panel showing a pending leg (flight-panel, PANEL-OPEN-002). One spec question is open (Key
-Findings 1).
+The page's side is built too: the map and lists reloaded on every reconnect after the first; a
+pending leg's **Profile** opening it in the flight panel; the card opening at a pending leg handed to
+it by the `#pending=` fragment. The claim and the sim's clock have run only against stand-ins of
+SimConnect and the other copy, not yet beside a real MSFS.
 
 LIVE-HOP-001 and LIVE-HOP-004 keep a leg's takeoff time in its hop exactly as the status gave it,
 which the flight panel relies on (PANEL-OPEN-014). LIVE-LINK-012 and LIVE-LINK-013 own the sim
@@ -56,8 +67,13 @@ them (LIVE-LINK-011, LIVE-SAVE-004, 005, LIVE-CASUAL-013, 015).
 
 ### Tests
 - tests/live-tracking/sim-link.test.ts — LIVE-LEG-012, LIVE-LINK-005, 009 (the link driven through `fake-sim.ts`, a stand-in node-simconnect)
-- tests/live-tracking/stopping.test.ts — LIVE-LINK-007, 011, 016; LIVE-LEG-008; LIVE-CASUAL-013, 014; LIVE-SAVE-005 (the link's `stop()` reaching the tracker as nothing, then the tracker's `shutdown()`; LIVE-LINK-011 without the claim's release; LIVE-LINK-007's quit-versus-close split and pause events, with the Sim and FlightLoaded events reaching the handlers untested)
-- tests/live-tracking/tracking.test.ts — LIVE-LINK-002, 003, 011, 012, 013; LIVE-API-004, 013; LIVE-LEG-008; LIVE-CASUAL-014 (`startTracking` over `fake-sim.ts`: the mode, host and port reaching the link, fake and off starting none, `sim_host` with the this-PC rule, the quit flag; LIVE-API-013 without `link_holder`)
+- tests/live-tracking/stopping.test.ts — LIVE-LINK-007, 011, 016; LIVE-LEG-008; LIVE-CASUAL-013, 014; LIVE-SAVE-005 (the link's `stop()` reaching the tracker as nothing, then the tracker's `shutdown()`; LIVE-LINK-007's quit-versus-close split and pause events, with the Sim and FlightLoaded events reaching the handlers untested)
+- tests/live-tracking/tracking.test.ts — LIVE-LINK-002, 003, 011, 012, 013; LIVE-API-004, 013; LIVE-LEG-008; LIVE-CASUAL-014 (`startTracking` over `fake-sim.ts`, each on a private claim pipe: the mode, host and port reaching the link, fake and off starting none, `sim_host` with the this-PC rule, the quit flag)
+- tests/live-tracking/sim-link-claim.test.ts — LIVE-LINK-001, 010, 011, 014, 015; LIVE-API-013; LIVE-TOOL-004 (the claim on a private pipe, the other copy played by the test: taken, answered, released, checked at each retry, a silent holder, the race between check and take, none off the link to this PC)
+- tests/live-tracking/sim-clock.test.ts — LIVE-LINK-008, LIVE-REC-004, LOG-REC-002 (the clock record read and moved on to each sample; hops, pending legs and the checkpoint carrying sim-clock times; the columns and the hop API)
+- tests/live-tracking/merged-checkpoint.test.ts — LIVE-SAVE-008, 009, 010, 011, 015; LIVE-HOP-007; LIVE-BIND-001 (`writeMergedCheckpoint` with a real source checkpoint, `checkpointProblem`)
+- tests/live-tracking/import-pause.test.ts — LIVE-LINK-011, 017; LIVE-API-015, 016 (the tracker and `startTracking`'s link paused and resumed)
+- tests/live-tracking/leg-rules.test.ts — LIVE-LEG-013, 014; LIVE-REC-003; LIVE-NAME-001, 002; LIVE-API-006 (legs under a minute, pauses in the timers and the flight time, the parked airport on a near-tie, the statistics so far)
 - tests/live-tracking/short-records.test.ts — LIVE-LINK-018 (records shorter than their definition, per definition and per connection)
 - tests/live-tracking/pending-legs.test.ts — LIVE-HOP-003, 007; LIVE-BIND-003; LIVE-LEG-008, 016; LIVE-API-014 (the pending list, binding with legs waiting, a disconnect in flight, a leg restored in the air)
 - tests/live-tracking/restored-leg.test.ts — LIVE-LEG-012, 016; LIVE-HOP-007 (a restored leg resumed on reconnect, kept with its reason when the connection ends before the first sample, kept restored when the server stops the link)
@@ -67,12 +83,13 @@ them (LIVE-LINK-011, LIVE-SAVE-004, 005, LIVE-CASUAL-013, 015).
 - tests/live-tracking/set-aside.test.ts — LIVE-SAVE-002, 013, 014 (a damaged pending leg or leg in progress set aside alone, the rest restored and written back in one transaction)
 - tests/live-tracking/shutting-down.test.ts — LIVE-API-016; LIVE-SAVE-004, 005 (the tracker after `shutdown()`, and the eight guarded routes against a test server, a SimBrief import already past the guard archiving nothing; LIVE-API-016 without LIVE-API-015's 409)
 - tests/live-tracking/tracker-api.test.ts — LIVE-API-001, 003, 007, 013, 014; LIVE-HOP-004; LIVE-LEG-007; LIVE-BIND-002; LIVE-SAVE-006; APP-API-001 (against a running test server; refusals answered 400 or 409 and a failed write 500)
-- tests/live-tracking/live-card.test.tsx — LIVE-CARD-001, 003, 005, 006, 008, 010, 011, 012, 013, 014; LIVE-BIND-003 (LIVE-CARD-010 as far as **Profile** calling `onOpenPending`)
+- tests/live-tracking/live-card.test.tsx — LIVE-CARD-001, 003, 005, 006, 008, 010, 011, 012, 013, 014; LIVE-BIND-003
+- flight-panel's tests/flight-panel/pending-panel.test.tsx — LIVE-CARD-010 (**Profile** opening the leg in the panel); app-shell's tests/app-shell/page-fragment.test.tsx — LIVE-CARD-015; tests/app-shell/page-server.test.tsx — LIVE-API-005 (the reload on a reconnect)
 - tests/live-tracking/casual.test.ts — LIVE-CASUAL-001 to 015; LIVE-API-010, 011, 012; LIVE-LEG-002, 003 (the tracker driven by synthetic samples, through `pilot.ts`)
 - tests/live-tracking/logging.test.ts — LIVE-HOP-006, LIVE-API-014 (the "Logged" message after a bounce, after a touch-and-go, and for a pending leg logged)
 - tests/live-tracking/casual-api.test.ts — LIVE-API-008, 009, 011; LIVE-CASUAL-006, 009, 010 (against a running test server, including the event stream)
 - tests/live-tracking/casual-shapes.test.ts — LIVE-LAYER-004 (placing the casual path)
-- tests/live-tracking/use-tracker.test.tsx — LIVE-API-005, 011, 014; LIVE-CARD-009 (the page's event-stream hook, reopened 3 s after each end; LIVE-API-005 without the reload on a reconnect)
+- tests/live-tracking/use-tracker.test.tsx — LIVE-API-005, 011, 014; LIVE-CARD-009 (the page's event-stream hook, reopened 3 s after each end, each connection counted once its first status arrives)
 - tests/live-tracking/sim-fake-args.test.ts — LIVE-TOOL-003, 005
 - tests/app-shell/channel.test.ts — LIVE-SAVE-004, 005; LIVE-CASUAL-013, 015 (a server process: the private channel's save and Shut down, the stop signals keeping casual mode, `--fresh-run`)
 - tests/app-shell/shutdown.test.ts — LIVE-LINK-011; LIVE-SAVE-004, 005; LIVE-CASUAL-013 (the shutdown order in process: the link stopped before the final checkpoint, a landed leg kept landed and not rated again)
@@ -82,9 +99,11 @@ them (LIVE-LINK-011, LIVE-SAVE-004, 005, LIVE-CASUAL-013, 015).
 - tests/live-tracking/pilot.ts, state.ts, fake-sim.ts; tests/support/event-stream.ts, page-data.ts, server-process.ts — helpers (no specs of their own)
 
 ### Code
-- src/server/simconnect.ts — `startSimLink` (guarded handler calls, the quit flag, a record it cannot read dropped and counted, `stop()`)
-- src/server/tracker.ts — `Tracker` and its singleton, built with the fresh-run input and given the sim mode from the server's inputs; restoring with damaged parts set aside; `saveNow`, `shutdown`, `isShutDown`, `ShuttingDown`
-- src/server/tracking.ts — `startTracking` (the sim mode, `sim_host`, the link wired to the tracker with the quit flag; the sim-link claim to come, its pipe name already a parameter)
+- src/server/simconnect.ts — `startSimLink` (guarded handler calls, the quit flag, a record it cannot read dropped and counted, the sim's clock, the gate passed before each attempt and once SimConnect opens, `stop()`)
+- src/server/tracker.ts — `Tracker` and its singleton, built with the fresh-run input and given the sim mode from the server's inputs; restoring with damaged parts set aside; `saveNow`, `shutdown`, `isShutDown`, `ShuttingDown`; `leavePauseOut`, `flightMs`, `departureAirport`
+- src/server/tracking.ts — `startTracking` (the sim mode, `sim_host`, the link wired to the tracker with the quit flag, the sim-link claim as its gate, `link_holder`)
+- src/server/sim-link-claim.ts — `SIM_LINK_PIPE`, `checkClaim`, `takeClaim`
+- src/server/airports.ts — `nearestAirport`'s preferred airport (the parked-airport tie-break; airports owns the ranking)
 - src/server/this-pc.ts — `isThisPc`
 - src/server/inputs.ts, shutdown.ts, channel.ts — app-shell's modules, where the sim input is read (LIVE-LINK-012, 013), the link stopped before the tracker's final checkpoint (LIVE-LINK-011, LIVE-SAVE-005, LIVE-CASUAL-013) and the save request handed to `saveNow` (LIVE-SAVE-004)
 - src/server/db.ts — `tracker_state`, `tracker_state_aside`, `transaction`
@@ -106,8 +125,8 @@ sim crash, a restart of the server or the app, or a second copy of the app on th
 
 **Key Components:**
 1. Sim mode — the sim input: the `--sim` start-up argument alone for the bundled server (LIVE-LINK-012); for a copy run from source, `--sim` when given, else the fake feed with `TRACKER_FAKE=1`, else off (LIVE-LINK-013); app-shell carries the argument among the server's inputs
-2. `startSimLink` (`simconnect.ts`) — connection, 1 Hz samples, frame-rate touchdown watcher, events (quit told from a lost connection), every handler call guarded, a record it cannot read dropped, stopping without a disconnect
-3. `startTracking` (`tracking.ts`) — the mode, the link wired to the tracker, `sim_host` by `isThisPc`; the PC-wide sim-link claim (to come), a named pipe held while linked; tracking paused and resumed around bringing in a logbook (to come)
+2. `startSimLink` (`simconnect.ts`) — connection, 1 Hz samples with the sim's clock, frame-rate touchdown watcher, events (quit told from a lost connection), every handler call guarded, a record it cannot read dropped, a gate before each connection, stopping without a disconnect
+3. `startTracking` (`tracking.ts`) — the mode, the link wired to the tracker, `sim_host` by `isThisPc`; the PC-wide sim-link claim (`sim-link-claim.ts`), a named pipe held while linked; tracking paused and resumed around bringing in a logbook (to come)
 4. `Tracker.feed` — phases, takeoff / landing / stop, interruptions, the restored-leg rule
 5. `complete` / `keepLeg` / `logHop` / pending legs — logging or parking a finished leg or one ended in the air (marked `ended_in_air`); hop and checkpoint in one transaction
 6. Checkpoint — `tracker_state` row: saves at phase changes, on request (`saveNow`) and at shutdown (`shutdown`, after which the pilot's actions are refused); restored at startup, the smallest part it cannot read set aside in `tracker_state_aside`; merged when a logbook is brought in (to come)
@@ -119,94 +138,42 @@ sim crash, a restart of the server or the app, or a second copy of the app on th
 
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
-| Sim link | LIVE-LINK-001 to 018 | 11 | 0 | 7 |
-| Leg detection | LIVE-LEG-001 to 016 | 14 | 0 | 2 |
-| Naming the airports | LIVE-NAME-001 to 003 | 2 | 0 | 1 |
+| Sim link | LIVE-LINK-001 to 018 | 18 | 0 | 0 |
+| Leg detection | LIVE-LEG-001 to 016 | 16 | 0 | 0 |
+| Naming the airports | LIVE-NAME-001 to 003 | 3 | 0 | 0 |
 | Landings and rating | LIVE-LAND-001 to 004 | 4 | 0 | 0 |
-| What a leg records | LIVE-REC-001 to 005 | 3 | 0 | 2 |
+| What a leg records | LIVE-REC-001 to 005 | 5 | 0 | 0 |
 | Binding | LIVE-BIND-001 to 003 | 3 | 0 | 0 |
-| Logging and pending legs | LIVE-HOP-001 to 007 | 6 | 0 | 1 |
-| Checkpointing | LIVE-SAVE-001 to 015 | 10 | 0 | 5 |
-| Casual mode | LIVE-CASUAL-001 to 015 | 14 | 0 | 1 |
-| API and event stream | LIVE-API-001 to 016 | 11 | 0 | 5 |
-| Live card | LIVE-CARD-001 to 015 | 13 | 0 | 2 |
+| Logging and pending legs | LIVE-HOP-001 to 007 | 7 | 0 | 0 |
+| Checkpointing | LIVE-SAVE-001 to 015 | 15 | 0 | 0 |
+| Casual mode | LIVE-CASUAL-001 to 015 | 15 | 0 | 0 |
+| API and event stream | LIVE-API-001 to 016 | 16 | 0 | 0 |
+| Live card | LIVE-CARD-001 to 015 | 15 | 0 | 0 |
 | Live aircraft on the map | LIVE-LAYER-001 to 004 | 4 | 0 | 0 |
 | Development tools | LIVE-TOOL-001 to 005 | 5 | 0 | 0 |
 
-**Summary:** 100 of 126 specs implemented; 26 gaps; none deferred. 71 implemented specs have tests.
-Tests also cite 7 gaps, checking the part built so far: LIVE-API-005, 013, 016; LIVE-CARD-010;
-LIVE-CASUAL-013; LIVE-HOP-007; LIVE-LINK-011.
-
-The 26 gaps by what they wait for:
-- **The sim-link claim, the sim's clock and the remaining leg rules** (13): LIVE-LINK-001, 010, 014,
-  015; LIVE-LINK-011's release of the claim; LIVE-API-013's `link_holder`; LIVE-LINK-008 and
-  LIVE-REC-004; LIVE-LEG-013, 014; LIVE-REC-003; LIVE-NAME-002; LIVE-API-006.
-- **Bringing in a logbook** (10): LIVE-LINK-017; LIVE-API-015; LIVE-SAVE-008 to 011, 015; a
-  brought-in leg's mark (LIVE-HOP-007); the import's shutdown keeping casual mode (LIVE-CASUAL-013);
-  the shutdown 503 coming after the import's 409 (LIVE-API-016).
-- **The page** (3): the reload of the map and lists on a reconnect (LIVE-API-005); a pending leg's
-  profile, with flight-panel's PANEL-OPEN-002 (LIVE-CARD-010); the pending-leg hand-off, with
-  app-shell's APP-UI-032 and 033 (LIVE-CARD-015).
+**Summary:** all 126 specs implemented; none deferred. 101 have tests.
 
 ## Key Findings
 
-1. **A pending leg's Profile opens nothing.** Each block's **Profile** calls `onOpenPending(id)`
-   (LIVE-CARD-010 open), and App passes a no-op (App.tsx:393) until the flight panel can show a
-   pending leg (PANEL-OPEN-002). Needs a decision: make PANEL-OPEN-002 a condition for merging or
-   releasing, or make `onOpenPending` optional and show **Profile** only when it is given.
-2. **Nothing stops two servers on the PC logging the same flight.** The PC-wide sim-link claim is
-   neither taken nor checked, `link_holder` is always null, and the shutdown order has no claim to
-   release (LIVE-LINK-001, 010, 011, 014, 015, LIVE-API-013). Only a copy run from source started
-   with `--sim=link` links beside the installed app, so the risk is the developer's own. What the
-   claim will use is in place: `isThisPc` decides which links take and check it, and
-   `startTracking` already takes the pipe's name as a parameter that tests set to a private one.
-3. **A reconnect reloads nothing.** The page opens its event stream again 3 s after it ends, a 503
-   while a server starts included, and takes the full state, but leaves the map and the lists as
-   they were (LIVE-API-005), so a hop logged while the stream was away appears only after a reload.
-4. **Legs of 30–59 s are kept** despite the one-minute minimum (tracker.ts:1394-1395, LIVE-LEG-013),
-   and paused time counts toward flight time and the takeoff and stop timers (LIVE-REC-003,
-   LIVE-LEG-014).
-5. **The LLD's code line links** point at the right places for the sim mode, the claim's module,
+1. **Not yet flown beside a real MSFS:** the sim-link claim (two servers on `--sim=link` at once)
+   and the sim's clock (the ZULU variables' units and values as MSFS 2024 reports them). The tests
+   play SimConnect and the other copy with stand-ins.
+2. **The LLD's code line links** point at the right places for the sim mode, the claim's module,
    the interruptions and the deferred items, but many others predate later changes.
 
 ## Work Required
 
-### Must Fix — the desktop app's server groundwork
-1. The PC-wide sim-link claim: the named pipe `\\.\pipe\msfs-career-map-sim-link` taken when
-   SimConnect opens on a link to a sim on this PC and released when the connection ends or the link
-   stops, the shutdown order releasing it (LIVE-LINK-010, 011); answering each check with one JSON
-   line naming the holder (`"installed"` from the bundled server, `"source"` from a copy run from
-   source) and its data folder; no SimConnect opened while another server holds it, checking again
-   at each 10 s retry, a silent holder counted after 1 s, and a connection closed at once with
-   nothing passed to the tracker when the claim cannot be taken (LIVE-LINK-001, 014); none for the
-   fake feed, off or a sim on another PC (LIVE-LINK-015); `link_holder` from a real check
-   (LIVE-API-013), which the live card already shows. Test-first, every in-process test on a
-   private pipe name and no process test on `--sim=link`; a test that sim-probe takes no claim
-   (LIVE-TOOL-004).
-2. The sim's clock: the link reading the sim's zulu date and time, and each leg recording its
-   takeoff and touchdown on it as well as the real one (LIVE-LINK-008, LIVE-REC-004; with
-   LOG-REC-002).
-3. The remaining leg rules: legs under a full minute dropped (LIVE-LEG-013); paused time left out
-   of flight time and the takeoff and stop timers (LIVE-REC-003, LIVE-LEG-014); the parked airport
-   preferred on a near-tie at takeoff (LIVE-NAME-002); the live leg's statistics so far sent for
-   the flight panel (LIVE-API-006).
-4. Bringing in a logbook: tracking paused and, after a failed import, resumed; changes refused while
-   paused, with LIVE-API-016's 503 after that 409; the merged checkpoint, with the source's leg in
-   progress kept with its aircraft and briefing and its legs marked `ended_in_air`; refused when the
-   source's cannot be read as a whole; the import's shutdown keeping casual mode (LIVE-LINK-017,
-   LIVE-API-015, LIVE-SAVE-008 to 011, 015, LIVE-HOP-007, LIVE-CASUAL-013), with app-shell's import
-   (APP-IMP-002, APP-IMP-003).
-5. The page reloading the map and lists on every reconnect after the first, leaving the planner's
-   results to the planner (LIVE-API-005; the version reload is app-shell's, APP-UI-036).
-6. The pending-leg hand-off opening the card on that leg (LIVE-CARD-015), with app-shell's fragment
-   (APP-UI-032, APP-UI-033).
+### Must Fix
+*(none)*
 
 ### Should Fix
-7. Settle whether PANEL-OPEN-002 gates merging this branch (Key Findings 1), then build what it
-   decides.
-8. Add tests for the 29 implemented specs that have none — first LIVE-HOP-001's takeoff time (a hop
+1. Fly the claim and the sim's clock beside a real MSFS (Key Findings 1): two servers on
+   `--sim=link` in separate data folders, the second waiting with "linked to another copy"; a hop's
+   sim-clock times against the sim's own clock.
+2. Add tests for the 25 implemented specs that have none — first LIVE-HOP-001's takeoff time (a hop
    logged at once carries, as `departed_at`, the string the status gave as `leg.departed_at`; the
    flight panel relies on it, PANEL-OPEN-014) — one that the link passes the Sim and FlightLoaded
    events on (LIVE-LINK-007), and one that discarding a pending leg writes the checkpoint before
    deleting its briefing (LIVE-HOP-005).
-9. Refresh the rest of the LLD's code line links (Key Findings 5).
+3. Refresh the rest of the LLD's code line links (Key Findings 2).
