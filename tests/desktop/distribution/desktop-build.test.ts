@@ -3,7 +3,8 @@
  * real esbuild and never Vite:
  * - the server bundled into an ES module, `server.mjs`, with its start-up worker beside it as a second
  *   one, `startup-worker.mjs`, both with a `require` shim and the version built in
- *   (DESK-DIST-PKG-009), node-simconnect left out of the bundle (DESK-DIST-PKG-010, the bundle's half);
+ *   (DESK-DIST-PKG-009), node-simconnect left out of the bundle and put beside it in the output's
+ *   `node_modules` with its own dependencies and their licences (DESK-DIST-PKG-010);
  * - the shell bundled into one CommonJS file, `main.cjs`, with the version built in
  *   (DESK-DIST-PKG-011);
  * - the page build copied from `dist/` into the desktop build output as `page/`, nothing else there
@@ -21,11 +22,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import { answerFetch } from "../../support/fetch-guard.ts";
+import { createRequire } from "node:module";
 import {
   buildDesktop,
   bundleServer,
   bundleShell,
   copyPage,
+  copyServerLibraries,
   electronCommand,
   seedLists,
   writeAppManifest,
@@ -238,6 +241,48 @@ describe("the page in the desktop build output", () => {
     ).rejects.toThrow();
     expect(read(path.join(out, "page", "index.html"))).toBe("<!doctype html><title>MSFS Career Map</title>");
     expect(fs.readdirSync(out)).toEqual(["page"]);
+  });
+});
+
+describe("the server's libraries in the desktop build output", () => {
+  const LIBRARIES = ["debug", "ini", "ms", "node-simconnect"];
+  const licenceOf = (folder: string) => fs.readdirSync(folder).find((f) => /^licen[cs]e/i.test(f));
+
+  // @spec DESK-DIST-PKG-010
+  it("are node-simconnect and its own dependencies, as separate files with their licences, outside any bundle", () => {
+    const out = tempFolder("desktop-out-");
+    copyServerLibraries(REPO, out);
+    expect(fs.readdirSync(path.join(out, "node_modules")).sort()).toEqual(LIBRARIES);
+    for (const name of LIBRARIES) {
+      const folder = path.join(out, "node_modules", name);
+      expect(JSON.parse(read(path.join(folder, "package.json"))).name).toBe(name);
+      expect(licenceOf(folder), name).toBeDefined();
+      expect(fs.existsSync(path.join(folder, "node_modules")), name).toBe(false);
+    }
+    const simconnect = path.join(out, "node_modules", "node-simconnect");
+    expect(read(path.join(simconnect, licenceOf(simconnect)!))).toMatch(/GNU LESSER GENERAL PUBLIC LICENSE/);
+    expect(fs.existsSync(path.join(simconnect, "dist"))).toBe(true);
+    expect(fs.existsSync(path.join(simconnect, "samples"))).toBe(false);
+  });
+
+  // @spec DESK-DIST-PKG-010
+  it("are found by the server bundle from the build output itself, not from the repository", () => {
+    const out = tempFolder("desktop-out-");
+    copyServerLibraries(REPO, out);
+    const resolved = createRequire(path.join(out, "server.mjs")).resolve("node-simconnect");
+    expect(path.relative(out, resolved).startsWith(path.join("node_modules", "node-simconnect"))).toBe(true);
+  });
+
+  // @spec DESK-DIST-PKG-010
+  it("replace an older copy whole", () => {
+    const out = tempFolder("desktop-out-");
+    const stale = path.join(out, "node_modules", "node-simconnect", "stale.js");
+    fs.mkdirSync(path.dirname(stale), { recursive: true });
+    fs.writeFileSync(stale, "old");
+    fs.mkdirSync(path.join(out, "node_modules", "left-over"), { recursive: true });
+    copyServerLibraries(REPO, out);
+    expect(fs.existsSync(stale)).toBe(false);
+    expect(fs.readdirSync(path.join(out, "node_modules")).sort()).toEqual(LIBRARIES);
   });
 });
 

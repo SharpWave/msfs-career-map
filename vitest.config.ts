@@ -19,7 +19,7 @@ export default defineConfig({
         test: {
           name: "node",
           include: ["tests/**/*.test.ts"],
-          exclude: ["tests/e2e/**", "tests/desktop/**"],
+          exclude: ["tests/e2e/**", "tests/desktop/**", "tests/installer/**", "tests/packaged/**"],
           environment: "node",
           globalSetup: ["tests/support/global-setup.ts"],
           setupFiles: ["tests/support/setup-node.ts"],

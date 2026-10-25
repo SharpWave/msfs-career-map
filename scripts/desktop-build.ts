@@ -27,7 +27,7 @@ export function buildOptions(argv: readonly string[]): BuildOptions {
   return { repo, out: path.join(repo, "build", "desktop"), version, fresh: argv.includes("--fresh") };
 }
 
-/** Everything below, in this order: page, server bundle, shell bundle, seed lists, icons, app manifest. */
+/** Everything below, in this order: page, server bundle and its libraries, shell bundle, seed lists, icons, app manifest. */
 // @spec DESK-DIST-DEV-001
 export async function buildDesktop(o: BuildOptions): Promise<void> {
   const log = o.log ?? ((line: string) => console.log(line));
@@ -35,6 +35,8 @@ export async function buildDesktop(o: BuildOptions): Promise<void> {
   log(`[desktop] page copied into ${path.join(o.out, "page")}`);
   await bundleServer(o.repo, o.out, o.version);
   log("[desktop] server bundled: server.mjs, startup-worker.mjs");
+  const libraries = copyServerLibraries(o.repo, o.out);
+  log(`[desktop] server libraries copied: ${libraries.join(", ")}`);
   await bundleShell(o.repo, o.out, o.version);
   log("[desktop] shell bundled: main.cjs");
   const lists = await seedLists(o.out, o.fresh, log);
@@ -42,6 +44,36 @@ export async function buildDesktop(o: BuildOptions): Promise<void> {
   writeIcons(o.repo, o.out);
   writeAppManifest(o.out, o.version);
   log(`[desktop] built ${o.version} into ${o.out}`);
+}
+
+/** Folders of a library package that the server never loads. */
+const LIBRARY_LEFT_OUT = new Set(["node_modules", "samples", "examples", "test", "tests", "docs"]);
+
+/**
+ * node-simconnect, which the server bundle leaves out, and its own production dependencies, copied from
+ * the repository's node_modules into the output's `node_modules` (replacing what was there) as separate
+ * files with their licences, so Node finds them beside `server.mjs` and the library can be replaced.
+ * Returns the packages copied, sorted.
+ */
+// @spec DESK-DIST-PKG-010
+export function copyServerLibraries(repo: string, out: string): string[] {
+  const modules = path.join(out, "node_modules");
+  fs.rmSync(modules, { recursive: true, force: true });
+  const copied = new Set<string>();
+  const queue = ["node-simconnect"];
+  while (queue.length > 0) {
+    const name = queue.shift()!;
+    if (copied.has(name)) continue;
+    const from = path.join(repo, "node_modules", name);
+    const manifest = JSON.parse(fs.readFileSync(path.join(from, "package.json"), "utf8")) as { dependencies?: Record<string, string> };
+    fs.cpSync(from, path.join(modules, name), {
+      recursive: true,
+      filter: (src) => path.dirname(src) !== from || !LIBRARY_LEFT_OUT.has(path.basename(src)),
+    });
+    copied.add(name);
+    queue.push(...Object.keys(manifest.dependencies ?? {}));
+  }
+  return [...copied].sort();
 }
 
 /** The page build in `dist/` copied whole into the output as `page/`, replacing an older copy. */

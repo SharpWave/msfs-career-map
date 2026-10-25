@@ -43,6 +43,22 @@ export function processPathArgs(pid: number): string[] {
   return ["-NoProfile", "-NonInteractive", "-Command", `(Get-Process -Id ${pid} -ErrorAction SilentlyContinue).Path`];
 }
 
+/** PowerShell's ids of this user's processes whose program lies inside `folder` (another user's has no readable Path). */
+export function processesInArgs(folder: string): string[] {
+  const prefix = `${folder.replace(/\\+$/, "")}\\`.replace(/'/g, "''");
+  return [
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    `Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith('${prefix}', [System.StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $_.Id }`,
+  ];
+}
+
+/** One process id per line; anything else passed over. */
+export function parseProcessIds(stdout: string): number[] {
+  return stdout.split(/\r?\n/).flatMap((line) => (/^\s*\d+\s*$/.test(line) ? [Number(line)] : []));
+}
+
 export function driveTypeArgs(letter: string): string[] {
   return ["-NoProfile", "-NonInteractive", "-Command", `[System.IO.DriveInfo]::new('${letter}').DriveType`];
 }
@@ -80,7 +96,7 @@ function run(file: string, args: readonly string[]): Promise<{ ok: true; stdout:
 }
 
 /** The real WindowsFacts, by tasklist, PowerShell and netsh. */
-// @spec DESK-SHELL-AWAY-001, DESK-SHELL-SRV-029, DESK-SHELL-SRV-034
+// @spec DESK-SHELL-AWAY-001, DESK-SHELL-SRV-029, DESK-SHELL-SRV-034, DESK-DIST-INST-030
 export function windowsFacts(env: Env): WindowsFacts {
   const user = windowsUser(env);
   return {
@@ -108,6 +124,10 @@ export function windowsFacts(env: Env): WindowsFacts {
     async isFixedDrive(letter) {
       const r = await run("powershell.exe", driveTypeArgs(letter));
       return r.ok && isFixedDriveOutput(r.stdout);
+    },
+    async processesIn(folder) {
+      const r = await run("powershell.exe", processesInArgs(folder));
+      return r.ok ? parseProcessIds(r.stdout) : [];
     },
   };
 }

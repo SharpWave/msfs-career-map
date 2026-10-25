@@ -153,6 +153,20 @@ never lose each other's lines:
   install goes no further — renames it aside first, then reads and deletes the renamed file. The include
   does so before it starts the app, so that start never finds the install still under way.
 
+**The mark's form.** The mark is UTF-16LE text, begun with a byte-order mark by whoever writes it
+whole, each line one record ending in CR LF:
+
+- `process <id> <program path>` names a process the install belongs to: the desktop shell handing over,
+  or the installer;
+- `request <start>` is the start the desktop shell asks for once the install is done — `--updated`,
+  `--background` or `none` — the last such line counting;
+- `start <switches>` is a start made while the install ran, with the switches it was given: nothing,
+  `--updated` or `--background`.
+
+A reader passes over a line it does not know, so a later release can add records an older one ignores.
+Lines are appended whole, each in one write to a file opened for appending only, so writers at the same
+moment never interleave (Decisions & Alternatives: The mark's form).
+
 A start made during an install runs whichever program is then in the install folder, the old one as
 often as the new, and the desktop shell that hands over is the version already installed; the check for
 an install under way and the mark therefore ship in the first release, as the uninstaller's steps do (The
@@ -171,8 +185,9 @@ it protects installs from the release that brings it (Decisions & Alternatives: 
 installing; Open Questions 5 and 6).
 
 **Install folder.** The program is always installed in `%LOCALAPPDATA%\Programs\MSFS Career Map`. A
-different folder given on the installer's command line (`/D=`) stops the installer before it writes
-anything, so the uninstaller, which removes the install folder and everything in it, can never reach
+different folder given on the installer's command line (`/D=`) stops the installer before it installs
+anything, leaving nothing behind (electron-builder's start makes the folder given before any hook of the
+include runs, so the include takes it away again while it is empty), so the uninstaller, which removes the install folder and everything in it, can never reach
 the data folder, the backups folder or Electron's own folder.
 
 **Closing a running copy.** electron-builder's hook for this, `customCheckAppRunning`, replaces its own
@@ -241,17 +256,20 @@ steps takes effect one release late. The steps above therefore ship in the first
 ## Releases
 
 A release is built by a GitHub Actions workflow on `windows-latest` when a tag `v<version>` is pushed.
-A tag whose version differs from `package.json`'s fails the workflow before it builds anything, and no
-draft is made. For a matching tag the workflow runs:
+A tag `dry-run-v<version>` runs the same workflow as a rehearsal, from whichever branch it is on: every
+check, both packagings, the smoke test and the installer round trip, but no draft release, so the
+installer is tried on a clean runner before a version is released (Decisions & Alternatives: Trying the
+installer before a release). A tag of either kind whose version differs from `package.json`'s fails the
+workflow before it builds anything, and no draft is made. For a matching tag the workflow runs:
 
-1. `npm ci`, the type checks, the Vitest suites and the Playwright browser tests.
+1. `npm ci`, the type checks, the Vitest suites, the include's tests and the Playwright browser tests.
 2. Build the page, the server bundle and the desktop-shell bundle; download the seed airport lists
    afresh (`--fresh`).
 3. Package the app, unpacked and as the installer.
 4. Run the packaged smoke test against the unpacked build, and the installer round trip (Tests).
-5. Publish a draft GitHub release holding the installer, its blockmap (which lets electron-updater
-   download only the changed parts) and `latest.yml`, with release notes giving the installer's SHA-256
-   and naming the data and backups folders.
+5. For a `v<version>` tag only, publish a draft GitHub release holding the installer, its blockmap
+   (which lets electron-updater download only the changed parts) and `latest.yml`, with release notes
+   giving the installer's SHA-256 and naming the data and backups folders.
 
 The workflow uses only its own GitHub token. The maintainer publishes the draft by hand; installed
 copies see a release only once it is published. Releases are not code-signed (Open Questions): Windows
@@ -326,6 +344,16 @@ electron-builder configuration, and cover the check that only the installed prog
 mode: the program in the install folder runs, its path written in another case or not yet fully
 resolved included; an unpackaged Electron, a packaged build in `release/` and a copy of the program
 anywhere else are refused before either folder is set or the lock asked for.
+
+**The include's tests** (`tests/installer/`, `npm run test:installer`) build small test programs from
+the app's NSIS include with electron-builder's own NSIS and run them, each on a new temporary folder
+standing in for the install folder, electron-updater's download folder and the folders an install must
+leave alone. They install nothing: no registry key, shortcut or file outside that folder. They check the
+include's own steps where a developer's PC can run them — refusing another install folder, finding and
+closing a running copy (programs started from the stand-in install folder, while one of the same name
+elsewhere is left running), the install-under-way mark and the start after an install, the wait for
+`--unregister` and the uninstaller's last page for each of its outcomes — so a mistake in them shows
+before the round trip, which only the release workflow's runner can run.
 
 **The packaged smoke test** (`tests/packaged/`, `npm run test:packaged`) runs the unpacked packaged build
 in `release/` through Playwright's Electron support, once port 3280 is found free (Development), in test
@@ -471,8 +499,10 @@ design and specs say how. What the desktop parts share from other segments is in
 | The tray icons | Made by the desktop build scripts from `assets/career-map.ico`, the mark with each status dot drawn on at 16, 20, 24 and 32 px | Drawn by hand and kept in `assets/`; drawn by the desktop shell at run time | One mark to keep: a change to it reaches every tray icon at the next build, with no set of hand-made files to fall out of step. Made at build time, the icons are plain files the tray loads, with no drawing in the desktop shell and nothing made but kept in git. |
 | Console launcher and shortcut script | None: the installer's shortcuts start the app, `npm run dev` runs it from source | Keeping `start.cmd` for running from source; keeping the shortcut script | `npm run dev` covers development, and the installer makes the shortcuts. A copy run from source links to the sim only when started with `--sim=link` (`npm run dev:sim`), and never while another server holds the PC-wide sim-link claim ([Desktop › Relies On](../desktop-design.md#relies-on)), so a shortcut to one would start a copy that records no flight; the installed app's shortcuts are the only ones a pilot needs. |
 | A start during an install | The install-under-way mark in electron-updater's download folder, written by the desktop shell before it hands over or by the include for an installer run by hand, then only appended to; a start that finds it appends its command line there, looks again and exits; the mark taken up by renaming it aside before it is read; the include starts the app once at the end with the one that shows the most, the desktop shell's own request included | A separate process left waiting for the installer to end; holding Quit's install while the sim is in use; electron-updater's own start after the install; each start rewriting the mark; reading the mark in place and then deleting it | The installer runs to the end regardless, so it can start the app itself with no other process left behind, and the download folder lies outside the install folder the install replaces. Two starts at once — MSFS and Windows sign-in — each rewriting the mark would lose one, and a line added between a read in place and the delete would be lost; appending only, renaming aside before reading, and a start's second look lose none. Holding Quit's install while the sim is in use would only make installs rarer, and Quit is a moment the app stops anyway. electron-updater's own start after an install carries only `--updated`: it could neither bring the app back in the tray after a quiet-moment install nor carry a start made during the install, and two starters would start the app twice. |
+| The mark's form | UTF-16LE text, one record per line, appended whole | UTF-8 text; a JSON document | NSIS writes UTF-16LE natively, while its plain text output is the system code page, which loses characters a Windows user name, and so a program path, may hold. A line per record lets each writer add its own with one append, never reading or rewriting the file; a JSON document must be rewritten whole, losing what another writer added meanwhile. |
 | A session end while installing | The include's hidden window holds the session end with a reason until the install is done | A RunOnce entry that resumes the install at the next sign-in; nothing beyond the README's repair | Windows' shutdown screen then names the app and waits unless the pilot forces it, so a shutdown soon after a Quit, or while an update installs at a quiet moment, does not cut the install off between the old program's removal and the new one's arrival. The installer being run is the new release's, so the hold needs no release's delay. A RunOnce entry would add the app to Windows' start-up list without the pilot asking (A guest in the sim's house). Where electron-builder 26.18.0's NSIS cannot hold the session end, running the release's installer again repairs the install, as the README says. |
 | Releases | Draft releases built by GitHub Actions on a version tag, tested, with SHA-256 hashes; unsigned | Built on the maintainer's PC; signed | Builds are repeatable from the repository and tested before publishing, and nothing reaches installed copies until the draft is published. Signing is open (below). |
+| Trying the installer before a release | A `dry-run-v<version>` tag runs the whole release workflow, round trip included, and makes no draft | A manually started workflow (`workflow_dispatch`); a real version tag whose draft is then deleted; no run before the first release | The installer round trip installs over the real data and backups folders, so it runs only on a clean runner, never on a developer's PC. GitHub starts a manual workflow only from the default branch's copy of it, while a pushed tag runs the workflow file of the commit it names, so a dry-run tag tries a branch's installer before it is merged, and leaves no release and no used version behind. |
 
 ## Open Questions & Future Decisions
 
@@ -498,8 +528,9 @@ design and specs say how. What the desktop parts share from other segments is in
    last page of a first install, and keeps it off that page over an installed copy.
 4. **Playwright's Electron support** is marked experimental.
 5. **Skipping the install-for-everyone page** (the include's `customInstallMode`, choosing the current
-   user), refusing a `/D=` folder, and the install folder's name are read from electron-builder
-   26.18.0's templates and not yet run. Whether its uninstaller already removes the update downloads
+   user; electron-builder 26.18.0's template tests the name as `customInstallmode`, which NSIS macro
+   names, ignoring case, match), refusing a `/D=` folder, and the install folder's name are read from
+   electron-builder 26.18.0's templates and compiled with the include, not yet run. Whether its uninstaller already removes the update downloads
    folder is also still to be seen; where it does not, the include does. So is the `--updated` mark the
    installer gives the installed copy's uninstaller (Installer and Uninstaller): before the first
    release, the build's installer is run over an installed copy of a lower version, of the same version
@@ -546,6 +577,7 @@ design and specs say how. What the desktop parts share from other segments is in
 - Code: the desktop build scripts writing to `build/desktop/` (`scripts/desktop-build.ts`,
   `scripts/tray-icons.ts`, `scripts/desktop.ts`), `tests/desktop/distribution/`,
   [assets/career-map.ico](../../../../assets/career-map.ico)
-- Code (planned): `build/installer.nsh` (the NSIS include), electron-builder's configuration,
-  electron-builder's output in `release/`, `.github/workflows/release.yml`, `tests/packaged/`
+- Code (planned): `build/installer.nsh` (the NSIS include) and the steps it includes, electron-builder's
+  configuration, electron-builder's output in `release/`, `.github/workflows/release.yml`,
+  `tests/installer/`, `tests/packaged/`
 - External: Electron (fuses), electron-builder (NSIS target and include hooks)

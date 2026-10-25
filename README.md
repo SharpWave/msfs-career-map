@@ -252,12 +252,49 @@ npm run sim-fake -- --base http://127.0.0.1:3280 KBOS KPVD
 
 Closing the window leaves the app in the tray; **Quit** is in the tray icon's menu.
 
+### Packaging and the installer
+
+```powershell
+npm run package          # the desktop build, then electron-builder: release\win-unpacked and the installer
+npm run test:packaged    # the packaged smoke test on release\win-unpacked (needs port 3280 free)
+npm run test:installer   # the installer's own steps, built into small test programs run on temp folders
+```
+
+The installer (`release\MSFS Career Map Setup <version>.exe`) installs for your Windows account only,
+needing no administrator rights, always into `%LOCALAPPDATA%\Programs\MSFS Career Map`. Installing,
+updating and uninstalling never touch the data folder (`%LOCALAPPDATA%\MSFS Career Map`), the backups
+folder (`MSFS Career Map\Backups` in Documents) or the app's settings and logs
+(`%APPDATA%\MSFS Career Map`); uninstalling names them on its last page so you can delete them by
+hand. A build run from anywhere but the install folder (the unpacked build in `release\` included)
+runs only in test mode, with `--test-data=<folder>`.
+
+Don't run the installer on a development PC unless you mean to install the app: it is the real
+thing. The release workflow tries it on a clean GitHub runner instead (below).
+
+### Releasing
+
+A release is built by GitHub Actions (`.github/workflows/release.yml`) on `windows-latest`:
+
+- Push a tag `dry-run-v<version>` (the version in `package.json`) to rehearse: every check, the
+  packaging, the packaged smoke test and the installer round trip (install, start, install a newer
+  build over the running app, uninstall, on the runner's real folders), and no release.
+- Push a tag `v<version>` to release: the same steps, then a **draft** GitHub release with the
+  installer, its blockmap, `latest.yml` and the installer's SHA-256. A tag whose version differs from
+  `package.json`'s fails at once; a version already published stops the workflow.
+
+The maintainer publishes a draft by hand; installed copies see a release only once it is published.
+A published release is never deleted, retagged or replaced: a broken one is fixed by publishing a
+higher version. Ship a release at least every six months, to stay on a supported Electron, and
+sooner when Chromium has security fixes.
+
 ## Tests
 
 ```powershell
 npm test                        # logic, API, component and desktop-shell tests (Vitest)
 npx playwright install chromium # once, for the browser tests
 npm run test:e2e                # browser tests (Playwright) on servers of their own, ports 3180 and 5183
+npm run test:installer          # the installer's steps (NSIS test programs on temp folders)
+npm run test:packaged           # after npm run package: the packaged app, in test mode on port 3280
 ```
 
 Tests run on temporary databases with a small fixed set of New England airports, never on
@@ -334,10 +371,14 @@ src/client/   Vite + React + Leaflet UI
   components/FlightPanel.tsx, ProfileChart.tsx   the bottom panel and its chart
 src/desktop/  Electron shell: runs the server, keeps it running, the window, the tray (main.ts is the Electron glue)
 scripts/      import-airports.ts, sim-probe.ts (print what the sim reports), sim-fake.ts (synthetic flight),
-              desktop-build.ts and tray-icons.ts (the desktop build), desktop.ts (npm run desktop)
-tests/        tests by segment, desktop/ shell and build tests, e2e/ browser tests, fixtures/ airport lists, support/ shared setup
+              desktop-build.ts and tray-icons.ts (the desktop build), desktop.ts (npm run desktop),
+              test-packaged.ts (npm run test:packaged), release/ (the release workflow's scripts and installer round trip)
+tests/        tests by segment, desktop/ shell and build tests, e2e/ browser tests, installer/ the installer's
+              steps, packaged/ the packaged smoke test, fixtures/ airport lists, support/ shared setup
 data/         runtime data (ignored by git)
-build/desktop/  the desktop build (ignored by git)
+build/        installer.nsh and installer-steps.nsh (the installer's own steps); desktop/ the desktop build (ignored by git)
+electron-builder.json  packaging: names, the per-user NSIS installer, fuses
+release/      electron-builder's output (ignored by git)
 ```
 
 ## Roadmap

@@ -88,6 +88,8 @@ export interface WindowsFacts {
   excludedPortRanges(): Promise<string>;
   /** Whether Windows reports this drive letter ("C") as a fixed drive; false when the look fails. */
   isFixedDrive(letter: string): Promise<boolean>;
+  /** The ids of this Windows user's processes whose program lies inside `folder` (ignoring case); [] when the look fails. */
+  processesIn(folder: string): Promise<number[]>;
 }
 
 export interface KnownFolders {

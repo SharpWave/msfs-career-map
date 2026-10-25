@@ -36,7 +36,7 @@ ended by `taskkill /F` took its server's utility process and every child with it
 - docs/intent/desktop/shell/shell-design.md
 
 ### EARS
-- docs/intent/desktop/shell/shell-specs.md — 226 specs (prefix `DESK-SHELL`): 152 implemented, 73
+- docs/intent/desktop/shell/shell-specs.md — 226 specs (prefix `DESK-SHELL`): 153 implemented, 72
   active gaps, 1 deferred
 
 ### Tests
@@ -118,7 +118,7 @@ the sim is in use — while the page stays the same web page the browser tests c
 | Settings | DESK-SHELL-SET-001 to 006 | 5 | 0 | 1 |
 | Window | DESK-SHELL-WIN-001 to 032 | 30 | 0 | 2 |
 | Tray | DESK-SHELL-TRAY-001 to 027 | 22 | 0 | 5 |
-| One running copy and command line | DESK-SHELL-CLI-001 to 022 | 18 | 0 | 4 |
+| One running copy and command line | DESK-SHELL-CLI-001 to 022 | 19 | 0 | 3 |
 | Staying out of the way | DESK-SHELL-AWAY-001 to 005 | 4 | 0 | 1 |
 | Windows sign-out and shutdown | DESK-SHELL-OS-001 to 003 | 3 | 0 | 0 |
 | First run | DESK-SHELL-FIRST-001 to 005 | 5 | 0 | 0 |
@@ -126,7 +126,7 @@ the sim is in use — while the page stays the same web page the browser tests c
 | Updates | DESK-SHELL-UPD-001 to 032 | 0 | 1 | 31 |
 | Unit-test harness | DESK-SHELL-TEST-001 | 1 | 0 | 0 |
 
-**Summary:** 152 of 226 specs implemented; 73 gaps; 1 deferred (DESK-SHELL-UPD-021, a prerelease
+**Summary:** 153 of 226 specs implemented; 72 gaps; 1 deferred (DESK-SHELL-UPD-021, a prerelease
 channel). Of the gaps outside notifications and updates: built in part, waiting on notifications,
 updates or the start lists — DESK-SHELL-SRV-039 (the update check on resume), QUIT-002 (the page's
 confirm dialogs and update work while quitting), BAK-005 (the backup before an update; the `--quit`
@@ -135,7 +135,7 @@ start-list and update items), TRAY-016 (update states on the version line), CLI-
 clean-up outside test mode); built and seen by hand but cited by no test until the packaged smoke test —
 SRV-003, SRV-040, WIN-031; not begun, belonging to
 updates, notifications, the start lists or an install under way — QUIT-007, QUIT-009 to 012, SET-006,
-TRAY-017, TRAY-023, TRAY-027, CLI-020 to 022, AWAY-004.
+TRAY-017, TRAY-023, TRAY-027, CLI-021, CLI-022, AWAY-004. CLI-020 (a start during an install left in the install-under-way mark) is built with distribution's include.
 
 ## Key Findings
 

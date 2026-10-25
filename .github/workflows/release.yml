@@ -1,0 +1,85 @@
+# The release workflow (distribution-design, Releases): a pushed v<version> tag builds, tests and
+# drafts a release; a dry-run-v<version> tag runs every step but the draft, from whichever branch it is
+# on. Nothing is ever published here: the maintainer publishes a draft by hand.
+name: Release
+
+on:
+  push:
+    tags: ["v*", "dry-run-v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Check the tag against package.json
+        run: npx --yes tsx scripts/release/tag.ts "${{ github.ref_name }}"
+
+      - name: Stop if this version is already published
+        if: startsWith(github.ref_name, 'v')
+        shell: bash
+        run: npx --yes tsx scripts/release/published.ts "$(node -p "require('./package.json').version")"
+
+      - name: Install
+        run: npm ci
+
+      - name: Fetch Electron's binary
+        run: npx install-electron
+
+      - name: Install the Playwright browser
+        run: npx playwright install chromium
+
+      - name: Type checks
+        run: npm run typecheck
+
+      - name: Vitest
+        run: npm test
+
+      - name: The include's tests
+        run: npm run test:installer
+
+      - name: Browser tests
+        run: npm run test:e2e
+
+      - name: Build the page, the bundles and fresh seed lists
+        run: npm run desktop:build -- --fresh
+
+      - name: Package, unpacked and as the installer
+        run: npx electron-builder --win --x64 --publish never
+
+      - name: Packaged smoke test
+        run: npm run test:packaged
+
+      - name: Build the newer installer for the round trip
+        shell: bash
+        run: |
+          trip="$(npx tsx scripts/release/seed.ts --trip-version "$(node -p "require('./package.json').version")")"
+          echo "TRIP_VERSION=$trip" >> "$GITHUB_ENV"
+          npx electron-builder --win --x64 --publish never --config.extraMetadata.version="$trip" --config.directories.output=release/trip
+
+      - name: Installer round trip
+        shell: bash
+        env:
+          CAREER_MAP_ROUND_TRIP: release-workflow
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          npx tsx scripts/release/round-trip.ts --first "release/MSFS Career Map Setup $version.exe" --newer "release/trip/MSFS Career Map Setup $TRIP_VERSION.exe"
+
+      - name: Draft the release
+        if: startsWith(github.ref_name, 'v')
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          installer="release/MSFS Career Map Setup $version.exe"
+          npx tsx scripts/release/notes.ts "$version" "$installer" release/notes.md
+          gh release create "${{ github.ref_name }}" --draft --verify-tag --title "MSFS Career Map $version" --notes-file release/notes.md "$installer" "$installer.blockmap" release/latest.yml

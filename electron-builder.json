@@ -1,0 +1,52 @@
+{
+  "$schema": "./node_modules/app-builder-lib/scheme.json",
+  "appId": "io.github.sharpwave.msfscareermap",
+  "productName": "MSFS Career Map",
+  "extraMetadata": {
+    "toastActivatorClsid": "{69576F59-9E6C-4DE8-8C3F-10C5489AA31F}"
+  },
+  "directories": {
+    "app": "build/desktop",
+    "output": "release",
+    "buildResources": "build"
+  },
+  "files": ["main.cjs", "package.json", "!node_modules${/*}"],
+  "extraResources": [
+    { "from": "build/desktop/page", "to": "page" },
+    { "from": "build/desktop/icons", "to": "icons" },
+    { "from": "build/desktop/node_modules", "to": "node_modules" },
+    { "from": "build/desktop/server.mjs", "to": "server.mjs" },
+    { "from": "build/desktop/startup-worker.mjs", "to": "startup-worker.mjs" },
+    { "from": "build/desktop/airports.csv", "to": "airports.csv" },
+    { "from": "build/desktop/airports.csv.downloaded", "to": "airports.csv.downloaded" },
+    { "from": "build/desktop/runways.csv", "to": "runways.csv" },
+    { "from": "build/desktop/runways.csv.downloaded", "to": "runways.csv.downloaded" }
+  ],
+  "asar": true,
+  "npmRebuild": false,
+  "nodeGypRebuild": false,
+  "electronFuses": {
+    "runAsNode": false,
+    "enableNodeOptionsEnvironmentVariable": false,
+    "enableNodeCliInspectArguments": true
+  },
+  "win": {
+    "target": [{ "target": "nsis", "arch": ["x64"] }],
+    "icon": "assets/career-map.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowElevation": false,
+    "allowToChangeInstallationDirectory": false,
+    "include": "build/installer.nsh",
+    "installerIcon": "assets/career-map.ico",
+    "uninstallerIcon": "assets/career-map.ico",
+    "createDesktopShortcut": false,
+    "createStartMenuShortcut": true,
+    "shortcutName": "MSFS Career Map",
+    "runAfterFinish": false,
+    "deleteAppDataOnUninstall": false
+  },
+  "publish": [{ "provider": "github", "owner": "SharpWave", "repo": "msfs-career-map" }]
+}

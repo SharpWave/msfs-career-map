@@ -16,7 +16,9 @@ import {
   isFixedDriveOutput,
   knownFolders,
   parseDocumentsOutput,
+  parseProcessIds,
   processPathArgs,
+  processesInArgs,
   tasklistArgs,
   tasklistHas,
   windowsFacts,
@@ -91,6 +93,31 @@ describe("a process's program file", () => {
       "-Command",
       "(Get-Process -Id 12345 -ErrorAction SilentlyContinue).Path",
     ]);
+  });
+});
+
+describe("processes running from a folder", () => {
+  // @spec DESK-DIST-INST-030
+  it("asks PowerShell for the ids of this user's processes whose program lies inside the folder", () => {
+    expect(processesInArgs("C:\\Users\\pilot\\AppData\\Local\\msfs-career-map-updater")).toEqual([
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      "Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith('C:\\Users\\pilot\\AppData\\Local\\msfs-career-map-updater\\', [System.StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $_.Id }",
+    ]);
+  });
+
+  // @spec DESK-DIST-INST-030
+  it("doubles a quote in the folder, as a PowerShell single-quoted string needs", () => {
+    expect(processesInArgs("C:\\Users\\O'Brien\\AppData\\Local\\msfs-career-map-updater")[3]).toContain(
+      "StartsWith('C:\\Users\\O''Brien\\AppData\\Local\\msfs-career-map-updater\\',",
+    );
+  });
+
+  // @spec DESK-DIST-INST-030
+  it("reads one id per line, passing over anything else", () => {
+    expect(parseProcessIds("977\r\n\r\n12040\r\nGet-Process : denied\r\n")).toEqual([977, 12040]);
+    expect(parseProcessIds("")).toEqual([]);
   });
 });
 

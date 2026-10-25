@@ -1,6 +1,6 @@
 /**
- * What the repository's own files hold for the desktop app (m2 contract §17): Electron and esbuild
- * pinned to exact versions (DESK-DIST-PKG-007, those two now), the `desktop` and `desktop:build`
+ * What the repository's own files hold for the desktop app (m2 contract §17): Electron, esbuild and
+ * electron-builder pinned to exact versions (DESK-DIST-PKG-007, those three now), the `desktop` and `desktop:build`
  * scripts that build the page with Vite and then the desktop build output (DESK-DIST-DEV-001), and
  * the folders kept out of git — `.desktop-dev/`, `build/desktop/` and `release/` — while the NSIS
  * include `build/installer.nsh` stays in git (DESK-DIST-DEV-002).
@@ -73,6 +73,13 @@ describe("the pinned tools", () => {
     expect(lock.packages["node_modules/electron"]?.version).toBe(declared("electron"));
     expect(lock.packages["node_modules/esbuild"]?.version).toBe(declared("esbuild"));
   });
+
+  // @spec DESK-DIST-PKG-007
+  it("pin electron-builder to 26.18.0 exactly, as installed", () => {
+    expect(declared("electron-builder")).toBe("26.18.0");
+    expect(lock.packages["node_modules/electron-builder"]?.version).toBe("26.18.0");
+    expect(lock.packages["node_modules/app-builder-lib"]?.version).toBe("26.18.0");
+  });
 });
 
 describe("the desktop scripts", () => {
@@ -97,8 +104,9 @@ describe("the folders kept out of git", () => {
   });
 
   // @spec DESK-DIST-DEV-002
-  it("leave the NSIS include build/installer.nsh in git", () => {
+  it("leave the NSIS include build/installer.nsh, and the steps it includes, in git", () => {
     expect(linesIgnoring(gitignoreLines(), "build/installer.nsh")).toEqual([]);
+    expect(linesIgnoring(gitignoreLines(), "build/installer-steps.nsh")).toEqual([]);
   });
 
   // @spec DESK-DIST-DEV-002

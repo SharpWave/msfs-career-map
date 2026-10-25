@@ -315,7 +315,9 @@ export class FakeFacts implements WindowsFacts {
   fixed = new Set<string>(["C"]);
   /** When set, isFixedDrive answers with this instead of `fixed`. */
   isFixedDriveReply: ((letter: string) => Promise<boolean>) | null = null;
-  /** "msfsRunning", "programOf <pid>", "endProcess <pid>", "excludedPortRanges", "isFixedDrive <L>". */
+  /** processesIn answers, by folder exactly as asked; missing → []. */
+  inFolder = new Map<string, number[]>();
+  /** "msfsRunning", "programOf <pid>", "endProcess <pid>", "excludedPortRanges", "isFixedDrive <L>", "processesIn <folder>". */
   calls: string[] = [];
 
   msfsRunning(): Promise<boolean> {
@@ -338,6 +340,10 @@ export class FakeFacts implements WindowsFacts {
     this.calls.push(`isFixedDrive ${letter}`);
     if (this.isFixedDriveReply) return this.isFixedDriveReply(letter);
     return Promise.resolve(this.fixed.has(letter));
+  }
+  processesIn(folder: string): Promise<number[]> {
+    this.calls.push(`processesIn ${folder}`);
+    return Promise.resolve(this.inFolder.get(folder) ?? []);
   }
 }
 

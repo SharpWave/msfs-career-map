@@ -13,5 +13,5 @@
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["tests", "vitest.config.ts", "playwright.config.ts"]
+  "include": ["tests", "vitest.config.ts", "playwright.config.ts", "playwright.packaged.config.ts", "vitest.installer.config.ts"]
 }

@@ -16,9 +16,18 @@ copied in as `page/`, the server bundle `server.mjs` with its start-up worker `s
 desktop shell `main.cjs`, the seed airport lists with their download times, the icons with the tray
 icons made from `assets/career-map.ico`, and an app manifest so `electron build/desktop` runs the
 shell), `npm run desktop` and `npm run desktop:build`, the check that only the installed program runs
-outside test mode, Electron and esbuild pinned, and the folders kept out of git. Not begun: electron-builder
-and its configuration, the installer and uninstaller, the release workflow, the packaged smoke test and
-the installer round trip.
+outside test mode, Electron and esbuild pinned, and the folders kept out of git.
+
+Built and tested (2026-10-25) — packaging: electron-builder 26.18.0 and `electron-builder.json` (the
+fixed names, the per-user NSIS installer, `release/`, every locale, the icons, the fuses), node-simconnect
+and its dependencies shipped as files beside the program, `npm run package`; the packaged layout check
+and the packaged smoke test passing on a real packaged build (`npm run test:packaged`); the include's
+steps (`build/installer-steps.nsh`) passing their own tests (`npm run test:installer`), and the hooks
+(`build/installer.nsh`) compiling inside electron-builder; the start's check for an install under way
+(`src/desktop/install-mark.ts`, DESK-SHELL-CLI-020). Built, not yet run: the release workflow
+(`.github/workflows/release.yml`, `scripts/release/`), whose first run on a `dry-run-v<version>` tag is
+also the installer round trip's first run — the end-to-end check of the installer and uninstaller,
+which never run on a developer's PC.
 
 ## References
 
@@ -33,25 +42,33 @@ the installer round trip.
 - docs/intent/desktop/distribution/distribution-design.md
 
 ### EARS
-- docs/intent/desktop/distribution/distribution-specs.md — 110 specs (prefix `DESK-DIST`), 9
-  implemented, 98 active gaps, 3 deferred
+- docs/intent/desktop/distribution/distribution-specs.md — 113 specs (prefix `DESK-DIST`), 49
+  implemented, 61 active gaps, 3 deferred
 
 ### Tests
 - tests/desktop/distribution/ — Vitest unit tests in the `desktop` project: desktop-build (the bundles,
   the start-up worker's address, the seed lists, the app manifest, Electron's command line for
   `npm run desktop`), tray-icons (the tray icons made from the mark), installed-program (only the
   installed program runs outside test mode), package (pinned versions, the npm commands, the folders
-  kept out of git)
-- Planned: tests/packaged/ (the packaged smoke test), the packaging-names tests against
-  electron-builder's configuration, and the installer round trip in the release workflow
+  kept out of git), packaging (the fixed names and electron-builder's configuration), release (the
+  release scripts: the tag, the published-release check, the notes, the round trip's guard and seed),
+  workflow (the release workflow's shape), test-packaged (the port message and Electron's environment);
+  tests/desktop/shell/install-mark.test.ts (the mark's form and the start's check)
+- tests/installer/ — `npm run test:installer`: the include's steps built into NSIS test programs run on
+  temp folders (the install folder check, finding and closing a running copy, the mark and the start
+  after an install, `--unregister`'s wait and the uninstaller's last page, the session-end hold)
+- tests/packaged/ — `npm run test:packaged`: the packaged layout and the packaged smoke test
+- scripts/release/round-trip.ts — the installer round trip, run only by the release workflow
 
 ### Code
 - scripts/desktop-build.ts (the desktop build output: page, bundles, seed lists, icons, app manifest),
   scripts/tray-icons.ts (the tray icons from assets/career-map.ico), scripts/desktop.ts
   (`npm run desktop`), src/desktop/installed.ts (the installed program's path), tsconfig.desktop.json,
   the `desktop` and `desktop:build` npm commands, .gitignore
-- Planned: build/installer.nsh (the NSIS include), electron-builder's configuration, electron-builder's
-  output in release/, .github/workflows/release.yml
+- electron-builder.json, build/installer.nsh (electron-builder's hooks), build/installer-steps.nsh (the
+  include's steps), src/desktop/install-mark.ts (the install-under-way mark as a start sees it),
+  scripts/test-packaged.ts, scripts/release/ (tag, published, notes, guard, seed, round-trip),
+  .github/workflows/release.yml, the `package`, `test:packaged` and `test:installer` npm commands
 
 ## Architecture
 
@@ -78,28 +95,38 @@ other without ever reaching the logbook, built and tested from the repository be
 
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
-| Packaging | DESK-DIST-PKG-001 to 022 | 6 | 0 | 16 |
-| Installer, closing a running copy and an install under way | DESK-DIST-INST-001 to 030 | 0 | 1 | 29 |
+| Packaging | DESK-DIST-PKG-001 to 022 | 21 | 0 | 1 |
+| Installer, closing a running copy and an install under way | DESK-DIST-INST-001 to 030 | 8 | 1 | 21 |
 | Uninstaller | DESK-DIST-UNINST-001 to 015 | 0 | 0 | 15 |
-| Releases | DESK-DIST-REL-001 to 017 | 0 | 2 | 15 |
+| Releases | DESK-DIST-REL-001 to 018 | 0 | 2 | 16 |
 | Development | DESK-DIST-DEV-001 to 007 (003 withdrawn) | 4 | 0 | 2 |
-| Packaged smoke test | DESK-DIST-SMOKE-001 to 012 | 0 | 0 | 12 |
-| Installer round trip | DESK-DIST-TRIP-001 to 008 | 0 | 0 | 8 |
+| The include's tests | DESK-DIST-INCL-001, 002 | 2 | 0 | 0 |
+| Packaged smoke test | DESK-DIST-SMOKE-001 to 012 | 12 | 0 | 0 |
+| Installer round trip | DESK-DIST-TRIP-001 to 008 | 2 | 0 | 6 |
 
-**Summary:** 10 of 110 specs implemented (PKG-009, 011, 012, 016, 020, 021; DEV-001, 002, 004, 005); 97
-gaps; 3 deferred (DESK-DIST-INST-017, REL-013, REL-014). Built in part: PKG-007 (Electron and esbuild
-pinned; electron-builder and electron-updater not yet added), PKG-010 (node-simconnect left out of the
-bundle; shipping it beside the program with its licence comes with packaging), PKG-015 (the window's
-icon; the program's, installer's and shortcuts' with packaging), PKG-022 (the desktop build output;
-`release/` with electron-builder).
+**Summary:** 49 of 113 specs implemented; 61 gaps; 3 deferred (DESK-DIST-INST-017, REL-013, REL-014).
+Built, awaiting the first `dry-run-v<version>` run of the release workflow, whose installer round trip
+and wizard-free steps are their test: INST-002, 004 to 010, 012 to 014, 018 to 021, 023, 024, 026
+(the include's take-up and choice of start are tested; the Finished page is not), 027 (seen only on a
+real Windows shutdown); UNINST-001, 003 to 011, 013 to 015 (the last page's texts are tested, the page
+is not); REL-001 to 011, 015, 018; DEV-006, DEV-007; TRIP-002 to 006, 008. Built in part: PKG-007
+(electron-updater with updates), INST-025 and INST-028 (the desktop shell's own mark before it hands
+over, with updates), UNINST-002 and UNINST-012 (the program's `--unregister` does its work with the
+start lists). Not code: REL-012 (the first release's gate, waiting on simbrief's SB-CARD-006 and
+SB-CARD-009 to 011), REL-016 and REL-017 (the maintainer's rules, written into the README's Releasing).
 
 ## Key Findings
 
-1. **Desktop development built; packaging not begun** — the desktop build output and `npm run desktop`
-   run the desktop shell unpackaged in test mode; electron-builder, the installer and uninstaller, the
-   release workflow, the packaged smoke test and the round trip are still to come. A copied
-   `build/desktop/` does not start its server, since node-simconnect resolves only inside the
-   repository until packaging ships it beside the program.
+1. **Packaged and smoke-tested; the installer awaits its dry run** — the packaged build runs the whole
+   smoke test in test mode, and the include's steps pass their own tests, but the installer and
+   uninstaller have never run: on a developer's PC they would write the real install folder, HKCU and the
+   Start menu. Pushing a `dry-run-v<version>` tag runs them on a clean runner (the round trip). Seen
+   while building: electron-builder, finding no dependencies in `build/desktop/`, packs the repository's
+   own production dependencies unless `files` excludes `node_modules`; and electron-builder's `.onInit`
+   makes a `/D=` folder before any hook runs, so the include removes it again while empty. VS Code's
+   extension host can hold open an `app.asar` under `release/` once a file tool has looked inside it,
+   leaving `release/` undeletable until it restarts; `CAREER_MAP_RELEASE` then points the packaged tests
+   at a build made with `--config.directories.output=<folder>`.
 2. **Built on work other segments own**, each specified there and cited in the LLD's Relies On —
    app-shell: schema changes kept additive (APP-DATA-009; logbook's LOG-REC-013 and LOG-REC-015), so an
    older server runs on a newer logbook; no console launcher or shortcut script, its npm commands for
@@ -181,15 +208,14 @@ icon; the program's, installer's and shortcuts' with packaging), PKG-022 (the de
 
 ### Must Fix
 1. Add the airports → distribution edge to the HLD's graph and index.yaml once approved.
-2. Packaging, test-first: electron-builder 26.18.0 and its configuration (PKG-001 to 008, 010, 013 to
-   015, 017 to 019, 022), the packaging-names unit tests, and the packaged smoke test (SMOKE-001 to 012,
-   `npm run test:packaged`), which also cites the desktop shell's hand-verified DESK-SHELL-SRV-003,
-   SRV-040 and WIN-031.
+2. Run the release workflow on a `dry-run-v<version>` tag (the maintainer pushes it) and mark the
+   installer, uninstaller, release and round-trip specs it proves; then run the wizard by hand on a
+   test machine for the Finished pages, the uninstaller's last page and the notices.
 
 ### Should Fix
-3. The installer, its include and the release workflow, with the start lists and with the desktop
-   shell's updates and notifications; the first release after SB-CARD-006 and SB-CARD-009 to 011 are
-   closed and a start by the Store edition of MSFS has been checked by hand.
+3. The start lists' `--unregister` and the desktop shell's updates and notifications (the shell's mark
+   before it hands over); the first release after SB-CARD-006 and SB-CARD-009 to 011 are closed and a
+   start by the Store edition of MSFS has been checked by hand.
 
 ### Nice to Have
 4. Settle the licence and code signing.

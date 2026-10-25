@@ -61,7 +61,16 @@ description, API table and roadmap.
   `src/server`, and no module touches `child_process`, `net`, `http` or `electron` at load. The
   desktop build (`scripts/desktop-build.ts`, tray icons from `assets/career-map.ico` by
   `scripts/tray-icons.ts`) writes `build/desktop/`: `page/`, `server.mjs` + `startup-worker.mjs`,
-  `main.cjs`, the seed lists, `icons/` and an app `package.json`.
+  `main.cjs`, node-simconnect and its dependencies in `node_modules/` (left out of the server
+  bundle), the seed lists, `icons/` and an app `package.json`.
+- Packaging: `electron-builder.json` packages `build/desktop/` into `release/` (only `main.cjs` and
+  `package.json` in `app.asar`; everything else under `resources/`, the program folder). The
+  per-user NSIS installer's own steps are `build/installer.nsh` (electron-builder's hooks) and
+  `build/installer-steps.nsh` (plain NSIS macros the hooks and `tests/installer/` call). A start of
+  the installed app during an install leaves its command line in the install-under-way mark
+  (`src/desktop/install-mark.ts`, UTF-16LE lines in `%LOCALAPPDATA%\msfs-career-map-updater`), whose
+  form every release must keep. The release workflow is `.github/workflows/release.yml` with
+  `scripts/release/` (a `dry-run-v<version>` tag rehearses without a draft).
 - Charts follow the dataviz skill: no dual axes; the profile chart indexes each series to its own
   range and shows real values in the legend and crosshair. Palette validated for the dark surface.
 
@@ -87,6 +96,16 @@ description, API table and roadmap.
 - `npm run test:e2e` — Playwright on its own servers (:3180 app on `--sim=fake`, :5183 page)
   and a temp data folder; first run needs `npx playwright install chromium`. Browser tests run one
   at a time and import `test` from `tests/e2e/fixtures.ts`.
+- `npm run package` — the desktop build, then electron-builder into `release/` (`win-unpacked/`
+  and the installer). Never run the installer or uninstaller on a development PC: they write the
+  real install folder, HKCU and the Start menu; the release workflow's round trip
+  (`scripts/release/round-trip.ts`, refused off its runner) tries them.
+- `npm run test:packaged` — after `npm run package`: Playwright on `release/win-unpacked` in test mode
+  (port 3280 must be free; `tests/packaged/`). VS Code's extension host can hold an `app.asar` under
+  `release/` open once a file tool has looked inside it; then package with
+  `--config.directories.output=<folder>` and set `CAREER_MAP_RELEASE=<folder>` for the tests.
+- `npm run test:installer` — the include's steps compiled into small NSIS programs with
+  electron-builder's NSIS and run on temp folders (`tests/installer/`, `vitest.installer.config.ts`).
 - `npm run import-airports [-- --fresh]` — re-import (optionally re-download) airports.
 - `npm run sim-probe` — print what a running sim reports, without touching the database.
 - `npm run dev:server -- --sim=fake` (or `TRACKER_FAKE=1 npm run dev`) then

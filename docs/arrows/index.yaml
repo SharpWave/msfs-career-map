@@ -124,7 +124,7 @@ arrows:
     blocks: [start-lists, distribution]
     blockedBy: [live-tracking, airports, simbrief]
     detail: desktop/shell.md
-    next: "152 of 226 DESK-SHELL specs implemented (73 gaps, 1 deferred): the shell runs unpackaged without notifications, updates or start lists. Next: the packaged smoke test (distribution) to cite the hand-verified SRV-003, SRV-040 and WIN-031 and run the Electron glue; the start-list tray items with start-lists; then notifications and updates test-first (NOTE-*, UPD-*, BAK-005, SRV-039, WIN-001, the rest of QUIT, TRAY and CLI)"
+    next: "153 of 226 DESK-SHELL specs implemented (72 gaps, 1 deferred): the shell runs packaged (the smoke test passes) without notifications, updates or start lists; a start during an install is left in the install-under-way mark (CLI-020). Next: the start-list tray items with start-lists; then notifications and updates test-first (NOTE-*, UPD-*, BAK-005, SRV-039, WIN-001, the rest of QUIT, TRAY and CLI)"
     drift: "Tour-map's open basemap question (its LLD Open Questions 1) may change what the window loads (DESK-SHELL-WIN-011, DESK-SHELL-WIN-012)"
 
   start-lists:
@@ -148,7 +148,7 @@ arrows:
     blocks: []
     blockedBy: [shell, start-lists, live-tracking, simbrief, airports]
     detail: desktop/distribution.md
-    next: "10 of 110 DESK-DIST specs implemented (97 gaps, 3 deferred): desktop development (the desktop build output, npm run desktop and desktop:build, the installed-program check). Next, test-first: electron-builder 26.18.0 and its configuration with the packaging-names tests, node-simconnect shipped beside the program, the packaged smoke test (npm run test:packaged), then the installer, its include and the release workflow alongside the start lists and the desktop shell's updates and notifications; the first release waits for SB-CARD-006 and SB-CARD-009 to 011 (the open part of DESK-DIST-REL-012) and a hand check of a start by the Store edition of MSFS"
+    next: "49 of 113 DESK-DIST specs implemented (61 gaps, 3 deferred): packaging, the packaged smoke test and the include's steps pass; the installer, uninstaller, release workflow and round trip are built but have never run. Next: push a dry-run-v<version> tag to run the release workflow and its installer round trip on a clean runner, then mark what it proves; check the wizard's pages by hand on a test machine; --unregister's work with the start lists and the shell's mark before it hands over with updates; the first release waits for SB-CARD-006 and SB-CARD-009 to 011 (the open part of DESK-DIST-REL-012) and a hand check of a start by the Store edition of MSFS"
     drift: null
 
   # Foundation: every segment relies on app-shell's conventions, so its dependencies are not listed.

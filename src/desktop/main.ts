@@ -16,10 +16,12 @@ import {
   type UtilityProcess,
 } from "electron";
 import { browserAddress, navigationOutcome, newWindowOutcome } from "./address.ts";
-import { handedOverCommand, type CommandLine } from "./cli.ts";
+import { handedOverCommand, startSwitch, type CommandLine } from "./cli.ts";
 import { realClock } from "./clock.ts";
 import { installErrorHandlers } from "./errors.ts";
+import { checkInstallUnderWay, leftInMarkLogLine, nodeMarkFiles } from "./install-mark.ts";
 import { localHttp } from "./local-http.ts";
+import { LogFile } from "./logs.ts";
 import type {
   Cancel,
   Clock,
@@ -55,7 +57,7 @@ import { knownFolders, windowsFacts } from "./windows-facts.ts";
 /** Until the running copy's desktop.log exists, the shell's own errors go to the console. */
 let writeLine: (line: string) => void = (line) => console.log(line);
 
-// @spec DESK-SHELL-SRV-002, DESK-SHELL-SRV-040, DESK-SHELL-CLI-001, DESK-SHELL-CLI-002, DESK-SHELL-CLI-003, DESK-SHELL-CLI-007, DESK-SHELL-CLI-009, DESK-SHELL-CLI-011, DESK-SHELL-LOG-008, DESK-DIST-DEV-004
+// @spec DESK-SHELL-SRV-002, DESK-SHELL-SRV-040, DESK-SHELL-CLI-001, DESK-SHELL-CLI-002, DESK-SHELL-CLI-003, DESK-SHELL-CLI-007, DESK-SHELL-CLI-009, DESK-SHELL-CLI-011, DESK-SHELL-CLI-020, DESK-SHELL-LOG-008, DESK-DIST-DEV-004
 function main(): void {
   installErrorHandlers(process, (line) => writeLine(line));
 
@@ -72,11 +74,33 @@ function main(): void {
     app.exit(0);
     return;
   }
-  if (!app.requestSingleInstanceLock({ commandLine: decision.command })) {
+  const { plan, command } = decision;
+  const sw = startSwitch(command);
+  if (plan.mode !== "installed" || (sw !== "none" && sw !== "background" && sw !== "updated")) {
+    takeLock(plan, command);
+    return;
+  }
+  // An installed start during an install is left in the install-under-way mark, before any lock.
+  const switches = sw === "none" ? "" : (`--${sw}` as const);
+  void checkInstallUnderWay({ localAppData: process.env.LOCALAPPDATA ?? "", switches, files: nodeMarkFiles, facts: windowsFacts(process.env) })
+    .catch(() => "go" as const)
+    .then((check) => {
+      if (check === "left-in-mark") {
+        new LogFile({ folder: path.win32.join(plan.electronFolder, "logs"), name: "desktop", clock: realClock() }).write(leftInMarkLogLine(switches));
+        app.exit(0);
+        return;
+      }
+      takeLock(plan, command);
+    });
+}
+
+/** The single-instance lock: held, this copy runs; otherwise its command line was handed over. */
+function takeLock(plan: RunPlan, command: CommandLine): void {
+  if (!app.requestSingleInstanceLock({ commandLine: command })) {
     app.exit(0);
     return;
   }
-  runningCopy(decision.plan, decision.command);
+  runningCopy(plan, command);
 }
 
 /** The copy holding the lock: the Shell and everything it reaches. */
