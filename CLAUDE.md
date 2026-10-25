@@ -92,7 +92,9 @@ description, API table and roadmap.
   answered with `answerFetch()` (`tests/support/fetch-guard.ts`); in the `desktop` project the guard
   (`tests/desktop/support/guard.ts`) fails any test reaching `child_process`, `net`, `http`,
   `https`, `dgram`, `electron`, `process.kill` or `fetch`, with decoy `LOCALAPPDATA`, `APPDATA` and
-  `USERPROFILE`.
+  `USERPROFILE`. `CAREER_MAP_TIMED_TESTS=apart` leaves the large import's wall-clock tests out of the
+  node project (the release workflow runs them alone after the rest; Vitest's `--exclude` does not
+  reach a project's files).
 - `npm run test:e2e` — Playwright on its own servers (:3180 app on `--sim=fake`, :5183 page)
   and a temp data folder; first run needs `npx playwright install chromium`. Browser tests run one
   at a time and import `test` from `tests/e2e/fixtures.ts`.

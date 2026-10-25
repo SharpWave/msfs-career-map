@@ -109,8 +109,12 @@ describe("its steps", () => {
     const suites = stepWith("npm test");
     const timed = stepWith("npx vitest run");
     expect(timed).toBe(suites + 1);
+    // vitest.config.ts leaves these files out of the node project while CAREER_MAP_TIMED_TESTS is "apart".
+    expect(steps[suites].env?.CAREER_MAP_TIMED_TESTS).toBe("apart");
+    expect(steps[timed].env?.CAREER_MAP_TIMED_TESTS).toBeUndefined();
+    const config = fs.readFileSync(path.join(REPO, "vitest.config.ts"), "utf8");
     for (const file of ["tests/airports/import.test.ts", "tests/app-shell/server-airports.test.ts"]) {
-      expect(steps[suites].run).toContain(`--exclude ${file}`);
+      expect(config).toContain(`"${file}"`);
       expect(steps[timed].run).toContain(file);
     }
   });
