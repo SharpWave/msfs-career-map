@@ -33,6 +33,7 @@ interface Job {
   steps?: Step[];
   if?: string;
   env?: Record<string, string>;
+  defaults?: unknown;
 }
 interface Workflow {
   on?: Record<string, unknown>;
@@ -68,6 +69,8 @@ describe("when it runs", () => {
     expect(jobs).toHaveLength(1);
     expect(job["runs-on"]).toBe("windows-latest");
     expect(job.if).toBeUndefined();
+    // Bash, so `npm run <script> -- <flags>` keeps its flags: Windows PowerShell drops the bare `--`.
+    expect(job.defaults).toEqual({ run: { shell: "bash" } });
   });
 });
 
