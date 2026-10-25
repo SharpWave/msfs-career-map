@@ -11,13 +11,15 @@ intent-narrowing edge audit's findings for the desktop group applied; not yet au
 server work it relies on is specified in app-shell, live-tracking, airports, logbook, fleet and
 simbrief, and the LLD's Relies On cites each of those specs.
 
-Built and tested (2026-10-25) — a desktop shell without notifications, updates or start lists, run
-unpackaged by `npm run desktop`: the server in a utility process with its inputs, readiness, start-up
+Built and tested (2026-10-25), run unpackaged by `npm run desktop`: the server in a utility process with its inputs, readiness, start-up
 work, restarts, held ports, leftovers, the checks for a server that stops answering, the event stream
 and shutdown; daily and `--quit` backups; the logs and settings; the window with its address rules,
-screens, settings and remembered place; the tray's status line, dot, tooltip and menu (version line
-"Version X" only); one running copy and its command line; the sim in use; Windows sign-out; the look
-for a copy run from source. Every module but `main.ts` (the Electron glue) is pure logic driven through
+screens, settings and remembered place; the tray's status line, dot, tooltip and menu; one running copy
+and its command line; the sim in use; Windows sign-out; the look
+for a copy run from source; the start-list tray items (start-lists); notifications; and updates —
+electron-updater's checks and downloads, the version line and the update items, the backup before an
+update, and the three ways an update installs (Quit, **Restart to update**, a quiet moment) with the
+install-under-way mark written before the handover and taken up when the install goes no further. Every module but `main.ts` (the Electron glue) is pure logic driven through
 the stand-ins in `ports.ts`, unit-tested under Vitest's `desktop` project, whose guard fails any test
 reaching a child process, the network, Electron or `fetch`. Seen by hand on Electron 45: a main process
 ended by `taskkill /F` took its server's utility process and every child with it within a second
@@ -36,7 +38,7 @@ ended by `taskkill /F` took its server's utility process and every child with it
 - docs/intent/desktop/shell/shell-design.md
 
 ### EARS
-- docs/intent/desktop/shell/shell-specs.md — 226 specs (prefix `DESK-SHELL`): 153 implemented, 72
+- docs/intent/desktop/shell/shell-specs.md — 226 specs (prefix `DESK-SHELL`): 219 implemented, 6
   active gaps, 1 deferred
 
 ### Tests
@@ -44,7 +46,8 @@ ended by `taskkill /F` took its server's utility process and every child with it
   `FakeClock` and the stand-ins of tests/desktop/support/fakes.ts: the supervisor
   (supervisor-start, -failures, -health, -ports, -shutdown), shell-start and shell-quit, backups and
   daily-backups, logs, settings, errors, cli and start, first-run, server-inputs, sim-in-use, sse and
-  tracker-feed, tray-model, address, page-window, screens, window-options, window-place,
+  tracker-feed, notifications, toast, notify-wiring, registrations, updates, updater (the real
+  updater on a stand-in for electron-updater's autoUpdater), update-install, install-mark, tray-model, address, page-window, screens, window-options, window-place,
   windows-facts (the pure parsers), glue-wiring (static checks of main.ts) and guard
 - tests/desktop/support/guard.ts — the project's setup file: fails a test that reaches
   `child_process`, `net`, `http`, `https`, `dgram`, `electron`, `process.kill` or `fetch`, with decoy
@@ -65,7 +68,9 @@ ended by `taskkill /F` took its server's utility process and every child with it
 - The start-list tray items through start-lists' StartLists (shell.ts, tray-model.ts, main.ts)
 - Notifications: notifications.ts (the Notifier), toast.ts, registrations.ts, identity.ts; wired in
   tracker-feed.ts, page-window.ts, shell.ts and main.ts
-- Planned: updates (electron-updater)
+- Updates: updates.ts (`Updates`, `QuietMoment`, the version line), updater.ts (the `UpdaterPort` on
+  electron-updater, which main.ts passes in), install-mark.ts (the mark written and taken up); the
+  install flows in shell.ts
 
 ## Architecture
 
@@ -114,35 +119,32 @@ the sim is in use — while the page stays the same web page the browser tests c
 
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
-| Server process: start, readiness, private channel, event stream, shutdown, restarts, sleep and the clock | DESK-SHELL-SRV-001 to 045 | 42 | 0 | 3 |
-| Quitting state | DESK-SHELL-QUIT-001 to 012 | 7 | 0 | 5 |
-| Backups | DESK-SHELL-BAK-001 to 008 | 7 | 0 | 1 |
+| Server process: start, readiness, private channel, event stream, shutdown, restarts, sleep and the clock | DESK-SHELL-SRV-001 to 045 | 43 | 0 | 2 |
+| Quitting state | DESK-SHELL-QUIT-001 to 012 | 12 | 0 | 0 |
+| Backups | DESK-SHELL-BAK-001 to 008 | 8 | 0 | 0 |
 | Logs | DESK-SHELL-LOG-001 to 009 | 9 | 0 | 0 |
 | Settings | DESK-SHELL-SET-001 to 006 | 6 | 0 | 0 |
 | Window | DESK-SHELL-WIN-001 to 032 | 31 | 0 | 1 |
-| Tray | DESK-SHELL-TRAY-001 to 027 | 23 | 0 | 4 |
-| One running copy and command line | DESK-SHELL-CLI-001 to 022 | 21 | 0 | 1 |
+| Tray | DESK-SHELL-TRAY-001 to 027 | 27 | 0 | 0 |
+| One running copy and command line | DESK-SHELL-CLI-001 to 022 | 22 | 0 | 0 |
 | Staying out of the way | DESK-SHELL-AWAY-001 to 005 | 5 | 0 | 0 |
 | Windows sign-out and shutdown | DESK-SHELL-OS-001 to 003 | 3 | 0 | 0 |
 | First run | DESK-SHELL-FIRST-001 to 005 | 5 | 0 | 0 |
-| Notifications | DESK-SHELL-NOTE-001 to 019 | 16 | 0 | 3 |
-| Updates | DESK-SHELL-UPD-001 to 032 | 0 | 1 | 31 |
+| Notifications | DESK-SHELL-NOTE-001 to 019 | 17 | 0 | 2 |
+| Updates | DESK-SHELL-UPD-001 to 032 | 30 | 1 | 1 |
 | Unit-test harness | DESK-SHELL-TEST-001 | 1 | 0 | 0 |
 
-**Summary:** 176 of 226 specs implemented; 49 gaps; 1 deferred (DESK-SHELL-UPD-021, a prerelease
-channel). Notifications are built (milestone 5a) but for NOTE-003 (the update-ready notice, built in
-notifications.ts and called by the updater) and NOTE-014, NOTE-015 (a click after the notification's
-object is gone, and the COM registration Electron writes), which rest on Electron's and Windows'
-behaviour and wait to be seen on the installed app. The other gaps belong to updates: SRV-039 (the update
-check on resume), QUIT-002 (update work while quitting; the page's confirm dialogs), QUIT-007, QUIT-009
-to 011, BAK-005 (the backup before an update; the `--quit` backup is built), TRAY-015 to 017 and TRAY-027
-(the update items and states), CLI-022 (a click calling a quiet-moment install off) and UPD-*. Built and
+**Summary:** 219 of 226 specs implemented; 6 gaps; 1 deferred (DESK-SHELL-UPD-021, a prerelease
+channel). Built, waiting to be seen: UPD-001 (electron-updater taking an update from the project's
+GitHub Releases, unit-tested on a stand-in for its autoUpdater; seen only once a published release is
+newer than an installed copy), NOTE-014 and NOTE-015 (a click after the notification's object is gone,
+and the COM registration Electron writes), which rest on Electron's and Windows' behaviour. Built and
 seen by hand but cited by no test until the packaged smoke test — SRV-003, SRV-040, WIN-031. CLI-020 (a
 start during an install left in the install-under-way mark) is built with distribution's include.
 
 ## Key Findings
 
-1. **Built without notifications, updates or start lists** — the desktop shell runs unpackaged
+1. **Built through stand-ins** — the desktop shell runs unpackaged
    (`npm run desktop`) and its logic is unit-tested through injected stand-ins; the Electron glue
    (main.ts) is checked only as text until the packaged smoke test runs it.
 2. **Built on server work other segments own**, each specified there and cited in the LLD's Relies On.
@@ -181,7 +183,10 @@ start during an install left in the install-under-way mark) is built with distri
    start-up worker run in Electron 45's utility process (`npm run desktop`). Still to come: airports'
    official-site link (APT-POP-007), simbrief's links kept to other origins (SB-CARD-009) and fleet's
    icon addresses (FLEET-REC-018).
-3. **Platform behaviour not yet seen working** — notification clicks with no window, the registry keys
+3. **Platform behaviour not yet seen working** — electron-updater against a published release (a check,
+   a download, the cache check, and `quitAndInstall(true, false)` quitting the app through `app.quit()`
+   — the tray icon removed on `before-quit` — with the installer starting it again by the start the mark
+   asks for); notification clicks with no window, the registry keys
    notifications write and the switch Electron 45's notification activation adds to a start; session end
    on a hidden window; Windows 11 hiding a new program's tray icon and the Settings path the one-time
    notice quotes; and a start by the Store edition of MSFS (an open question in the desktop design,
@@ -224,8 +229,9 @@ start during an install left in the install-under-way mark) is built with distri
    DESK-SHELL-SRV-003, SRV-040 and WIN-031, which are built and seen by hand.
 
 ### Should Fix
-3. Updates, test-first (milestone 5b: UPD-*, NOTE-003's call, the rest of QUIT and TRAY, CLI-022's
-   quiet-moment part, BAK-005, SRV-039).
+3. See an update go through on the installed app once a published release is newer than it: Quit,
+   **Restart to update** and a quiet moment, the mark in `%LOCALAPPDATA%\msfs-career-map-updater` taken up
+   by the include (UPD-001).
 4. See notifications working on the installed app: a click from the notification centre and one that
    starts the app (NOTE-014), the keys Electron writes (NOTE-015), whether Electron creates a Start-menu
    shortcut of its own, and a closed pending leg's toast leaving the notification centre (NOTE-010).

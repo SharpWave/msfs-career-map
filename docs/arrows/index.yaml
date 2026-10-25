@@ -124,7 +124,7 @@ arrows:
     blocks: [start-lists, distribution]
     blockedBy: [live-tracking, airports, simbrief]
     detail: desktop/shell.md
-    next: "176 of 226 DESK-SHELL specs implemented (49 gaps, 1 deferred): notifications built (5a), NOTE-014 and NOTE-015 to be seen on the installed app. Next: updates test-first (milestone 5b: UPD-*, NOTE-003's call, the rest of QUIT and TRAY, CLI-022's quiet-moment part, BAK-005, SRV-039)"
+    next: "219 of 226 DESK-SHELL specs implemented (6 gaps, 1 deferred): notifications (5a) and updates (5b) built. Next: see on the installed app NOTE-014 and NOTE-015, and an update going through once a published release is newer than it (UPD-001); the packaged smoke test to cite SRV-003, SRV-040 and WIN-031"
     drift: "Tour-map's open basemap question (its LLD Open Questions 1) may change what the window loads (DESK-SHELL-WIN-011, DESK-SHELL-WIN-012)"
 
   start-lists:
@@ -148,7 +148,7 @@ arrows:
     blocks: []
     blockedBy: [shell, start-lists, live-tracking, simbrief, airports]
     detail: desktop/distribution.md
-    next: "85 of 113 DESK-DIST specs implemented (25 gaps, 3 deferred): packaging, the packaged smoke test, the include's steps and the release workflow with its installer round trip pass (a dry-run-v0.8.0 run on windows-latest). Next: check the wizard's pages and an older installer over a newer install by hand on a test machine; the shell's mark before it hands over with updates; the first release waits for SB-CARD-006 and SB-CARD-009 to 011 (the open part of DESK-DIST-REL-012) and a hand check of a start by the Store edition of MSFS"
+    next: "87 of 113 DESK-DIST specs implemented (23 gaps, 3 deferred): packaging, the packaged smoke test, the include's steps and the release workflow with its installer round trip pass (a dry-run-v0.8.0 run on windows-latest). Next: check the wizard's pages and an older installer over a newer install by hand on a test machine; the first release waits for SB-CARD-006 and SB-CARD-009 to 011 (the open part of DESK-DIST-REL-012) and a hand check of a start by the Store edition of MSFS"
     drift: null
 
   # Foundation: every segment relies on app-shell's conventions, so its dependencies are not listed.

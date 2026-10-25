@@ -288,6 +288,16 @@ Settings > System > Notifications > Set priority notifications. Windows 11 also 
 tray icon under ^ on the taskbar; Settings > Personalization > Taskbar > Other system tray icons keeps it
 in view.
 
+The installed app keeps itself up to date from this project's GitHub Releases. It checks a minute
+after it starts and every four hours after that, and **Check for updates** in the tray menu checks at
+once. A new version is downloaded only while MSFS is closed, and the tray's version line shows where
+it stands (up to date, downloading, ready). A ready update installs when you choose Quit or **Restart
+to update**, or by itself once MSFS and the window have stayed closed for five minutes with no leg in
+progress and casual mode off. A backup of the logbook is taken first, and if that backup fails the
+update waits: the version line gives the reason, and **Restart to update without a backup** installs
+it anyway. Closing the app any other way installs nothing. A copy in test mode never checks for
+updates.
+
 Don't run the installer on a development PC unless you mean to install the app: it is the real
 thing. The release workflow tries it on a clean GitHub runner instead (below).
 

@@ -57,8 +57,12 @@ description, API table and roadmap.
 - Desktop shell: `src/desktop/` (Electron 45). Its modules are pure logic driven through the stand-ins
   in `ports.ts` — clock, server launcher, local HTTP, Windows facts, known folders, opener, message
   boxes, window, tray, the start lists' file calls (`EditorFs`), Windows' start-up keys
-  (`StartupKeys`), notifications and their registrations — with `FakeClock` in tests
-  (`tests/desktop/support/`). Notifications are `notifications.ts` (the `Notifier`: what is shown, when,
+  (`StartupKeys`), notifications and their registrations, the updater (`UpdaterPort`) — with `FakeClock`
+  in tests (`tests/desktop/support/`). Updates are `updates.ts` (`Updates`: the 1 min / 4 h checks,
+  downloads held while the sim is in use, the state and the tray's version line; `QuietMoment`, the 5
+  unbroken minutes) and `updater.ts` (the port on electron-updater, whose `autoUpdater` main.ts passes in);
+  the three installs (Quit, Restart to update, a quiet moment), their backup, the mark written before the
+  handover and leaving the quitting state when one goes no further are in `shell.ts`. Notifications are `notifications.ts` (the `Notifier`: what is shown, when,
   in whose words), `toast.ts` (toast XML, the click's launch string, the clean-up's commands) and
   `registrations.ts` (AppUserModelID, the fixed ToastActivatorCLSID from `identity.ts`, the Start-menu
   shortcut); clicks come through Electron's `Notification.handleActivation`. The start lists (Start with

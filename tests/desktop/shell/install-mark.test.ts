@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   DOWNLOADS_NAME,
   MARK_NAME,
+  appendRequestNone,
   checkInstallUnderWay,
   downloadsFolder,
   installUnderWay,
@@ -21,10 +22,13 @@ import {
   markPath,
   nodeMarkFiles,
   parseMark,
+  startsIn,
+  takeUpMark,
+  writeMark,
   type MarkFiles,
   type MarkRecord,
 } from "../../../src/desktop/install-mark.ts";
-import { FakeFacts, tempFolder } from "../support/fakes.ts";
+import { FakeFacts, FakeMarkFiles as MemoryMarkFiles, tempFolder } from "../support/fakes.ts";
 import { takeGuardHits } from "../support/guard.ts";
 
 const LOCAL = "C:\\Users\\pilot\\AppData\\Local";
@@ -40,7 +44,7 @@ const utf16 = (text: string): number[] => [...Buffer.from(text, "utf16le")];
 const markOf = (...lines: string[]): Uint8Array => new Uint8Array([...BOM, ...utf16(lines.map((l) => `${l}\r\n`).join(""))]);
 
 /** The mark's file in memory, with hooks that act between the start's steps. */
-class FakeMarkFiles implements MarkFiles {
+class FakeMarkFiles implements Pick<MarkFiles, "read" | "append"> {
   files = new Map<string, Uint8Array>();
   /** "read <file>", "append <file>" in order. */
   calls: string[] = [];
@@ -287,5 +291,106 @@ describe("the mark's file on disk", () => {
       { kind: "process", pid: 1, program: SHELL_EXE },
       { kind: "start", switches: "--background" },
     ]);
+  });
+});
+
+describe("the mark the desktop shell writes and takes up", () => {
+  let folder: string | null = null;
+  afterEach(() => {
+    if (folder) fs.rmSync(folder, { recursive: true, force: true });
+    folder = null;
+  });
+
+  /** A temp folder standing in for %LOCALAPPDATA%, with no download folder yet. */
+  function local(): string {
+    folder = tempFolder("mark-shell-");
+    return folder;
+  }
+
+  // @spec DESK-SHELL-UPD-031, DESK-DIST-INST-025
+  it("writes the mark whole before the handover — a byte-order mark, its process and the start it asks for — making the download folder", () => {
+    const localAppData = local();
+    writeMark(nodeMarkFiles, localAppData, { pid: 7300, program: SHELL_EXE, start: "--updated" });
+    const file = markPath(localAppData);
+    expect(path.dirname(file)).toBe(downloadsFolder(localAppData));
+    expect(new Uint8Array(fs.readFileSync(file))).toEqual(markOf(`process 7300 ${SHELL_EXE}`, "request --updated"));
+    expect(parseMark(nodeMarkFiles.read(file)!)).toEqual<MarkRecord[]>([
+      { kind: "process", pid: 7300, program: SHELL_EXE },
+      { kind: "request", start: "--updated" },
+    ]);
+  });
+
+  // @spec DESK-SHELL-UPD-031, DESK-DIST-INST-025
+  it("asks for --background after a quiet moment and for no start after a Quit, replacing a mark left before", () => {
+    const localAppData = local();
+    writeMark(nodeMarkFiles, localAppData, { pid: 1, program: SHELL_EXE, start: "--background" });
+    expect(parseMark(nodeMarkFiles.read(markPath(localAppData))!)).toContainEqual({ kind: "request", start: "--background" });
+    writeMark(nodeMarkFiles, localAppData, { pid: 2, program: SHELL_EXE, start: "none" });
+    expect(parseMark(nodeMarkFiles.read(markPath(localAppData))!)).toEqual<MarkRecord[]>([
+      { kind: "process", pid: 2, program: SHELL_EXE },
+      { kind: "request", start: "none" },
+    ]);
+  });
+
+  // @spec DESK-SHELL-UPD-031, DESK-SHELL-QUIT-011, DESK-DIST-INST-025
+  it("appends a requested start of none for a Quit held after the mark was written, never creating the mark", () => {
+    const localAppData = local();
+    expect(appendRequestNone(nodeMarkFiles, localAppData)).toBe(false);
+    expect(fs.existsSync(markPath(localAppData))).toBe(false);
+
+    writeMark(nodeMarkFiles, localAppData, { pid: 7300, program: SHELL_EXE, start: "--background" });
+    expect(appendRequestNone(nodeMarkFiles, localAppData)).toBe(true);
+    expect(new Uint8Array(fs.readFileSync(markPath(localAppData)))).toEqual(
+      markOf(`process 7300 ${SHELL_EXE}`, "request --background", "request none"),
+    );
+  });
+
+  // @spec DESK-SHELL-UPD-031, DESK-DIST-INST-025
+  it("takes the mark up by renaming it aside, reading and deleting the renamed file", () => {
+    const localAppData = local();
+    writeMark(nodeMarkFiles, localAppData, { pid: 7300, program: SHELL_EXE, start: "--updated" });
+    nodeMarkFiles.append(markPath(localAppData), markLine({ kind: "start", switches: "--background" }));
+
+    const records = takeUpMark(nodeMarkFiles, localAppData, 7300);
+    expect(records).toEqual<MarkRecord[]>([
+      { kind: "process", pid: 7300, program: SHELL_EXE },
+      { kind: "request", start: "--updated" },
+      { kind: "start", switches: "--background" },
+    ]);
+    expect(fs.readdirSync(downloadsFolder(localAppData))).toEqual([]);
+  });
+
+  // @spec DESK-SHELL-UPD-031, DESK-DIST-INST-025
+  it("renames before it reads, to <mark>.<pid>.taken, and deletes that file", () => {
+    const files = new MemoryMarkFiles();
+    const mark = markPath(LOCAL);
+    files.write(mark, markOf(`process 7300 ${SHELL_EXE}`, "request none"));
+    files.calls = [];
+    takeUpMark(files, LOCAL, 7300);
+    const taken = `${mark}.7300.taken`;
+    expect(files.calls).toEqual([`rename ${mark} -> ${taken}`, `read ${taken}`, `remove ${taken}`]);
+    expect(files.has(mark)).toBe(false);
+    expect(files.has(taken)).toBe(false);
+  });
+
+  // @spec DESK-SHELL-UPD-031
+  it("finds nothing to take up when there is no mark, creating nothing", () => {
+    const localAppData = local();
+    expect(takeUpMark(nodeMarkFiles, localAppData, 7300)).toEqual([]);
+    expect(fs.existsSync(downloadsFolder(localAppData))).toBe(false);
+  });
+
+  // @spec DESK-SHELL-UPD-031, DESK-DIST-INST-030
+  it("gives each start record's command line in order, the process and request records left out", () => {
+    const records: MarkRecord[] = [
+      { kind: "process", pid: 7300, program: SHELL_EXE },
+      { kind: "request", start: "--background" },
+      { kind: "start", switches: "--background" },
+      { kind: "start", switches: "" },
+      { kind: "request", start: "none" },
+      { kind: "start", switches: "--updated" },
+    ];
+    expect(startsIn(records)).toEqual(["--background", "", "--updated"]);
+    expect(startsIn([])).toEqual([]);
   });
 });

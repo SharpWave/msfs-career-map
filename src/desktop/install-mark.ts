@@ -69,6 +69,12 @@ export interface MarkFiles {
   read(file: string): Uint8Array | null;
   /** Appends in one write to a file opened for appending only, never creating it; false when missing. */
   append(file: string, bytes: Uint8Array): boolean;
+  /** Creates or replaces the file, making its folder. */
+  write(file: string, bytes: Uint8Array): void;
+  /** Replaces `to`; throws when `from` is missing. */
+  rename(from: string, to: string): void;
+  /** A missing file is fine. */
+  remove(file: string): void;
 }
 
 export const nodeMarkFiles: MarkFiles = {
@@ -96,7 +102,60 @@ export const nodeMarkFiles: MarkFiles = {
       fs.closeSync(fd);
     }
   },
+  write(file, bytes) {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, bytes);
+  },
+  rename(from, to) {
+    fs.renameSync(from, to);
+  },
+  remove(file) {
+    fs.rmSync(file, { force: true });
+  },
 };
+
+/** The mark written whole just before the handover to the installer: a byte-order mark, the shell's process and the start it asks for. */
+// @spec DESK-SHELL-UPD-031, DESK-DIST-INST-025
+export function writeMark(files: MarkFiles, localAppData: string, o: { pid: number; program: string; start: MarkStart }): void {
+  const lines = [markLine({ kind: "process", pid: o.pid, program: o.program }), markLine({ kind: "request", start: o.start })];
+  const bytes = new Uint8Array(2 + lines.reduce((n, l) => n + l.length, 0));
+  bytes.set([0xff, 0xfe]);
+  let at = 2;
+  for (const l of lines) {
+    bytes.set(l, at);
+    at += l.length;
+  }
+  files.write(markPath(localAppData), bytes);
+}
+
+/** A Quit held after the mark was written: `request none` appended, never creating the mark; false without one. */
+// @spec DESK-SHELL-QUIT-011
+export function appendRequestNone(files: MarkFiles, localAppData: string): boolean {
+  return files.append(markPath(localAppData), markLine({ kind: "request", start: "none" }));
+}
+
+/**
+ * The install went no further: the mark renamed aside to `<mark>.<pid>.taken` (so a start appending
+ * from then on finds no mark and goes ahead), read and deleted. Its records, or [] when there was none.
+ */
+// @spec DESK-SHELL-UPD-031, DESK-DIST-INST-025
+export function takeUpMark(files: MarkFiles, localAppData: string, pid: number): MarkRecord[] {
+  const mark = markPath(localAppData);
+  const taken = `${mark}.${pid}.taken`;
+  try {
+    files.rename(mark, taken);
+  } catch {
+    return [];
+  }
+  const bytes = files.read(taken);
+  files.remove(taken);
+  return bytes === null ? [] : parseMark(bytes);
+}
+
+/** The command lines of the starts a mark's `start` records left for the installer, in order. */
+export function startsIn(records: MarkRecord[]): StartSwitches[] {
+  return records.flatMap((r) => (r.kind === "start" ? [r.switches] : []));
+}
 
 type MarkFacts = Pick<WindowsFacts, "programOf" | "processesIn">;
 
@@ -126,7 +185,7 @@ export type InstallCheck = "go" | "left-in-mark";
 export async function checkInstallUnderWay(o: {
   localAppData: string;
   switches: StartSwitches;
-  files: MarkFiles;
+  files: Pick<MarkFiles, "read" | "append">;
   facts: MarkFacts;
 }): Promise<InstallCheck> {
   const mark = markPath(o.localAppData);

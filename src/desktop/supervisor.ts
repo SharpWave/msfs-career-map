@@ -296,6 +296,34 @@ export class Supervisor {
     if (kind === "not-started" || kind === "restarting") this.setState({ kind: "stopped" });
   }
 
+  /**
+   * An update that went no further: the quitting state left. Given up stays given up; a process still
+   * running keeps running with its checks armed again; with none, a start with a fresh count of failures.
+   */
+  // @spec DESK-SHELL-QUIT-009, DESK-SHELL-QUIT-010
+  leaveQuitting(): void {
+    if (!this.quitting) return;
+    this.quitting = false;
+    this.shutdown = null;
+    this.shutdownEnded = null;
+    this.shutdownKill?.();
+    this.shutdownKill = null;
+    if (this.current.kind === "given-up") return;
+    const a = this.attempt;
+    if (a && !a.exited) {
+      // An ask cut off by the quitting state never settles.
+      a.asking = false;
+      a.misses = 0;
+      if (!a.ready) this.armReadyBound(a);
+      else this.armHealth(a);
+      if (a.pid !== null && !a.done) this.askUntilDone(a);
+      return;
+    }
+    this.failures = 0;
+    this.ownReason = null;
+    this.launch();
+  }
+
   /** Enters the quitting state and sends Shut down to any process, ending it at 10 s. Every call returns the same promise. */
   // @spec DESK-SHELL-SRV-019, DESK-SHELL-SRV-020, DESK-SHELL-SRV-045
   shutDown(): Promise<void> {
@@ -369,6 +397,11 @@ export class Supervisor {
     a.pid = pid;
     for (const msg of a.held.splice(0)) a.child.post(msg);
     if (this.attempt !== a || this.quitting) return;
+    this.askUntilDone(a);
+  }
+
+  /** A readiness ask now and every second until the start-up work is done. */
+  private askUntilDone(a: Attempt): void {
     const tick = () => {
       if (a.done) return;
       a.tick = a.waits.after(TIMING.readinessAskEveryMs, tick);

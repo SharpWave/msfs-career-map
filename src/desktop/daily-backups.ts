@@ -71,6 +71,13 @@ export class DailyBackups {
     this.hourly = null;
   }
 
+  /** Checks again after stop(): every hour from now, once the run's first start-up done has come. */
+  resume(): void {
+    if (!this.stopped) return;
+    this.stopped = false;
+    if (this.started) this.arm();
+  }
+
   /** The short reason while 3 or more daily backups in a row have failed; else null. */
   failing(): string | null {
     const f = this.o.settings.get().dailyBackupFailures;

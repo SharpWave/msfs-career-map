@@ -17,6 +17,9 @@ export type TrayItemId =
   | "start-msfs"
   | "start-windows"
   | "version"
+  | "restart-update"
+  | "restart-update-no-backup"
+  | "check-updates"
   | "open-data"
   | "open-backups"
   | "show-log"
@@ -36,6 +39,16 @@ export interface TrayInput {
   backupsFolderExists: boolean;
   /** The start-list items as last read; null in test mode, or before the first read (both left out). */
   startLists: StartListItems | null;
+  /** The version line and the update items as the shell works them out; null in test mode (the line reads Version X alone). */
+  update: TrayUpdate | null;
+}
+
+export interface TrayUpdate {
+  line: string;
+  /** Only while an update is ready. */
+  restart: { label: string; enabled: boolean } | null;
+  /** Only while an update is ready after a backup before it failed. */
+  restartNoBackup: { enabled: boolean } | null;
 }
 
 export interface TrayModel {
@@ -97,7 +110,7 @@ export function trayDot(i: TrayInput): TrayDot {
 }
 
 /** The menu in order, each conditional item only when it applies; every item stays enabled while quitting (the shell ignores them). */
-// @spec DESK-SHELL-TRAY-015, DESK-SHELL-TRAY-016, DESK-SHELL-TRAY-018, DESK-SHELL-TRAY-019, DESK-SHELL-TRAY-020, DESK-SHELL-TRAY-026, DESK-START-MSFS-013, DESK-START-WINDOWS-007, DESK-START-TEST-001
+// @spec DESK-SHELL-TRAY-015, DESK-SHELL-TRAY-016, DESK-SHELL-TRAY-017, DESK-SHELL-TRAY-027, DESK-SHELL-TRAY-018, DESK-SHELL-TRAY-019, DESK-SHELL-TRAY-020, DESK-SHELL-TRAY-026, DESK-START-MSFS-013, DESK-START-WINDOWS-007, DESK-START-TEST-001
 export function trayMenu(i: TrayInput): TrayMenuItem[] {
   const sep: TrayMenuItem = { separator: true };
   const menu: TrayMenuItem[] = [
@@ -111,7 +124,16 @@ export function trayMenu(i: TrayInput): TrayMenuItem[] {
   if (i.startLists !== null) {
     menu.push(sep, { id: "start-msfs", ...i.startLists.msfs }, { id: "start-windows", ...i.startLists.windows });
   }
-  menu.push(sep, { id: "version", label: `Version ${i.version}`, enabled: false }, sep);
+  const u = i.update;
+  menu.push(sep, { id: "version", label: u?.line ?? `Version ${i.version}`, enabled: false });
+  if (u !== null) {
+    if (u.restart !== null) menu.push({ id: "restart-update", ...u.restart });
+    if (u.restartNoBackup !== null) {
+      menu.push({ id: "restart-update-no-backup", label: "Restart to update without a backup", enabled: u.restartNoBackup.enabled });
+    }
+    menu.push({ id: "check-updates", label: "Check for updates", enabled: true });
+  }
+  menu.push(sep);
   menu.push({ id: "open-data", label: "Open data folder", enabled: true });
   if (i.backupsFolderExists) menu.push({ id: "open-backups", label: "Open backups folder", enabled: true });
   menu.push({ id: "show-log", label: "Show log", enabled: true }, sep);

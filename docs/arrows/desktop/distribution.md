@@ -97,8 +97,8 @@ other without ever reaching the logbook, built and tested from the repository be
 
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
-| Packaging | DESK-DIST-PKG-001 to 022 | 21 | 0 | 1 |
-| Installer, closing a running copy and an install under way | DESK-DIST-INST-001 to 030 | 19 | 1 | 10 |
+| Packaging | DESK-DIST-PKG-001 to 022 | 22 | 0 | 0 |
+| Installer, closing a running copy and an install under way | DESK-DIST-INST-001 to 030 | 20 | 1 | 9 |
 | Uninstaller | DESK-DIST-UNINST-001 to 015 | 8 | 0 | 7 |
 | Releases | DESK-DIST-REL-001 to 018 | 10 | 2 | 6 |
 | Development | DESK-DIST-DEV-001 to 007 (003 withdrawn) | 5 | 0 | 1 |
@@ -106,7 +106,7 @@ other without ever reaching the logbook, built and tested from the repository be
 | Packaged smoke test | DESK-DIST-SMOKE-001 to 012 | 12 | 0 | 0 |
 | Installer round trip | DESK-DIST-TRIP-001 to 008 | 8 | 0 | 0 |
 
-**Summary:** 85 of 113 specs implemented; 25 gaps; 3 deferred (DESK-DIST-INST-017, REL-013, REL-014).
+**Summary:** 87 of 113 specs implemented; 23 gaps; 3 deferred (DESK-DIST-INST-017, REL-013, REL-014).
 Built, not yet seen working: the wizard and what only it shows — INST-002, 012, 013, 018,
 019, 026 (the include's take-up and choice of start are tested; the Finished page is not); UNINST-008
 to 010 (the last page's texts are tested, the page is not); INST-006 and DEV-007 (the Start-menu entry
@@ -114,9 +114,9 @@ is made; its AppUserModelID and the shortcuts' empty command line are not checke
 INST-027 is seen only on a real Windows shutdown; UNINST-001, 003, 011 (no running copy or start-list
 entry at the round trip's uninstall, and its silence is not checked); REL-006 (a draft, made only by a
 `v<version>` tag), REL-010 (a published release), REL-011 (an older installer over a newer install).
-Built in part: PKG-007
-(electron-updater with updates), INST-025 and INST-028 (the desktop shell's own mark before it hands
-over, with updates), UNINST-012 (every uninstaller step seen working, waiting on UNINST-001, 003 and 008
+Built, waiting on the first release: INST-028 (the check for an install under way and the
+desktop shell's mark before it hands over are in the program, the mark and the start after an install in
+the include; true of the first release once it is cut). Built in part: UNINST-012 (every uninstaller step seen working, waiting on UNINST-001, 003 and 008
 to 011). Not code: REL-012 (the first release's gate, waiting on simbrief's SB-CARD-006 and
 SB-CARD-009 to 011), REL-016 and REL-017 (the maintainer's rules, written into the README's Releasing).
 

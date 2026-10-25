@@ -89,6 +89,8 @@ export interface TrackerFeedOptions {
   /** A `pending` or `hop` event, read as the notifications need it; a malformed one is dropped. */
   onEvent?(name: "pending", data: PendingNotice): void;
   onEvent?(name: "hop", data: { id: number; message: string }): void;
+  /** The event stream opened or ended. */
+  onStream?(): void;
   log(line: string): void;
 }
 
@@ -135,6 +137,11 @@ export class TrackerFeed {
     this.subscribe();
   }
 
+  /** Subscribed with the event stream open. */
+  subscribed(): boolean {
+    return this.active && this.stream !== null;
+  }
+
   /** The last status received; kept across ended streams. */
   last(): TrayTracker | null {
     return this.lastStatus;
@@ -167,6 +174,7 @@ export class TrackerFeed {
     const stream = this.stream;
     this.stream = null;
     stream?.close();
+    if (stream) this.o.onStream?.();
   }
 
   /** One attempt: the read, raced with its bound, then the stream. */
@@ -224,9 +232,11 @@ export class TrackerFeed {
         if (!current()) return;
         this.stream = null;
         if (succeeded) this.o.log("[tracker] the event stream ended");
+        this.o.onStream?.();
         this.failed();
       },
     });
+    this.o.onStream?.();
   }
 
   private status(s: TrayTracker): void {

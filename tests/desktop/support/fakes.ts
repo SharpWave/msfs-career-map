@@ -33,6 +33,8 @@ import type {
   WindowPort,
   WindowsFacts,
 } from "../../../src/desktop/ports.ts";
+import type { CheckResult, UpdaterPort } from "../../../src/desktop/ports.ts";
+import type { MarkFiles } from "../../../src/desktop/install-mark.ts";
 import type { CommandLine } from "../../../src/desktop/cli.ts";
 import type { RunPlan } from "../../../src/desktop/start.ts";
 import type { SavedWindow } from "../../../src/desktop/settings.ts";
@@ -666,6 +668,119 @@ export class FakeKeys implements StartupKeys {
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// Updates (m5b contract §2, §6)
+
+export interface FakeDownload {
+  version: string;
+  cancelled: boolean;
+  finish(r?: { ok: true } | { ok: false; reason: string }): void;
+}
+
+/**
+ * electron-updater in memory. A check waits until the test settles it (`answerCheck`), or answers at
+ * once with `checkReply` when that is set; a download waits for `downloads.at(-1).finish()`. `install()`
+ * answers `installReply`. `calls`: "check", "cancelCheck", "download <v>", "install", "discard".
+ */
+export class FakeUpdater implements UpdaterPort {
+  calls: string[] = [];
+  checkReply: CheckResult | null = null;
+  installReply: { ok: true } | { ok: false; reason: string } = { ok: true };
+  downloads: FakeDownload[] = [];
+  private pendingChecks: ((r: CheckResult) => void)[] = [];
+
+  check(): Promise<CheckResult> {
+    this.calls.push("check");
+    if (this.checkReply) return Promise.resolve(this.checkReply);
+    return new Promise((resolve) => this.pendingChecks.push(resolve));
+  }
+  /** Settles the oldest check still waiting; throws when none waits. */
+  answerCheck(r: CheckResult): void {
+    const resolve = this.pendingChecks.shift();
+    if (!resolve) throw new Error("FakeUpdater.answerCheck: no check waiting");
+    resolve(r);
+  }
+  checksWaiting(): number {
+    return this.pendingChecks.length;
+  }
+  download(version: string): { done: Promise<{ ok: true } | { ok: false; reason: string }>; cancel(): void } {
+    this.calls.push(`download ${version}`);
+    let settle!: (r: { ok: true } | { ok: false; reason: string }) => void;
+    const done = new Promise<{ ok: true } | { ok: false; reason: string }>((r) => (settle = r));
+    let settled = false;
+    const d: FakeDownload = {
+      version,
+      cancelled: false,
+      finish(r = { ok: true }) {
+        if (settled) return;
+        settled = true;
+        settle(r);
+      },
+    };
+    this.downloads.push(d);
+    return {
+      done,
+      cancel() {
+        d.cancelled = true;
+        d.finish({ ok: false, reason: "cancelled" });
+      },
+    };
+  }
+  cancelCheck(): void {
+    this.calls.push("cancelCheck");
+    for (const resolve of this.pendingChecks.splice(0)) resolve({ kind: "failed", reason: "cancelled" });
+  }
+  install(): { ok: true } | { ok: false; reason: string } {
+    this.calls.push("install");
+    return this.installReply;
+  }
+  discard(): Promise<void> {
+    this.calls.push("discard");
+    return Promise.resolve();
+  }
+}
+
+/** The install-under-way mark's file calls in memory, by path ignoring case. */
+export class FakeMarkFiles implements MarkFiles {
+  readonly files = new Map<string, Uint8Array>();
+  calls: string[] = [];
+  private key(file: string): string {
+    return file.toLowerCase();
+  }
+  read(file: string): Uint8Array | null {
+    this.calls.push(`read ${file}`);
+    return this.files.get(this.key(file)) ?? null;
+  }
+  append(file: string, bytes: Uint8Array): boolean {
+    this.calls.push(`append ${file}`);
+    const had = this.files.get(this.key(file));
+    if (!had) return false;
+    const joined = new Uint8Array(had.length + bytes.length);
+    joined.set(had);
+    joined.set(bytes, had.length);
+    this.files.set(this.key(file), joined);
+    return true;
+  }
+  write(file: string, bytes: Uint8Array): void {
+    this.calls.push(`write ${file}`);
+    this.files.set(this.key(file), Uint8Array.from(bytes));
+  }
+  rename(from: string, to: string): void {
+    this.calls.push(`rename ${from} -> ${to}`);
+    const had = this.files.get(this.key(from));
+    if (!had) throw fsError("ENOENT");
+    this.files.delete(this.key(from));
+    this.files.set(this.key(to), had);
+  }
+  remove(file: string): void {
+    this.calls.push(`remove ${file}`);
+    this.files.delete(this.key(file));
+  }
+  has(file: string): boolean {
+    return this.files.has(this.key(file));
+  }
+}
+
 export interface FakePorts extends ShellPorts {
   clock: FakeClock;
   launcher: FakeLauncher;
@@ -680,6 +795,9 @@ export interface FakePorts extends ShellPorts {
   keys: FakeKeys;
   notifications: FakeNotifications;
   registrations: FakeRegistrations;
+  updater: FakeUpdater;
+  markFiles: FakeMarkFiles;
+  pid: number;
   exits: { code: number; relaunch: string[] | null }[];
 }
 
@@ -699,6 +817,9 @@ export function makePorts(): FakePorts {
     keys: new FakeKeys(),
     notifications: new FakeNotifications(),
     registrations: new FakeRegistrations(),
+    updater: new FakeUpdater(),
+    markFiles: new FakeMarkFiles(),
+    pid: 7300,
     exits,
     exit(code: number, relaunch: string[] | null) {
       exits.push({ code, relaunch });

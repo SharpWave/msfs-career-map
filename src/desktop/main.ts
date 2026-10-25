@@ -20,7 +20,8 @@ import { browserAddress, navigationOutcome, newWindowOutcome } from "./address.t
 import { handedOverCommand, startSwitch, type CommandLine } from "./cli.ts";
 import { realClock } from "./clock.ts";
 import { installErrorHandlers } from "./errors.ts";
-import { checkInstallUnderWay, leftInMarkLogLine, nodeMarkFiles } from "./install-mark.ts";
+import { autoUpdater, CancellationToken } from "electron-updater";
+import { checkInstallUnderWay, downloadsFolder, leftInMarkLogLine, nodeMarkFiles } from "./install-mark.ts";
 import { localHttp } from "./local-http.ts";
 import { LogFile } from "./logs.ts";
 import { nodeEditorFs } from "./msfs-start.ts";
@@ -43,6 +44,7 @@ import { startupKeys } from "./startup-keys.ts";
 import { launchOf, parseLaunch, toastXml } from "./toast.ts";
 import type { TrayDot, TrayMenuItem } from "./tray-model.ts";
 import { runUnregister } from "./unregister.ts";
+import { electronUpdater, lazyUpdater } from "./updater.ts";
 import { VERSION } from "./version.ts";
 import {
   contextMenuItems,
@@ -181,6 +183,17 @@ function runningCopy(plan: RunPlan, command: CommandLine): void {
       keys: startupKeys({ loginItems: app }),
       notifications,
       registrations: registrations({ app, shell: shortcutLinks, appData: process.env.APPDATA ?? "" }),
+      // electron-updater's autoUpdater is only made at the first call, which test mode never makes.
+      updater: lazyUpdater(() =>
+        electronUpdater<CancellationToken>({
+          autoUpdater,
+          CancellationToken,
+          cacheFolder: downloadsFolder(process.env.LOCALAPPDATA ?? ""),
+          log: (line) => shell.log(line),
+        }),
+      ),
+      markFiles: nodeMarkFiles,
+      pid: process.pid,
       exit(code, relaunch) {
         if (relaunch) app.relaunch({ args: app.isPackaged ? relaunch : [process.argv[1], ...relaunch] });
         // The icon leaves the notification area with the app, not at Explorer's next look.
@@ -195,6 +208,11 @@ function runningCopy(plan: RunPlan, command: CommandLine): void {
   app.on("second-instance", (_e, argv, cwd, data) => shell.handOver(handedOverCommand(data, argv, cwd)));
   // Closing the window leaves the app in the tray.
   app.on("window-all-closed", () => {});
+  // Only electron-updater's quitAndInstall quits by app.quit(); its icon leaves with the app too.
+  app.on("before-quit", () => {
+    tray?.destroy();
+    tray = null;
+  });
   app.userAgentFallback = windowUserAgent(app.userAgentFallback, VERSION);
 
   void app.whenReady().then(() => {

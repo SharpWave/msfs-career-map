@@ -29,6 +29,7 @@ function input(o: Partial<TrayInput> = {}): TrayInput {
     version: "0.8.0",
     backupsFolderExists: false,
     startLists: null,
+    update: null,
     ...o,
   };
 }
@@ -390,6 +391,111 @@ describe("the tray menu", () => {
     const menu = trayMenu(input({ quitting: true, startLists }));
     expect(menu).toContainEqual({ id: "start-msfs", label: "Start with MSFS 2024", enabled: true, checked: false });
     expect(menu).toContainEqual({ id: "start-windows", label: "Start with Windows", enabled: true, checked: true });
+  });
+});
+
+describe("the tray menu's update items", () => {
+  const CHECK: TrayMenuItem = { id: "check-updates", label: "Check for updates", enabled: true };
+
+  // @spec DESK-SHELL-TRAY-015, DESK-SHELL-TRAY-016, DESK-SHELL-TRAY-017, DESK-SHELL-TRAY-027
+  it("puts the version line, Restart to update, Restart to update without a backup and Check for updates, in that order, before the folders", () => {
+    const i = input({
+      update: {
+        line: "Version 0.8.0 — 0.9.0 waiting: backup failed (disk full)",
+        restart: { label: "Restart to update", enabled: true },
+        restartNoBackup: { enabled: true },
+      },
+    });
+    expect(trayMenu(i)).toEqual([
+      OPEN,
+      SEP,
+      { id: "status", label: "Sim not running", enabled: false },
+      SEP,
+      { id: "version", label: "Version 0.8.0 — 0.9.0 waiting: backup failed (disk full)", enabled: false },
+      { id: "restart-update", label: "Restart to update", enabled: true },
+      { id: "restart-update-no-backup", label: "Restart to update without a backup", enabled: true },
+      CHECK,
+      SEP,
+      OPEN_DATA,
+      SHOW_LOG,
+      SEP,
+      QUIT,
+    ]);
+  });
+
+  // @spec DESK-SHELL-TRAY-016, DESK-SHELL-TRAY-017
+  it("shows the update state on the version line and only Check for updates while no update is ready", () => {
+    const menu = trayMenu(input({ update: { line: "Version 0.8.0 — downloading 0.9.0", restart: null, restartNoBackup: null } }));
+    const ids = menu.flatMap((item: TrayMenuItem) => ("id" in item ? [item.id] : []));
+    expect(ids).toEqual(["open", "status", "version", "check-updates", "open-data", "show-log", "quit"]);
+    expect(menu).toContainEqual({ id: "version", label: "Version 0.8.0 — downloading 0.9.0", enabled: false });
+    expect(menu).toContainEqual(CHECK);
+  });
+
+  // @spec DESK-SHELL-TRAY-017
+  it("shows Restart to update as it is given: unclickable, reading (after the sim closes), while the sim is in use", () => {
+    const menu = trayMenu(
+      input({
+        update: {
+          line: "Version 0.8.0 — 0.9.0 ready",
+          restart: { label: "Restart to update (after the sim closes)", enabled: false },
+          restartNoBackup: null,
+        },
+      }),
+    );
+    expect(menu).toContainEqual({ id: "restart-update", label: "Restart to update (after the sim closes)", enabled: false });
+    expect(menu.flatMap((item: TrayMenuItem) => ("id" in item ? [item.id] : []))).not.toContain("restart-update-no-backup");
+  });
+
+  // @spec DESK-SHELL-TRAY-027
+  it("shows Restart to update without a backup only under Restart to update, clickable as it is given", () => {
+    const menu = trayMenu(
+      input({
+        update: {
+          line: "Version 0.8.0 — 0.9.0 waiting: backup failed (disk full)",
+          restart: { label: "Restart to update", enabled: false },
+          restartNoBackup: { enabled: false },
+        },
+      }),
+    );
+    const ids = menu.flatMap((item: TrayMenuItem) => ("id" in item ? [item.id] : []));
+    expect(ids.indexOf("restart-update-no-backup")).toBe(ids.indexOf("restart-update") + 1);
+    expect(menu).toContainEqual({ id: "restart-update-no-backup", label: "Restart to update without a backup", enabled: false });
+  });
+
+  // @spec DESK-SHELL-TRAY-020, DESK-SHELL-UPD-005
+  it("leaves every update item out in test mode, the version line reading Version X alone", () => {
+    const menu = trayMenu(input({ update: null }));
+    const ids = menu.flatMap((item: TrayMenuItem) => ("id" in item ? [item.id] : []));
+    for (const id of ["restart-update", "restart-update-no-backup", "check-updates"]) expect(ids).not.toContain(id);
+    expect(menu).toContainEqual(VERSION);
+  });
+
+  // @spec DESK-SHELL-TRAY-015, DESK-START-MSFS-013
+  it("keeps the start-list items before the version line and the update items after it", () => {
+    const menu = trayMenu(
+      input({
+        startLists: {
+          msfs: { label: "Start with MSFS 2024", enabled: true, checked: false },
+          windows: { label: "Start with Windows", enabled: true, checked: true },
+        },
+        update: { line: "Version 0.8.0 — 0.9.0 ready", restart: { label: "Restart to update", enabled: true }, restartNoBackup: null },
+      }),
+    );
+    const ids = menu.flatMap((item: TrayMenuItem) => ("id" in item ? [item.id] : []));
+    expect(ids).toEqual(["open", "status", "start-msfs", "start-windows", "version", "restart-update", "check-updates", "open-data", "show-log", "quit"]);
+  });
+
+  // @spec DESK-SHELL-QUIT-003
+  it("keeps the update items as given while quitting (the shell ignores their clicks)", () => {
+    const menu = trayMenu(
+      input({
+        quitting: true,
+        update: { line: "Version 0.8.0 — 0.9.0 ready", restart: { label: "Restart to update", enabled: true }, restartNoBackup: null },
+      }),
+    );
+    expect(menu).toContainEqual({ id: "restart-update", label: "Restart to update", enabled: true });
+    expect(menu).toContainEqual(CHECK);
   });
 });
 

@@ -80,6 +80,13 @@ describe("the pinned tools", () => {
     expect(lock.packages["node_modules/electron-builder"]?.version).toBe("26.18.0");
     expect(lock.packages["node_modules/app-builder-lib"]?.version).toBe("26.18.0");
   });
+
+  // @spec DESK-DIST-PKG-007, DESK-SHELL-UPD-001
+  it("pin electron-updater to 6.8.11 exactly, as installed, among the app's own dependencies", () => {
+    expect(declared("electron-updater")).toBe("6.8.11");
+    expect(pkg.dependencies?.["electron-updater"]).toBe("6.8.11");
+    expect(lock.packages["node_modules/electron-updater"]?.version).toBe("6.8.11");
+  });
 });
 
 describe("the desktop scripts", () => {

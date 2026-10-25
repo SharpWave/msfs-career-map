@@ -20,6 +20,8 @@ export interface BackupRequestsOptions {
   clock: Clock;
   supervisor: Pick<Supervisor, "hasProcess" | "post" | "onMessage" | "onExit">;
   log(line: string): void;
+  /** A backup began or ended. */
+  changed?(): void;
 }
 
 interface Outstanding {
@@ -66,7 +68,13 @@ export class BackupRequests {
     return new Promise((resolve) => {
       this.outstanding.set(id, { kind, resolve, bound: this.bound(id) });
       if (!this.o.supervisor.post(requestMessage(id, kind))) this.finish(id, { ok: false, why: "no-server" });
+      else this.o.changed?.();
     });
+  }
+
+  /** A backup is outstanding. */
+  busy(): boolean {
+    return this.outstanding.size > 0;
   }
 
   /** Every outstanding request resolves "abandoned". */
@@ -110,5 +118,6 @@ export class BackupRequests {
     this.outstanding.delete(id);
     request.bound();
     request.resolve(outcome);
+    this.o.changed?.();
   }
 }

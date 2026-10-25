@@ -199,3 +199,31 @@ export interface StartupKeys {
   /** The value deleted from both keys; one absent is fine; throws when one stays. */
   remove(): Promise<void>;
 }
+
+// Updates
+
+/** What a check for updates found. */
+export type CheckResult =
+  | { kind: "none" }
+  /** downloaded: its installer is already in electron-updater's cache, valid. */
+  | { kind: "found"; version: string; downloaded: boolean }
+  | { kind: "failed"; reason: string };
+
+export type UpdaterOutcome = { ok: true } | { ok: false; reason: string };
+
+/** electron-updater on GitHub Releases; `updater.ts` is the real one. */
+export interface UpdaterPort {
+  /** Asks GitHub Releases (SharpWave/msfs-career-map, no token); never rejects. */
+  check(): Promise<CheckResult>;
+  /** Downloads `version` (or validates the cached one); cancel() resolves it { ok: false, reason: "cancelled" }. */
+  download(version: string): { done: Promise<UpdaterOutcome>; cancel(): void };
+  /** Cancels a check under way: its promise resolves { kind: "failed", reason: "cancelled" }. */
+  cancelCheck(): void;
+  /**
+   * quitAndInstall, silent, the app not run after. ok: the installer is being started and the app quits
+   * by itself; not ok: it could not be started, nothing quits.
+   */
+  install(): UpdaterOutcome;
+  /** The downloaded installer deleted; never rejects. */
+  discard(): Promise<void>;
+}
