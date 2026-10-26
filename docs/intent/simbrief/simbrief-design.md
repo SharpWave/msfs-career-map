@@ -33,6 +33,8 @@ This segment owns:
 - briefings: archiving a plan whole, the current plan for the flight being flown, attaching and
   removing plans on logged hops, and when an archived plan is deleted
   ([routes.ts:589-721](../../../src/server/routes.ts#L589-L721));
+- showing a plan's OFP text and judging the addresses a plan gives
+  ([ofp-html.ts](../../../src/client/ofp-html.ts));
 - the SimBrief controls in the live card, the SimBrief card in the flight panel, and the route on
   the map ([LivePanel.tsx](../../../src/client/components/LivePanel.tsx) `SimbriefControls`,
   [FlightPanel.tsx](../../../src/client/components/FlightPanel.tsx) `BriefingCard`,
@@ -187,7 +189,7 @@ casual mode is off; in casual mode the controls show only a current plan, if the
 
 ## SimBrief Card in the Flight Panel
 
-([FlightPanel.tsx:230-343](../../../src/client/components/FlightPanel.tsx#L230-L343)) The app loads
+([FlightPanel.tsx](../../../src/client/components/FlightPanel.tsx) `BriefingCard`) The app loads
 the full plan for whatever the panel shows — a hop's plan, or the current plan for the live leg —
 and reloads it after a change ([App.tsx:179-196](../../../src/client/App.tsx#L179-L196)). For a
 pending leg it is meant to show that leg's plan too (PANEL-OPEN-002).
@@ -203,10 +205,6 @@ pending leg it is meant to show that leg's plan too (PANEL-OPEN-002).
   offered only for an address a link inside the plan could keep ([Links](#the-ofp-text)); for a hop,
   **Remove**.
 
-Today, with neither callsign nor airline the Flight line is blank rather than "—"
-([FlightPanel.tsx:285](../../../src/client/components/FlightPanel.tsx#L285)), and **PDF** is offered
-whatever its address ([FlightPanel.tsx:329-333](../../../src/client/components/FlightPanel.tsx#L329-L333)).
-
 ### The OFP Text
 
 The OFP text is SimBrief's HTML, and the page shows it on its own origin, in a browser tab or the
@@ -221,7 +219,9 @@ and the desktop app's first release waits for all of it (DESK-DIST-REL-012).
 
 - **Cleaned as shown.** DOMPurify, configured as an allowlist, cleans the HTML each time the card
   shows it, so every stored plan is shown under the same rules whenever it was imported; the archive
-  keeps SimBrief's HTML as it came ([Briefings](#briefings)).
+  keeps SimBrief's HTML as it came ([Briefings](#briefings)). The cleaning is `cleanOfpHtml` and the
+  judging of a plan's addresses, its PDF's included, `outsideLink`
+  ([ofp-html.ts](../../../src/client/ofp-html.ts)).
 - **Kept:** the text; `div`, `span`, `p`, `br`, `hr`, `pre`, `h1`–`h6`, `b`, `strong`, `i`, `em`,
   `u`, `s`, `small`, `big`, `sub`, `sup`, `code`, `tt`, `font` and `center`; lists (`ul`, `ol`,
   `li`, `dl`, `dt`, `dd`); tables (`table`, `caption`, `thead`, `tbody`, `tfoot`, `tr`, `th`, `td`,
@@ -261,11 +261,6 @@ and the desktop app's first release waits for all of it (DESK-DIST-REL-012).
   monospaced type and colours over the plan's with rules marked important, which an important inline
   declaration would beat. The box clips the plan to its area, positioned content included (CSS paint
   containment), so no inline style can draw over the rest of the page.
-
-Today the OFP text is inserted as it comes
-([FlightPanel.tsx:341](../../../src/client/components/FlightPanel.tsx#L341)), in a box that already
-sets its own type and colours over the plan's, except where an inline style is marked important, and
-clips only what flows inside it ([styles.css](../../../src/client/styles.css) `.ofp-html`).
 
 ## Route on the Map
 
@@ -319,20 +314,15 @@ clips only what flows inside it ([styles.css](../../../src/client/styles.css) `.
 4. **Plans of deleted hops** stay in the table with nothing pointing to them.
 5. **Attaching to a logged hop has no preview** — it takes whatever plan is latest
    ([FlightPanel.tsx:235-247](../../../src/client/components/FlightPanel.tsx#L235-L247)).
-6. **OFP text shown as it comes**, on the page's own origin
-   ([FlightPanel.tsx:341](../../../src/client/components/FlightPanel.tsx#L341)); the desktop app's
-   first release waits for it shown as text and layout only (SB-CARD-006, SB-CARD-009 to 011;
-   DESK-DIST-REL-012).
-7. **Pending legs' plans** cannot be seen until the leg is logged.
-8. **Two fallback type lists** — the server's built-in 35 and the form's own
+6. **Pending legs' plans** cannot be seen until the leg is logged.
+7. **Two fallback type lists** — the server's built-in 35 and the form's own
    ([simbrief.ts:22-33](../../../src/server/simbrief.ts#L22-L33), [client simbrief.ts:44-96](../../../src/client/simbrief.ts#L44-L96)).
-9. **PDF offered whatever its address; blank Flight line** with neither callsign nor airline
-    ([FlightPanel.tsx:285](../../../src/client/components/FlightPanel.tsx#L285), [329-333](../../../src/client/components/FlightPanel.tsx#L329-L333)).
-10. **The archived OFP is never read back** — `ofp` is stored but no endpoint returns it.
+8. **The archived OFP is never read back** — `ofp` is stored but no endpoint returns it.
 
 ## References
 
-- Code: [src/client/simbrief.ts](../../../src/client/simbrief.ts), [src/server/simbrief.ts](../../../src/server/simbrief.ts),
+- Code: [src/client/simbrief.ts](../../../src/client/simbrief.ts), [src/client/ofp-html.ts](../../../src/client/ofp-html.ts)
+  (the OFP text and a plan's addresses), [src/server/simbrief.ts](../../../src/server/simbrief.ts),
   [src/server/ofp.ts](../../../src/server/ofp.ts), [src/server/routes.ts](../../../src/server/routes.ts)
   (settings and briefings 589-721), [src/server/db.ts](../../../src/server/db.ts) (`briefings`,
   `settings`, `kv_cache`), [src/client/components/LivePanel.tsx](../../../src/client/components/LivePanel.tsx)
@@ -351,4 +341,4 @@ clips only what flows inside it ([styles.css](../../../src/client/styles.css) `.
 - Related: [app-shell](../app-shell/app-shell-design.md) (the server's User-Agent; changes refused
   from other sites' pages; bringing in a logbook, [Briefings](#briefings)), live-tracking (plans
   carried into a brought-in logbook, LIVE-SAVE-008, LIVE-SAVE-010, LIVE-SAVE-011)
-- Library (planned): DOMPurify, for the OFP text
+- Library: DOMPurify (pinned exactly, 3.4.17), for the OFP text

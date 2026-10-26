@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { aircraftLabel, fmtDateTime, fmtDuration, fmtTimeShort, hopDurationMin } from "../format";
 import { RATING_BANDS, RATING_META, parseLandings, parseStats, shownTouchdown } from "../landing";
+import { cleanOfpHtml, outsideLink } from "../ofp-html";
 import { parseTrack, type LiveState } from "../tracker";
 import type { Aircraft, Airport, AppState, Briefing, Hop, HopStats, Landing, PendingLeg, PendingLegDetail, TrackPoint } from "../types";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -290,6 +291,13 @@ function StatsCard({ stats, points, directNm }: { stats: HopStats | null; points
   );
 }
 
+/** A plan's OFP text, cleaned each time it is shown, in its light box. @spec SB-CARD-006, SB-CARD-011 */
+function OfpText({ html }: { html: string }) {
+  const clean = useMemo(() => cleanOfpHtml(html), [html]);
+  return <div className="ofp-html" dangerouslySetInnerHTML={{ __html: clean }} />;
+}
+
+// @spec SB-CARD-005, SB-CARD-007
 function BriefingCard({ hop, briefing, onChanged }: { hop: Hop | undefined; briefing: Briefing | null; onChanged: () => void }) {
   const [showPlan, setShowPlan] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -339,13 +347,14 @@ function BriefingCard({ hop, briefing, onChanged }: { hop: Hop | undefined; brie
 
   const b = briefing;
   const fuelU = b.fuel.units;
+  const pdf = outsideLink(b.pdf_url);
   return (
     <div className="fp-card">
       <h3>SimBrief</h3>
       <dl className="kv">
         <dt>Flight</dt>
         <dd>
-          <b>{b.callsign ?? [b.airline, b.flight_number].filter(Boolean).join("") ?? "—"}</b>
+          <b>{b.callsign || [b.airline, b.flight_number].filter(Boolean).join("") || "—"}</b>
           {b.aircraft.icao && <span className="muted"> · {b.aircraft.icao}</span>}
           {b.aircraft.reg && <span className="muted"> {b.aircraft.reg}</span>}
         </dd>
@@ -389,8 +398,8 @@ function BriefingCard({ hop, briefing, onChanged }: { hop: Hop | undefined; brie
             {showPlan ? "Hide OFP" : "Show OFP"}
           </button>
         )}
-        {b.pdf_url && (
-          <a className="button small" href={b.pdf_url} target="_blank" rel="noreferrer">
+        {pdf && (
+          <a className="button small" href={pdf} target="_blank" rel="noopener noreferrer">
             PDF
           </a>
         )}
@@ -401,7 +410,7 @@ function BriefingCard({ hop, briefing, onChanged }: { hop: Hop | undefined; brie
         )}
       </div>
       {error && <div className="error">{error}</div>}
-      {showPlan && b.plan_html && <div className="ofp-html" dangerouslySetInnerHTML={{ __html: b.plan_html }} />}
+      {showPlan && b.plan_html && <OfpText html={b.plan_html} />}
     </div>
   );
 }

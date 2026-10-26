@@ -2394,8 +2394,11 @@ fieldset.perf legend em {
   font-size: 11px;
   line-height: 1.35;
   white-space: pre-wrap;
+  /* nothing in the plan, positioned content included, is drawn outside the box (SB-CARD-011) */
+  contain: paint;
 }
 
+/* the box's own type and colours, over any inline style the plan keeps (its !important is taken off) */
 .ofp-html * {
   color: inherit !important;
   background: transparent !important;
