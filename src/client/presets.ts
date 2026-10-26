@@ -7,8 +7,8 @@ export const PERF_PRESETS = [
   { label: "Piston single", alt: 6500, climb: 700, climbFrac: 0.65, descent: 500, overhead: 12 },
   { label: "Piston twin", alt: 8000, climb: 1000, climbFrac: 0.7, descent: 700, overhead: 12 },
   { label: "Turboprop", alt: 24000, climb: 1500, climbFrac: 0.6, descent: 1500, overhead: 15 },
-  { label: "Light jet", alt: 37000, climb: 2500, climbFrac: 0.6, descent: 2000, overhead: 15 },
-  { label: "Airliner", alt: 35000, climb: 2000, climbFrac: 0.6, descent: 2000, overhead: 20 },
+  { label: "Light jet", alt: 37000, climb: 2500, climbFrac: 0.9, descent: 2000, overhead: 15 },
+  { label: "Airliner", alt: 35000, climb: 2000, climbFrac: 0.9, descent: 2000, overhead: 20 },
   { label: "Helicopter", alt: 2000, climb: 800, climbFrac: 0.8, descent: 500, overhead: 8 },
 ] as const;
 

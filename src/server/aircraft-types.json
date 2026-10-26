@@ -307,9 +307,9 @@
           "kind": "preset"
         },
         "climb_kts": {
-          "value": 270,
+          "value": 405,
           "kind": "preset",
-          "note": "0.6 × 450 kt = 270 kt."
+          "note": "Airliner class preset: 90% of the 450 kt cruise speed = 405.0 -> 405 kt."
         },
         "descent_fpm": {
           "value": 2000,
@@ -537,9 +537,9 @@
           "kind": "preset"
         },
         "climb_kts": {
-          "value": 270,
+          "value": 405,
           "kind": "preset",
-          "note": "0.6 × 450 kt = 270 kt."
+          "note": "Airliner class preset: 90% of the 450 kt cruise speed = 405.0 -> 405 kt."
         },
         "descent_fpm": {
           "value": 2000,
@@ -816,9 +816,9 @@
           "kind": "preset"
         },
         "climb_kts": {
-          "value": 290,
+          "value": 435,
           "kind": "preset",
-          "note": "0.6 × 485 kt = 291 → 290 kt."
+          "note": "Airliner class preset: 90% of the 485 kt cruise speed = 436.5 -> 435 kt."
         },
         "descent_fpm": {
           "value": 2000,
@@ -1102,9 +1102,9 @@
           "note": "Light jet class preset; no published time to climb found."
         },
         "climb_kts": {
-          "value": 270,
+          "value": 410,
           "kind": "preset",
-          "note": "Light jet class preset: 60% of the 453 kt cruise speed = 271.8 -> 270 kt."
+          "note": "Light jet class preset: 90% of the 453 kt cruise speed = 407.7 -> 410 kt."
         },
         "descent_fpm": {
           "value": 2000,
@@ -1186,9 +1186,9 @@
           "note": "Light jet class preset; no published time to climb found."
         },
         "climb_kts": {
-          "value": 275,
+          "value": 415,
           "kind": "preset",
-          "note": "Light jet class preset: 60% of the 461 kt cruise speed = 276.6 -> 275 kt."
+          "note": "Light jet class preset: 90% of the 461 kt cruise speed = 414.9 -> 415 kt."
         },
         "descent_fpm": {
           "value": 2000,
@@ -1354,9 +1354,9 @@
           "note": "Light jet class preset. Cirrus's \"Climb Rate 1,609 ft/min\" is an initial (sea-level) rate, not an average to cruise altitude, and no time to climb is published."
         },
         "climb_kts": {
-          "value": 185,
+          "value": 275,
           "kind": "preset",
-          "note": "Light jet class preset: 60% of the 305 kt cruise speed = 183.0 -> 185 kt."
+          "note": "Light jet class preset: 90% of the 305 kt cruise speed = 274.5 -> 275 kt."
         },
         "descent_fpm": {
           "value": 2000,

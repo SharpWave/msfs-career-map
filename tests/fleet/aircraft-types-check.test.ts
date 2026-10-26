@@ -33,7 +33,7 @@ function b738(): TypeEntry {
       max_xwind_kts: null,
       cruise_alt_ft: { value: 35000, kind: "published", sources: ["acap"], note: "typical initial cruise" },
       climb_fpm: { value: 2000, kind: "preset" },
-      climb_kts: { value: 275, kind: "preset" },
+      climb_kts: { value: 410, kind: "preset" },
       descent_fpm: { value: 2000, kind: "preset" },
     },
   };
@@ -307,8 +307,8 @@ describe("the class presets' figures", () => {
 
   // @spec FLEET-TYPE-006
   it("needs a preset climb speed to be the preset's fraction of cruise, to the nearest 5 kt", () => {
-    // Airliner: 0.6 × 455 = 273 → 275.
-    expectProblem(problemsAfter((t) => (entry(t, "B738").values.climb_kts!.value = 273)), "B738", "climb_kts");
+    // Airliner: 0.9 × 455 = 409.5 → 410; the old 60% figure no longer holds.
+    expectProblem(problemsAfter((t) => (entry(t, "B738").values.climb_kts!.value = 275)), "B738", "climb_kts");
     // Turboprop: 0.6 × 195 = 117 → 115.
     expectProblem(problemsAfter((t) => (entry(t, "C208").values.climb_kts!.value = 120)), "C208", "climb_kts");
   });
