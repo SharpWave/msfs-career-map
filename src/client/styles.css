@@ -1270,6 +1270,35 @@ button.casual-switch.on {
   gap: 6px 14px;
 }
 
+/* the performance table's Fill from table / Sources under the SimBrief type (FLEET-TYPE-012, 017) */
+.type-table {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-top: -4px;
+}
+
+.type-table .hint {
+  margin-top: 0;
+}
+
+.type-sources {
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  padding: 6px 10px;
+}
+
+.type-sources ul {
+  margin: 6px 0 0;
+  padding-left: 16px;
+}
+
+.type-sources li + li {
+  margin-top: 4px;
+}
+
 .plan-results {
   display: flex;
   flex-direction: column;

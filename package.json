@@ -18,6 +18,8 @@
     "import-airports": "tsx --no-warnings=ExperimentalWarning scripts/import-airports.ts",
     "sim-probe": "tsx --no-warnings=ExperimentalWarning scripts/sim-probe.ts",
     "sim-fake": "tsx --no-warnings=ExperimentalWarning scripts/sim-fake.ts",
+    "aircraft-types:missing": "tsx --no-warnings=ExperimentalWarning scripts/aircraft-types.ts missing",
+    "aircraft-types:check": "tsx --no-warnings=ExperimentalWarning scripts/aircraft-types.ts check",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.test.json --noEmit && tsc -p tsconfig.desktop.json --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",

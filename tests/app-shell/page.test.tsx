@@ -41,6 +41,7 @@ function answerPage(state: AppState = STATE) {
   answerFetch("/api/logbook/offer", () => Response.json({ hops: state.hops.length, aircraft: state.aircraft.length, offers: [], lastAttempt: null }));
   answerFetch("/api/settings", () => Response.json({ simbrief_username: null }));
   answerFetch("/api/simbrief/aircraft", () => Response.json({ types: [], source: "test", fetched_at: null }));
+  answerFetch("/api/aircraft-types", () => Response.json({ snapshot: "2026-10-25", types: [] }));
   answerFetch(/\/api\/airports\/[A-Z0-9]+$/, (url) => Response.json(airport(url.pathname.split("/").pop()!)));
   answerFetch(/\/api\/metars\?/, () => Response.json({ metars: {}, fetched_at: "2026-10-09T14:00:00.000Z" }));
 }

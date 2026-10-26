@@ -84,6 +84,12 @@ description, API table and roadmap.
   (`src/desktop/install-mark.ts`, UTF-16LE lines in `%LOCALAPPDATA%\msfs-career-map-updater`), whose
   form every release must keep. The release workflow is `.github/workflows/release.yml` with
   `scripts/release/` (a `dry-run-v<version>` tag rehearses without a draft).
+- The performance table (`src/server/aircraft-types.json`, served by `aircraft-types.ts`, checked by
+  `aircraft-types-check.ts`) holds researched numbers for SimBrief's types, each value published,
+  derived or class preset with its sources; the method is fleet-design's Performance Table, and only
+  sources it accepts may be cited. `npm run aircraft-types:check` fails until every type of its
+  snapshot is covered; `aircraft-types:missing` lists SimBrief types it lacks. The class presets are
+  `src/client/presets.ts`, read by the form and the table's checks.
 - Charts follow the dataviz skill: no dual axes; the profile chart indexes each series to its own
   range and shows real values in the legend and crosshair. Palette validated for the dark surface.
 

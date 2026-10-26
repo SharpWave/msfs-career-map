@@ -298,6 +298,10 @@ The first release requires:
   (SB-CARD-006), its links kept only to other origins (SB-CARD-009), nothing in it loading from any
   address (SB-CARD-010) and drawn inside its own box (SB-CARD-011) — since it runs on the page's own
   origin, where markup could do anything the page can.
+- the fleet's performance table covering every type of the SimBrief type list it was built from,
+  researched and checked, a type left out only where no accepted source gives any of its numbers
+  (fleet, FLEET-TYPE-008, FLEET-TYPE-009), since the release is the table's only way to the pilot and
+  one that ships part of it leaves the rest to be typed by hand until the next.
 
 ## Development
 

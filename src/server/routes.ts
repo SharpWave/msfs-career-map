@@ -16,6 +16,7 @@ import {
 } from "./airports.ts";
 import { AirportsBusy } from "./airport-data.ts";
 import { simbriefAircraftTypes } from "./simbrief.ts";
+import { TABLE, typeEntry, typeList } from "./aircraft-types.ts";
 import { currentHazards } from "./hazards.ts";
 import { terrainAlong } from "./terrain.ts";
 import { blockMinutes, maxRangeNm, profileFor } from "./performance.ts";
@@ -232,6 +233,16 @@ function maxFieldElevation(a: AircraftRow): { max_elevation_ft: number | null; e
 }
 
 api.get("/aircraft", wrap((_req, res) => res.json(aircraftList.all())));
+
+/** The performance table of SimBrief's types (fleet): the list, and one entry with its sources. */
+// @spec FLEET-TYPE-010
+api.get("/aircraft-types", (_req, res) => res.json(typeList(TABLE)));
+// @spec FLEET-TYPE-011
+api.get("/aircraft-types/:type", wrap((req, res) => {
+  const entry = typeEntry(TABLE, String(req.params.type));
+  if (!entry) throw new HttpError(404, "not in the performance table");
+  res.json(entry);
+}));
 
 api.post("/aircraft", wrap((req, res) => {
   const b = req.body ?? {};

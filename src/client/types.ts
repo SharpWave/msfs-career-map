@@ -77,6 +77,45 @@ export interface Aircraft {
   created_at: string;
 }
 
+/** The eight numbers the performance table gives per type, by the aircraft record's field names. */
+export type TableNumberField =
+  | "cruise_kts"
+  | "min_runway_ft"
+  | "ceiling_ft"
+  | "max_xwind_kts"
+  | "cruise_alt_ft"
+  | "climb_fpm"
+  | "climb_kts"
+  | "descent_fpm";
+
+/** Where a performance-table value came from (fleet, The Performance Table). */
+export type TableProvenance<T> =
+  | { value: T; kind: "published"; sources: string[]; note?: string }
+  | { value: T; kind: "derived"; sources: string[]; calculation: string; note?: string }
+  | { value: T; kind: "preset"; note?: string };
+
+/** `GET /api/aircraft-types`: the table's snapshot date and its types. */
+export interface AircraftTypeList {
+  snapshot: string;
+  types: { type: string; name: string; variant: string }[];
+}
+
+/** `GET /api/aircraft-types/:type`: one type's entry with its sources. */
+export interface AircraftTypeEntry {
+  type: string;
+  name: string;
+  variant: string;
+  /** One of the form's class presets' labels. */
+  preset: string;
+  /** A built-in icon key. */
+  icon: string;
+  researched: string;
+  checked: string;
+  sources: { id: string; title: string; publisher: string; page: string; url: string }[];
+  pressurised: TableProvenance<boolean> | null;
+  values: Record<TableNumberField, TableProvenance<number> | null>;
+}
+
 /** The performance numbers the planner actually used (defaults filled in). */
 export interface PerfProfile {
   cruise_kts: number;

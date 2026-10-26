@@ -21,7 +21,7 @@ A fleet row carries four kinds of data:
 - **Notes** — free text.
 
 This segment owns the aircraft record and its validation, the aircraft form (create, edit,
-delete, create from the sim), uploaded icons and how aircraft rows name them, the color palette and
+delete, create from the sim), the performance table of SimBrief's types and the method that builds it, uploaded icons and how aircraft rows name them, the color palette and
 built-in icons, and the header of each aircraft card. It does not own how performance fields become
 flight times or filters (planner), how a sim aircraft is matched to a row (live-tracking),
 SimBrief's type list (simbrief), where an aircraft is parked or its hop list (logbook), how
@@ -195,6 +195,184 @@ The form groups these fields ([AircraftForm.tsx:264-331](../../../src/client/com
 What the planner does with these values — block time, range ring, field-elevation limits from
 ceiling and oxygen, crosswind and IFR flags — is specified in the planner segment.
 
+## The Performance Table
+
+Looking up a type's numbers is the slowest part of adding an aircraft, and numbers each pilot finds
+on their own vary in what they mean and where they came from, which skews the planner. So the app
+ships a **performance table**: for every type in SimBrief's type list, the values the form asks for,
+researched once by the method below, each with where it came from. Choosing a type in the form and
+asking for its numbers fills them in; the pilot can change any of them before saving, and a type the
+table does not hold is typed in by hand as before.
+
+### What an entry holds
+
+One entry per ICAO designator in the SimBrief type list the table was built from (its snapshot date
+is recorded in the table):
+
+- **type** and **name** — the designator and SimBrief's name for it at the snapshot;
+- **variant** — what the numbers describe, in words: the model, and the engines where the type has
+  more than one choice (for "737-800": "737-800 with winglets, CFM56-7B26"). SimBrief's name decides
+  the variant; where it covers several, the variant most built, and where no record settles which
+  was built most, the one MSFS add-ons model (which chooses the variant only, never a number);
+- **preset** — the form's class preset the type belongs to, which gives taxi + approach minutes and
+  any preset value: Piston single or Piston twin by engine count, Turboprop for any turboprop (single
+  or twin), Light jet for any business jet whatever its size, Airliner for jet transports (airline
+  and military), Helicopter for rotorcraft;
+- **icon** — the built-in icon whose shape fits (a single-engine turboprop takes a single piston
+  silhouette, its wing low or high as built);
+- **pressurised** — yes or no;
+- **the eight numbers** — cruise speed, minimum runway, service ceiling, maximum crosswind, typical
+  cruise altitude, climb rate, climb speed and descent rate.
+
+Each of the eight numbers, and pressurised, is either blank or a value with its **provenance**:
+
+- **published** — given by a source the method accepts, cited by title, publisher, the page or
+  table, and an address where anyone can read it (a copy on the publisher's site, or an archived
+  copy of it);
+- **derived** — worked out from published figures by a stated calculation, the calculation written
+  out and each figure it uses cited (an average climb rate from a published time to climb, a true
+  airspeed from a published Mach number and altitude in the standard atmosphere);
+- **preset** — the class preset's value, for a block-time input (climb rate, climb speed, descent
+  rate, cruise altitude) that no accepted source gives, said as such wherever the value is shown.
+  The entry holds it as a number like any other: a climb speed is the preset's fraction of the
+  entry's cruise speed, rounded to 5 kt (blank when the entry has no cruise speed); a cruise
+  altitude is the preset's, lowered to the type's ceiling where that is lower and to 12,000 ft for
+  an unpressurised type.
+
+A number no accepted source gives that is not a block-time input stays blank: a blank runway,
+ceiling or crosswind means "no limit" to the planner (FLEET-REC-006), which is better than a
+guessed limit. Every entry records when it was researched and when its values were checked (below),
+as dates (`YYYY-MM-DD`). The table ships only checked entries, and an entry with all eight numbers
+blank is left out; each type of the snapshot that is left out is listed in the table with the reason,
+which is always that no accepted source gives any of its numbers — never that it is not researched
+yet, so a release carries the whole snapshot (distribution, DESK-DIST-REL-012).
+
+An entry's sources are listed once, each with an id the values cite; a value's calculation (derived)
+and a note — a lower-ranked source that disagreed, the published figure's own conditions — are
+text on the value.
+
+**Rounding.** Published figures are kept as published, in whole units, and so is a published
+figure only converted between units (miles per hour to knots, metres to feet). Other derived values are rounded as
+the planner can use them and a checker can rework them: speeds to the nearest 5 kt, rates to the
+nearest 50 fpm, a cruise altitude to the nearest 500 ft, and a runway length up to the next 100 ft.
+
+Taxi + approach minutes always come from the preset: nothing publishes them, and they describe the
+career's flying more than the airframe.
+
+### What each number means
+
+The table's numbers mean what the planner uses them for (planner, Block-Time Model), so a value
+from a source is converted to that meaning, the conversion stated as a derivation:
+
+| Field | Meaning in the table |
+|---|---|
+| Cruise speed, kt | True airspeed in normal cruise at the typical cruise altitude, standard atmosphere: for jets, the manufacturer's typical or economy cruise Mach, else its headline (maximum or high-speed) cruise, noted as such; for pistons and turboprops, the manufacturer's headline cruise figure where it names its power and altitude, else the POH's cruise at 75% power (pistons) or normal cruise power (turboprops) at the altitude where that power is fastest |
+| Min runway, ft | The longer of the takeoff field length and the landing field length, sea level, standard day, dry paved runway, at typical load: for airliners and business jets, takeoff at the weight midway between maximum landing weight and maximum takeoff weight read from the manufacturer's airport-planning chart, landing at maximum landing weight; for piston and turboprop types, the POH or flight manual's figures at maximum gross weight (over a 50 ft obstacle where it gives both). An airport-planning chart's field lengths are taken as it gives them (the regulatory takeoff and landing field lengths), read between plotted weights in a straight line, on the curve for the flap setting the manufacturer gives for normal operation, else the shortest. Where no chart gives the typical weight, the figure at maximum takeoff weight |
+| Service ceiling, ft | The certified maximum operating altitude; for a type with none certified, the manufacturer's published service ceiling |
+| Max crosswind, kt | The maximum demonstrated crosswind from the flight manual or POH, or the manufacturer's published crosswind guidance where it gives no demonstrated value; for a dry runway, and the lower of the takeoff and landing values where it gives both |
+| Typical cruise altitude, ft | The altitude at which the manufacturer quotes the cruise speed above, or its published typical or initial cruise altitude |
+| Climb rate, fpm | The average rate from sea level to the typical cruise altitude: that altitude divided by the published time to climb to it |
+| Climb speed, kt | The average true airspeed over that climb, which the planner uses for the distance covered while climbing: the published distance to climb divided by the time, or the published climb schedule (indicated speed and Mach) converted to true airspeed in the standard atmosphere and averaged over the climb's time |
+| Descent rate, fpm | The average rate from the typical cruise altitude to the field: that altitude divided by the published time to descend, or the manufacturer's published normal descent rate |
+
+Published times and distances to climb and descend are taken as published — from brake release or
+from 1,500 ft, to the field or to 1,500 ft above it, at the weight the source gives — with the
+conditions noted, not corrected: the planner's model is coarser than the difference. The planner
+flies the descent at cruise speed (planner, Block-Time Model); the table's descent rate is the
+type's own all the same.
+
+### Accepted sources
+
+In order of preference:
+
+1. Type certificate data sheets from an aviation authority (FAA, EASA, Transport Canada, ANAC and
+   the like) — ceilings, pressurisation, weights.
+2. The manufacturer's own publications — airport-planning manuals, the POH or pilot's information
+   manual, the flight manual, flight crew operating and training manuals where the manufacturer
+   publishes them, specification sheets and brochures — current, or an archived copy of the
+   manufacturer's own document, or a complete, unaltered copy of it that an aviation authority or
+   agency hosts (cited as the manufacturer's document, at that address), or a complete, legible scan
+   of the manufacturer's published handbook (POH, owner's manual, flight manual) for the right model,
+   wherever it is hosted (the Internet Archive preferred), cited with its title, part number or
+   date — never an excerpt, a retyped copy or an owner's checklist. For a conversion (a turbine Bonanza, say), the holder of its
+   supplemental type certificate counts as the manufacturer, and the authority's record of that
+   certificate as a type certificate data sheet.
+3. Government and military publications — official fact sheets, an authority's or research
+   agency's technical reports (FAA, NASA, NTSB).
+4. Reputable aviation references and trade press, where the three above give nothing — Jane's All
+   the World's Aircraft, Flight International (FlightGlobal), Aviation Week, and the flight tests
+   and pilot reports of AOPA and Flying — cited by publication, issue or edition, and page.
+
+An encyclopedia's figure counts only through the source it cites: the researcher follows its
+reference and cites that source, if the method accepts it.
+
+Not accepted as a source: encyclopedias and wikis (Wikipedia included), forums, flight-simulation
+add-ons and their manuals, airline and enthusiast sites, and databases whose terms forbid
+republishing their figures without permission — EUROCONTROL's Aircraft Performance Database and the
+SKYbrary pages drawn from it among them. These may still point the researcher to a primary source or
+flag a value that disagrees with them, but no value cites them. A source the checker cannot open
+does not count.
+
+### Researching and checking
+
+The table is built in two passes, each type by one reader, then checked by another:
+
+1. **Research.** A reader finds the accepted sources for the type, records each value with its
+   provenance as above, and leaves blank (or preset) what none gives. Where two accepted sources
+   disagree, the higher-ranked one wins, and the other is noted.
+2. **Check.** A second reader, without the first one's reasoning, opens every cited source, confirms
+   each published value is there as cited, reworks each derivation, and confirms the variant. A
+   value that does not hold is corrected from the source, or blanked; the entry records the check's
+   date.
+
+The table is built for the types in the pilot's own fleet first, compared with the values the pilot
+already uses, then for the rest. A new SimBrief type is added by the same two passes; a script lists
+the types in SimBrief's current list that the table lacks.
+
+### In the form
+
+The form loads the table's list of types once per page, as it does SimBrief's list. When its
+SimBrief type, upper-cased and trimmed, is a type the table holds — whether or not SimBrief's current
+list still holds it — the type hint (FLEET-SIM-004) names the type (SimBrief's name, else the
+table's) and also offers **Fill from table** and **Sources**. While the list is loading, or if it
+could not be loaded, neither is offered and the form works as before.
+
+**Fill from table** fetches the entry and fills the form, saving nothing:
+
+- each of the eight numbers the entry gives as published or derived replaces the field's value; one
+  it gives as preset fills the field only while it is blank, so a figure the pilot typed is never
+  replaced by a class figure; a number the entry leaves blank leaves the field as it is;
+- taxi + approach minutes from the entry's preset, while that field is blank;
+- **Pressurised / has oxygen** is ticked when the type is pressurised, and never unticked (an
+  unpressurised aircraft may carry oxygen);
+- the icon becomes the entry's built-in icon only while the aircraft's icon is a built-in one (a new
+  aircraft's default included) and no image is picked or typed; an uploaded, picked or URL icon
+  stays;
+- **IFR capable**, name, livery, color, notes, the SimBrief type and the sim binding are untouched.
+
+An entry that arrives after the type field has changed is dropped, so only the type the form names
+fills it; one that cannot be fetched fills nothing and the form says so. The form then says which
+values it filled from which type ("Filled 9 values from 737-800"); the note stays until the next
+fill or until the form closes, and values the pilot edits afterwards are theirs, a filled climb
+speed included (it is not reworked when cruise speed changes).
+
+**Sources** shows the entry without filling anything: its variant, research and check dates, and for
+each value its provenance — the source's title, publisher and page with a link to it, the
+calculation of a derived value, its note, or "class preset". It is there for any type the table
+holds, so a saved aircraft's form shows where its type's numbers come from, though nothing records
+which of its values came from the table: what is saved is the values alone.
+
+A saved aircraft never changes by itself when the table changes in a later release; the pilot can
+open its form and fill again.
+
+The table is the server's (`GET /api/aircraft-types`, the list; `GET /api/aircraft-types/:type`, one
+entry with its sources), bundled into the server with the rest of its code, so a browser tab and the
+installed app's window show the same and it needs no network. The class presets' figures are the
+form's (FLEET-PERF-003); the table's preset values are checked against them.
+
+A development script lists the types in SimBrief's current list that the table neither holds nor
+lists as left out, sending the server's User-Agent; the app itself never runs it.
+
 ## Identity and the Sim Binding
 
 Name and livery are what the user sees everywhere ("Name · Livery"). The two sim fields hold the
@@ -259,6 +437,8 @@ header holds **+ Aircraft**.
 | Method | Path | Behaviour | Errors |
 |---|---|---|---|
 | GET | `/api/aircraft` | All aircraft by name, livery, id | — |
+| GET | `/api/aircraft-types` | The performance table's snapshot date and its types (designator, name, variant) | — |
+| GET | `/api/aircraft-types/:type` | One entry, designator matched upper-cased and trimmed: type, name, variant, preset, icon, pressurised, the eight numbers each with its provenance (kind, cited source ids, calculation, note), the sources it cites (id, title, publisher, page, address), research and check dates | 404 not in the table, a malformed designator included |
 | POST | `/api/aircraft` | Create → 201 + row (`visible` not accepted); a blank icon becomes `builtin:twin-piston` | 400 per field rule, a non-blank icon neither built-in nor an http or https address off this PC among them (intended); 409 duplicate name + livery (intended) |
 | PUT | `/api/aircraft/:id` | Partial update; an omitted field keeps its value, and an icon sent unchanged is kept as it is | 400 (a changed non-blank icon as for POST, intended); 404; 409 duplicate name + livery (intended) |
 | DELETE | `/api/aircraft/:id` | Delete with its hops, then (intended) remove every icon file named for its id, leaving and logging one that cannot be removed → 204 | 400; 404 |
@@ -282,6 +462,16 @@ Handlers: [routes.ts:231-311](../../../src/server/routes.ts#L231-L311).
 | Block-time defaults and presets | Blank fields fall back to light-piston defaults; the form offers six class presets | Require every field | [inferred] Most users know their cruise speed but not climb and descent figures; presets give plausible numbers in one click. |
 | Sim binding fields | Stored on the fleet row; set by Bind or typed | A separate binding table | [inferred] One sim aircraft maps to one fleet row; the row is the natural home. A blank sim livery binds every livery of the title. |
 | Delete | Deletes the aircraft and its whole tour, after a confirmation naming both | Refuse while hops exist; a "retired" state that keeps the hops | Removing an aircraft removes its tour; hiding it (visibility) covers keeping a tour off the map. |
+| A performance table for SimBrief's types | Researched once by the written method, shipped in the program, served by the server, offered by the form's **Fill from table** | Pilots type every number; class presets only; a lookup at run time | One method gives every pilot the same numbers with the same meaning, each traceable to its source. No free, keyless service publishes these numbers for every type, and the table needs no network. SimBrief's list is the natural scope: it is the designator field's own list, and the planner hands off to SimBrief. Cost: the table is as current as the program. |
+| Which sources count | Authority type certificate data sheets, then the manufacturer's own publications, then government and military publications, each readable at a cited address; never wikis, forums, sim add-ons or databases whose terms forbid republishing | Any well-known reference; EUROCONTROL's Aircraft Performance Database, which covers nearly every type | The table is public with the app, so each number must stand on a source that would not embarrass it. EUROCONTROL's database requires its permission to reuse its figures, which the project does not hold. A source the checker cannot open cannot be checked. |
+| A number no accepted source gives | Blank for a limit (runway, ceiling, crosswind) and for cruise speed; the class preset, marked as such, for a block-time input (cruise altitude, climb rate, climb speed, descent rate) | Blank for all; an estimate | A blank limit is "no limit" to the planner, safer than a guessed one, and a blank cruise speed leaves the pilot to give it. A blank block-time input would fall back to the light-piston default, wrong for anything bigger, while the class preset is the form's own one-click answer; marked "class preset", it claims nothing. |
+| Scans of a manufacturer's handbook | Accepted when complete and legible, for the right model, the checker confirming it is the whole original | Only copies on the manufacturer's site or an archive of it | For older light aircraft the handbook is the real source and its maker no longer publishes it; a whole scan carries its own title page and part number, so its figures are as checkable as the original's, where an excerpt or retyped copy is not. |
+| Trade press and references | A fourth tier, after authority, manufacturer and government documents: Jane's, Flight International, Aviation Week, and AOPA's and Flying's flight tests | Wikipedia as a last resort; the first three tiers only | Many older and light types have no manufacturer publication online, and these titles measure or report the figures under editors who answer for them; an encyclopedia repeats such figures, often without saying where from, so it is followed to its source instead of cited. |
+| A jet with only a maximum cruise published | Its headline (maximum or high-speed) cruise, noted as such | Blank; the class preset | The planner needs a cruise speed to work at all, and the manufacturer's own headline figure is more rigorous than any estimate; block times come out a little short, which a reach that reads a little optimistic already allows for. |
+| Numbers by meaning, not as published | Each number converted to what the planner uses — true airspeeds, averages over the climb and descent, field length at a typical load — the conversion written out as a derivation | Copy the published figure whatever it measures | A published indicated climb speed or initial climb rate fed to the planner's averages gives wrong block times; written out, a conversion can be checked. |
+| Typical load for the runway | Airliners and business jets: takeoff midway between maximum landing and maximum takeoff weight, landing at maximum landing weight; pistons and turboprops: maximum gross weight | Maximum takeoff weight for all; a weight per typical sector | Maximum weight overstates what a typical flight needs, most for long-haul types, and rules out airports the type uses every day; the midpoint is a concrete weight anyone can rework from published weights and charts. Light aircraft fly near maximum gross weight and their manuals give that. |
+| Two readers per type | A researcher, then a checker who opens every cited source | One pass | A misread chart or a number from the wrong variant is the likeliest error, and only re-reading the source catches it. |
+| Filling the form | Only on the pilot's **Fill from table**: published and derived numbers replace the fields, preset numbers fill only blank ones, pressurised only ticked, only a built-in icon changed; nothing saved until Save | Fill as soon as a type is chosen; fill only blank fields; update saved aircraft when the table changes; record on the aircraft which values came from the table | Choosing a type for SimBrief links must not overwrite numbers the pilot set; one click with the values shown and editable keeps the pilot in charge. A researched number is worth replacing the pilot's guess with when asked; a class figure is not. Pilots who fly a type differently keep their numbers across releases. Recording each value's origin on the aircraft would add columns for a note the Sources view already gives for the type. |
 | New from sim | Prefill name from the sim title and livery from the ATC ID, falling back to the livery name | Leave blank | [inferred] The ATC ID is usually the registration, which is what the livery field holds. |
 
 ## Open Questions & Future Decisions
@@ -294,6 +484,12 @@ Handlers: [routes.ts:231-311](../../../src/server/routes.ts#L231-L311).
 4. ✅ Uploaded icons travel with the logbook: fleet names each by its aircraft's id at an address
    on the server's own origin and refuses icon addresses on this PC; app-shell carries them (see
    [Uploaded Icons and the Logbook](#uploaded-icons-and-the-logbook) and Decisions).
+
+### Open
+
+1. **Permission from EUROCONTROL.** With permission to reuse its Aircraft Performance Database's
+   figures, its climb and descent data could replace class presets for the airliners whose
+   manufacturers publish no climb or descent figures.
 
 ### Deferred
 
@@ -327,10 +523,13 @@ Handlers: [routes.ts:231-311](../../../src/server/routes.ts#L231-L311).
     one ([routes.ts:303-308](../../../src/server/routes.ts#L303-L308)), so a write that fails
     leaves the row naming a removed file. Writing the new file, then setting the row, then removing
     the other files named for the id would leave at worst an unnamed file behind.
+12. **The sim's own type.** The sim reports an `ATC MODEL` for the aircraft; **+ New** from the sim
+    could pick the SimBrief type, and so the table's entry, from it.
 
 ## References
 
 - Code: [src/server/routes.ts](../../../src/server/routes.ts) (aircraft section 116-311),
+  the performance table (intended: the table's data file and the server module serving it),
   [src/server/db.ts](../../../src/server/db.ts) (aircraft table),
   [src/client/components/AircraftForm.tsx](../../../src/client/components/AircraftForm.tsx),
   [src/client/icons.ts](../../../src/client/icons.ts) (built-ins, badge HTML, palette, `nextColor`),

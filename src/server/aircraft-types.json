@@ -1,0 +1,1476 @@
+{
+  "snapshot": {
+    "date": "2026-10-25",
+    "types": [
+      "A20N",
+      "A21N",
+      "A225",
+      "A306",
+      "A30B",
+      "A30F",
+      "A310",
+      "A318",
+      "A319",
+      "A320",
+      "A321",
+      "A332",
+      "A333",
+      "A338",
+      "A339",
+      "A342",
+      "A343",
+      "A345",
+      "A346",
+      "A359",
+      "A35K",
+      "A388",
+      "A3ST",
+      "AC11",
+      "AC1T",
+      "AEST",
+      "AT43",
+      "AT45",
+      "AT46",
+      "AT72",
+      "AT73",
+      "AT75",
+      "AT76",
+      "B190",
+      "B350",
+      "B36T",
+      "B37M",
+      "B38M",
+      "B39M",
+      "B461",
+      "B462",
+      "B463",
+      "B48F",
+      "B58T",
+      "B60T",
+      "B703",
+      "B712",
+      "B721",
+      "B722",
+      "B732",
+      "B733",
+      "B734",
+      "B735",
+      "B736",
+      "B737",
+      "B738",
+      "B739",
+      "B742",
+      "B744",
+      "B748",
+      "B74F",
+      "B752",
+      "B753",
+      "B75F",
+      "B762",
+      "B763",
+      "B764",
+      "B76F",
+      "B772",
+      "B77F",
+      "B77L",
+      "B77W",
+      "B788",
+      "B789",
+      "B78X",
+      "BBJ1",
+      "BBJ2",
+      "BBJ3",
+      "BCS1",
+      "BCS3",
+      "BE20",
+      "BE24",
+      "BE36",
+      "BE58",
+      "BE60",
+      "BE6G",
+      "BE9L",
+      "BT36",
+      "C160",
+      "C17",
+      "C172",
+      "C182",
+      "C208",
+      "C25A",
+      "C25B",
+      "C25C",
+      "C30J",
+      "C310",
+      "C337",
+      "C404",
+      "C414",
+      "C510",
+      "C525",
+      "C550",
+      "C56X",
+      "C680",
+      "C700",
+      "C750",
+      "C919",
+      "CL30",
+      "CL35",
+      "CL60",
+      "CONI",
+      "CONS",
+      "CRJ2",
+      "CRJ5",
+      "CRJ7",
+      "CRJ9",
+      "CRJX",
+      "DA40",
+      "DA42",
+      "DA4N",
+      "DA62",
+      "DC10",
+      "DC3",
+      "DC6",
+      "DC85",
+      "DC86",
+      "DC91",
+      "DC93",
+      "DH8A",
+      "DH8B",
+      "DH8C",
+      "DH8D",
+      "DHC2",
+      "DHC6",
+      "DHC7",
+      "E135",
+      "E13L",
+      "E140",
+      "E145",
+      "E170",
+      "E175",
+      "E190",
+      "E195",
+      "E19L",
+      "E50P",
+      "E55P",
+      "EA50",
+      "EVAL",
+      "F100",
+      "F406",
+      "F50",
+      "F70",
+      "FA50",
+      "FA7X",
+      "FA8X",
+      "GLEX",
+      "GLF4",
+      "GLF6",
+      "H25B",
+      "HDJT",
+      "IL18",
+      "JS41",
+      "KODI",
+      "L101",
+      "LJ25",
+      "LJ35",
+      "LJ45",
+      "M600",
+      "MD11",
+      "MD1F",
+      "MD82",
+      "MD83",
+      "MD88",
+      "MD90",
+      "MU2",
+      "P06T",
+      "P180",
+      "P18E",
+      "P212",
+      "P46T",
+      "PA24",
+      "PA31",
+      "PA34",
+      "PA44",
+      "PAY3",
+      "PC12",
+      "PC24",
+      "R182",
+      "R722",
+      "RJ1H",
+      "RJ70",
+      "RJ85",
+      "SF34",
+      "SF50",
+      "SH33",
+      "SH36",
+      "SR22",
+      "SR2T",
+      "STAR",
+      "SW4",
+      "T134",
+      "T154",
+      "TBM8",
+      "TBM9",
+      "YS11"
+    ]
+  },
+  "omitted": [],
+  "entries": [
+    {
+      "type": "A319",
+      "name": "A319-100",
+      "variant": "A319-100 (A319ceo) with CFM56 engines, at the heaviest airline (non-ACJ) weight variant WV002 (MTOW 75,500 kg, MLW 62,500 kg)",
+      "preset": "Airliner",
+      "icon": "airliner",
+      "researched": "2026-10-25",
+      "checked": "2026-10-25",
+      "sources": [
+        {
+          "id": "ac",
+          "title": "A319 Aircraft Characteristics – Airport and Maintenance Planning (AC), Revision No. 28, Jun 01/24",
+          "publisher": "Airbus",
+          "page": "2-1-1 pp. 1–2 (weight variants, WV002) and p. 4 (Pressurized Fuselage); 3-3-1 p. 2 (Take-Off Weight Limitation – ISA Conditions, CFM56 Series Engine, FIGURE-3-3-1-991-003-A01); 3-4-1 p. 2 (Landing Field Length – ISA Conditions, CFM56-5A Series Engine, FIGURE-3-4-1-991-003-A01)",
+          "url": "https://aircraft.airbus.com/sites/g/files/jlcbta126/files/2024-06/AC_A319_0624.pdf"
+        },
+        {
+          "id": "tcds",
+          "title": "Type-Certificate Data Sheet EASA.A.064, Airbus A318, A319, A320, A321 (Issue 62, 26 June 2026)",
+          "publisher": "European Union Aviation Safety Agency (EASA)",
+          "page": "Section 3: A319 Series, item 11 Flight Envelope, p. 150",
+          "url": "https://www.easa.europa.eu/en/downloads/16507/en"
+        },
+        {
+          "id": "gtg-fuel",
+          "title": "Getting to grips with fuel economy, Issue 4 – October 2004 (Airbus document; complete copy hosted by EUROCONTROL's Performance Review Unit)",
+          "publisher": "Airbus (Flight Operations Support & Line Assistance, Customer Services)",
+          "page": "§5.2.2 The effect of climb technique on fuel burn, p. 28",
+          "url": "https://ansperformance.eu/library/airbus-fuel-economy.pdf"
+        },
+        {
+          "id": "bfu",
+          "title": "Untersuchungsbericht 5X003-0/08 (März 2010): Schwere Störung, Airbus A320-211, Hamburg, 1. März 2008 (investigation report, in German)",
+          "publisher": "Bundesstelle für Flugunfalluntersuchung (BFU), Germany's federal air accident investigation authority",
+          "page": "§1.18.4.1 FCOM Airbus A319/A320/A321, p. 36 (also §1.18.4.2 and §1.18.5, p. 36; §1.18.5.1, p. 38)",
+          "url": "https://www.bfu-web.de/DE/Publikationen/Untersuchungsberichte/2008/Bericht_08_5X003_A320_Hamburg-Seitenwindlandung.pdf?__blob=publicationFile"
+        }
+      ],
+      "pressurised": {
+        "value": true,
+        "kind": "published",
+        "sources": [
+          "ac"
+        ],
+        "note": "AC 2-1-1 p. 4 gives the A319's 'Pressurized Fuselage' volume."
+      },
+      "values": {
+        "cruise_kts": {
+          "value": 450,
+          "kind": "derived",
+          "sources": [
+            "gtg-fuel"
+          ],
+          "calculation": "Airbus gives M0.78 as the A320 family's cruise speed, in an evaluation flown at 35,000 ft (Getting to grips with fuel economy §5.2.2 p. 28). ISA at 35,000 ft: T = 288.15 − 0.0019812 × 35000 = 218.81 K; a = 661.47 × √(218.81 / 288.15) = 576.4 kt; TAS = 0.78 × 576.4 = 449.6 → 450 kt.",
+          "note": "The figure is given for the whole A320 family (A318/A319/A320/A321), not for this model alone."
+        },
+        "min_runway_ft": {
+          "value": 5500,
+          "kind": "derived",
+          "sources": [
+            "ac"
+          ],
+          "calculation": "Takeoff weight midway between MLW 62,500 kg and MTOW 75,500 kg (AC 2-1-1 p. 1, WV002) = 69,000 kg = 152,119 lb. AC 3-3-1 p. 2 (take-off weight limitation, ISA, CFM56), sea-level (0) curve at 152,119 lb on the gridded lb axis: ≈5,410 ft of runway (0.71 of the way from the 4,000 ft to the 6,000 ft gridline). Landing at MLW 62,500 kg = 137,789 lb, AC 3-4-1 p. 2 (ISA, slats 27°/flaps 35°, CFM56-5A), sea-level curve: ≈4,640 ft. Longer = takeoff 5,410 ft → up to the next 100 ft = 5,500 ft.",
+          "note": "At the basic weight variant WV000 (MTOW 64,000 kg, MLW 61,000 kg; midpoint 62,500 kg) the same charts give takeoff ≈4,340 ft and landing ≈4,520 ft → 4,600 ft. The IAE V2500 take-off chart (3-3-1 p. 3) at 69,000 kg gives ≈5,400 ft."
+        },
+        "ceiling_ft": {
+          "value": 39100,
+          "kind": "published",
+          "sources": [
+            "tcds"
+          ],
+          "note": "Certified maximum operating altitude without options. 39,800 ft if modification 30748 is embodied; 41,100 ft with modification 28162 (A319-112/-115/-132/-133 only)."
+        },
+        "max_xwind_kts": {
+          "value": 29,
+          "kind": "published",
+          "sources": [
+            "bfu"
+          ],
+          "note": "The lower of the two demonstrated values: Airbus's A319/A320/A321 FCOM (Operating Limitations), as quoted in the report, gives 'maximum crosswind demonstrated for takeoff: 29 knots gusting up to 38 knots' and 'for landing: 33 knots gusting up to 38 knots'. The report adds (§1.18.5.1, p. 38) that the A320 flight manual records 38 kt (gust included) as the maximum crosswind demonstrated for landing."
+        },
+        "cruise_alt_ft": {
+          "value": 35000,
+          "kind": "published",
+          "sources": [
+            "gtg-fuel"
+          ],
+          "note": "The altitude of the evaluation in which Airbus gives the A320 family's M0.78 cruise speed (§5.2.2 p. 28)."
+        },
+        "climb_fpm": {
+          "value": 2000,
+          "kind": "preset"
+        },
+        "climb_kts": {
+          "value": 270,
+          "kind": "preset",
+          "note": "0.6 × 450 kt = 270 kt."
+        },
+        "descent_fpm": {
+          "value": 2000,
+          "kind": "preset"
+        }
+      }
+    },
+    {
+      "type": "A320",
+      "name": "A320-200",
+      "variant": "A320-200 (A320ceo) with CFM56 engines, at the heaviest weight variant WV017 (MTOW 78,000 kg, MLW 66,000 kg)",
+      "preset": "Airliner",
+      "icon": "airliner",
+      "researched": "2026-10-25",
+      "checked": "2026-10-25",
+      "sources": [
+        {
+          "id": "ac",
+          "title": "A320 Aircraft Characteristics – Airport and Maintenance Planning (AC), Revision No. 44, Jun 01/24",
+          "publisher": "Airbus",
+          "page": "2-1-1 pp. 1–2 (weight variants, WV017) and p. 5 (Pressurized Fuselage Volume); 3-3-1 p. 2 (Take-Off Weight Limitation – ISA Conditions, CFM56 Series Engine, FIGURE-3-3-1-991-005-A01); 3-4-1 p. 2 (Landing Field Length – ISA Conditions, CFM56 Series Engine, FIGURE-3-4-1-991-005-A01)",
+          "url": "https://aircraft.airbus.com/sites/g/files/jlcbta126/files/2024-06/AC_A320_0624.pdf"
+        },
+        {
+          "id": "tcds",
+          "title": "Type-Certificate Data Sheet EASA.A.064, Airbus A318, A319, A320, A321 (Issue 62, 26 June 2026)",
+          "publisher": "European Union Aviation Safety Agency (EASA)",
+          "page": "Section 1: A320 Series, item 11 Flight Envelope, p. 46",
+          "url": "https://www.easa.europa.eu/en/downloads/16507/en"
+        },
+        {
+          "id": "gtg-fuel",
+          "title": "Getting to grips with fuel economy, Issue 4 – October 2004 (Airbus document; complete copy hosted by EUROCONTROL's Performance Review Unit)",
+          "publisher": "Airbus (Flight Operations Support & Line Assistance, Customer Services)",
+          "page": "§5.2.2 The effect of climb technique on fuel burn, p. 28",
+          "url": "https://ansperformance.eu/library/airbus-fuel-economy.pdf"
+        },
+        {
+          "id": "gtg-ci",
+          "title": "Getting to grips with the cost index, Issue II – May 1998 (STL 945.2369/98) (Airbus document; complete copy hosted by EUROCONTROL's Performance Review Unit)",
+          "publisher": "Airbus (Flight Operations Support & Line Assistance, Customer Services)",
+          "page": "§3.2 Table 2 p. 11 (A320-family cost indices); §5.2 Table 6 p. 21 (climb parameters to FL330, A320 CFM56); §7.1 Figure 27 p. 41 (ECON cruise Mach, A320/CFM56, FL350); §8.2 Table 15 p. 53 (descent parameters from FL370, A320 CFM56)",
+          "url": "https://ansperformance.eu/library/airbus-cost-index.pdf"
+        },
+        {
+          "id": "bfu",
+          "title": "Untersuchungsbericht 5X003-0/08 (März 2010): Schwere Störung, Airbus A320-211, Hamburg, 1. März 2008 (investigation report, in German)",
+          "publisher": "Bundesstelle für Flugunfalluntersuchung (BFU), Germany's federal air accident investigation authority",
+          "page": "§1.18.4.1 FCOM Airbus A319/A320/A321, p. 36 (also §1.18.4.2 and §1.18.5, p. 36; §1.18.5.1, p. 38)",
+          "url": "https://www.bfu-web.de/DE/Publikationen/Untersuchungsberichte/2008/Bericht_08_5X003_A320_Hamburg-Seitenwindlandung.pdf?__blob=publicationFile"
+        }
+      ],
+      "pressurised": {
+        "value": true,
+        "kind": "published",
+        "sources": [
+          "ac"
+        ],
+        "note": "AC 2-1-1 p. 5 gives the A320-200's 'Pressurized Fuselage Volume'."
+      },
+      "values": {
+        "cruise_kts": {
+          "value": 450,
+          "kind": "derived",
+          "sources": [
+            "gtg-fuel",
+            "gtg-ci"
+          ],
+          "calculation": "Airbus gives M0.78 as the A320 family's cruise speed, in an evaluation flown at 35,000 ft (Getting to grips with fuel economy §5.2.2 p. 28). ISA at 35,000 ft: T = 288.15 − 0.0019812 × 35000 = 218.81 K; a = 661.47 × √(218.81 / 288.15) = 576.4 kt; TAS = 0.78 × 576.4 = 449.6 → 450 kt.",
+          "note": "Consistent with Getting to grips with the cost index, Figure 27 p. 41 (A320/CFM56, FL350): ECON Mach ≈0.78–0.785 at cost index 20–40 (≈452 kt, also → 450 kt)."
+        },
+        "min_runway_ft": {
+          "value": 5600,
+          "kind": "derived",
+          "sources": [
+            "ac"
+          ],
+          "calculation": "Takeoff weight midway between MLW 66,000 kg and MTOW 78,000 kg (AC 2-1-1 p. 2, WV017) = 72,000 kg = 158,733 lb. AC 3-3-1 p. 2 (take-off weight limitation, ISA, CFM56), sea-level (0) curve at 158,733 lb on the gridded lb axis: ≈5,560 ft of runway (0.78 of the way from the 4,000 ft to the 6,000 ft gridline). Landing at MLW 66,000 kg = 145,505 lb, AC 3-4-1 p. 2 (landing field length = actual distance / 0.6, ISA, CFM56), sea-level curve: ≈4,960 ft. Longer = takeoff 5,560 ft → up to the next 100 ft = 5,600 ft.",
+          "note": "At the basic weight variant WV000 (MTOW 73,500 kg, MLW 64,500 kg; midpoint 69,000 kg) the same charts give takeoff ≈4,970 ft and landing ≈4,820 ft → 5,000 ft. IAE V2500 charts (3-3-1 p. 3, 3-4-1 p. 3) at WV017: takeoff ≈5,850 ft, landing ≈4,850 ft → 5,900 ft."
+        },
+        "ceiling_ft": {
+          "value": 39100,
+          "kind": "published",
+          "sources": [
+            "tcds"
+          ],
+          "note": "Certified maximum operating altitude without options. 39,800 ft if modification 30748 is embodied; 41,000 ft with modification 162744 (ACJ320neo)."
+        },
+        "max_xwind_kts": {
+          "value": 29,
+          "kind": "published",
+          "sources": [
+            "bfu"
+          ],
+          "note": "The lower of the two demonstrated values: Airbus's A319/A320/A321 FCOM (Operating Limitations), as quoted in the report, gives 'maximum crosswind demonstrated for takeoff: 29 knots gusting up to 38 knots' and 'for landing: 33 knots gusting up to 38 knots'. The report adds (§1.18.5.1, p. 38) that the A320 flight manual records 38 kt (gust included) as the maximum crosswind demonstrated for landing."
+        },
+        "cruise_alt_ft": {
+          "value": 35000,
+          "kind": "published",
+          "sources": [
+            "gtg-fuel"
+          ],
+          "note": "The altitude of the evaluation in which Airbus gives the A320 family's M0.78 cruise speed (§5.2.2 p. 28)."
+        },
+        "climb_fpm": {
+          "value": 1400,
+          "kind": "derived",
+          "sources": [
+            "gtg-ci"
+          ],
+          "calculation": "Getting to grips with the cost index, Table 6 p. 21 (A320, CFM56, 75,000 kg takeoff weight, climb to FL330, ISA, no wind, 250 kt up to FL100), cost index 40: time to climb 23.7 min. 33,000 / 23.7 = 1,392 → 1,400 fpm.",
+          "note": "The published climb is to FL330, not to the 35,000 ft cruise altitude; taken as published, not corrected. Cost index 40 is the tabulated value nearest 45, the medium-time/medium-fuel cost index of the guide's Table 2 p. 11 ('A319/A321 cost index', in §3.2 'A320 Family'). Other rows: CI 0 22.4 min (→ 1,450 fpm), CI 100 26.1 min (→ 1,250 fpm)."
+        },
+        "climb_kts": {
+          "value": 420,
+          "kind": "derived",
+          "sources": [
+            "gtg-ci"
+          ],
+          "calculation": "Getting to grips with the cost index, Table 6 p. 21 (A320, CFM56, 75,000 kg, climb to FL330, ISA, no wind), cost index 40: 165 nm in 23.7 min. 165 / (23.7 / 60) = 417.7 → 420 kt.",
+          "note": "Distance and time to FL330, taken as published. CI 0: 150 nm / 22.4 min → 400 kt; CI 100: 187 nm / 26.1 min → 430 kt."
+        },
+        "descent_fpm": {
+          "value": 2500,
+          "kind": "derived",
+          "sources": [
+            "gtg-ci"
+          ],
+          "calculation": "Getting to grips with the cost index, Table 15 p. 53 (A320, CFM56, 60,000 kg, descent from FL370, ISA, no wind, 250 kt below FL100), cost index 40: time to descend 14.9 min. 37,000 / 14.9 = 2,483 → 2,500 fpm.",
+          "note": "The published descent is from FL370, not from the 35,000 ft cruise altitude, and its end point is not stated; taken as published, not corrected (35,000 / 14.9 would give 2,350 fpm). Cost index 40 as for the climb. CI 0: 19 min (→ 1,950 fpm); CI 80: 14.6 min (→ 2,550 fpm)."
+        }
+      }
+    },
+    {
+      "type": "A321",
+      "name": "A321-200",
+      "variant": "A321-200 (A321ceo) with CFM56 engines, at the heaviest weight variant WV011 (MTOW 93,500 kg, MLW 77,800 kg)",
+      "preset": "Airliner",
+      "icon": "airliner",
+      "researched": "2026-10-25",
+      "checked": "2026-10-25",
+      "sources": [
+        {
+          "id": "ac",
+          "title": "A321 Aircraft Characteristics – Airport and Maintenance Planning (AC), Revision No. 33, Jun 01/24",
+          "publisher": "Airbus",
+          "page": "2-1-1 p. 2 (A321-200 weight variants, WV011) and p. 5 (Pressurized Fuselage); 3-3-1 p. 2 (Take-Off Weight Limitation – ISA Conditions, CFM56 Series Engine, A321-100/-200, FIGURE-3-3-1-991-007-A01); 3-4-1 p. 2 (Landing Field Length – ISA Conditions, CFM56 Series Engine, FIGURE-3-4-1-991-007-A01)",
+          "url": "https://aircraft.airbus.com/sites/g/files/jlcbta126/files/2024-06/AC_A321_0624.pdf"
+        },
+        {
+          "id": "tcds",
+          "title": "Type-Certificate Data Sheet EASA.A.064, Airbus A318, A319, A320, A321 (Issue 62, 26 June 2026)",
+          "publisher": "European Union Aviation Safety Agency (EASA)",
+          "page": "Section 2: A321 Series, item 11 Flight Envelope, p. 101",
+          "url": "https://www.easa.europa.eu/en/downloads/16507/en"
+        },
+        {
+          "id": "gtg-fuel",
+          "title": "Getting to grips with fuel economy, Issue 4 – October 2004 (Airbus document; complete copy hosted by EUROCONTROL's Performance Review Unit)",
+          "publisher": "Airbus (Flight Operations Support & Line Assistance, Customer Services)",
+          "page": "§5.2.2 The effect of climb technique on fuel burn, p. 28",
+          "url": "https://ansperformance.eu/library/airbus-fuel-economy.pdf"
+        },
+        {
+          "id": "bfu",
+          "title": "Untersuchungsbericht 5X003-0/08 (März 2010): Schwere Störung, Airbus A320-211, Hamburg, 1. März 2008 (investigation report, in German)",
+          "publisher": "Bundesstelle für Flugunfalluntersuchung (BFU), Germany's federal air accident investigation authority",
+          "page": "§1.18.4.1 FCOM Airbus A319/A320/A321, p. 36 (also §1.18.4.2 and §1.18.5, p. 36; §1.18.5.1, p. 38)",
+          "url": "https://www.bfu-web.de/DE/Publikationen/Untersuchungsberichte/2008/Bericht_08_5X003_A320_Hamburg-Seitenwindlandung.pdf?__blob=publicationFile"
+        }
+      ],
+      "pressurised": {
+        "value": true,
+        "kind": "published",
+        "sources": [
+          "ac"
+        ],
+        "note": "AC 2-1-1 p. 5 gives the A321's 'Pressurized Fuselage' volume."
+      },
+      "values": {
+        "cruise_kts": {
+          "value": 450,
+          "kind": "derived",
+          "sources": [
+            "gtg-fuel"
+          ],
+          "calculation": "Airbus gives M0.78 as the A320 family's cruise speed, in an evaluation flown at 35,000 ft (Getting to grips with fuel economy §5.2.2 p. 28). ISA at 35,000 ft: T = 288.15 − 0.0019812 × 35000 = 218.81 K; a = 661.47 × √(218.81 / 288.15) = 576.4 kt; TAS = 0.78 × 576.4 = 449.6 → 450 kt.",
+          "note": "The figure is given for the whole A320 family (A318/A319/A320/A321), not for this model alone."
+        },
+        "min_runway_ft": {
+          "value": 6300,
+          "kind": "derived",
+          "sources": [
+            "ac"
+          ],
+          "calculation": "Takeoff weight midway between MLW 77,800 kg and MTOW 93,500 kg (AC 2-1-1 p. 2, WV011) = 85,650 kg = 188,826 lb. AC 3-3-1 p. 2 (take-off weight limitation, ISA, CFM56), sea-level (0) curve at 188,826 lb on the gridded lb axis: ≈6,260 ft of runway (0.13 of the way from the 6,000 ft to the 8,000 ft gridline). Landing at MLW 77,800 kg = 171,519 lb, AC 3-4-1 p. 2 (ISA, slats 27°/flaps 40°, CFM56), sea-level curve: ≈5,660 ft. Longer = takeoff 6,260 ft → up to the next 100 ft = 6,300 ft.",
+          "note": "At the A321-200's first-listed weight variant WV000 (MTOW 89,000 kg, MLW 75,500 kg; midpoint 82,250 kg) the same charts give takeoff ≈5,690 ft and landing ≈5,450 ft → 5,700 ft. IAE V2500 charts (3-3-1 p. 3, 3-4-1 p. 3) at WV011: takeoff ≈6,380 ft, landing ≈5,570 ft → 6,400 ft."
+        },
+        "ceiling_ft": {
+          "value": 39100,
+          "kind": "published",
+          "sources": [
+            "tcds"
+          ],
+          "note": "Certified maximum operating altitude without options; 39,800 ft if modification 30748 is embodied."
+        },
+        "max_xwind_kts": {
+          "value": 29,
+          "kind": "published",
+          "sources": [
+            "bfu"
+          ],
+          "note": "The lower of the two demonstrated values: Airbus's A319/A320/A321 FCOM (Operating Limitations), as quoted in the report, gives 'maximum crosswind demonstrated for takeoff: 29 knots gusting up to 38 knots' and 'for landing: 33 knots gusting up to 38 knots'. The report adds (§1.18.5.1, p. 38) that the A320 flight manual records 38 kt (gust included) as the maximum crosswind demonstrated for landing."
+        },
+        "cruise_alt_ft": {
+          "value": 35000,
+          "kind": "published",
+          "sources": [
+            "gtg-fuel"
+          ],
+          "note": "The altitude of the evaluation in which Airbus gives the A320 family's M0.78 cruise speed (§5.2.2 p. 28)."
+        },
+        "climb_fpm": {
+          "value": 2000,
+          "kind": "preset"
+        },
+        "climb_kts": {
+          "value": 270,
+          "kind": "preset",
+          "note": "0.6 × 450 kt = 270 kt."
+        },
+        "descent_fpm": {
+          "value": 2000,
+          "kind": "preset"
+        }
+      }
+    },
+    {
+      "type": "AEST",
+      "name": "Aerostar 600",
+      "variant": "Ted Smith / Piper Aerostar PA-60-600 (Aerostar 600, incl. the 600A), two Lycoming IO-540 (290 hp), normally aspirated, unpressurised",
+      "preset": "Piston twin",
+      "icon": "twin-piston",
+      "researched": "2026-10-25",
+      "checked": "2026-10-25",
+      "sources": [
+        {
+          "id": "tcds",
+          "title": "Type Certificate Data Sheet No. A17WE, Revision 23 (PA-60-600, -601, -601P, -602P, -700P)",
+          "publisher": "Federal Aviation Administration (archived copy of the FAA Regulatory and Guidance Library PDF)",
+          "page": "pp. 1-3, I. Aerostar Model PA-60-600 (no maximum operating altitude, no cabin pressure); compare p. 9, PA-60-601P 'Maximum Cabin Operating Pressure 4.25 PSI'",
+          "url": "https://web.archive.org/web/20161111023153/http://rgl.faa.gov/Regulatory_and_Guidance_Library/rgMakeModel.nsf/0/abbbb99ff89dc2ed86257a8b006ee54b/$FILE/A17WE_Rev_23.pdf"
+        }
+      ],
+      "pressurised": {
+        "value": false,
+        "kind": "published",
+        "sources": [
+          "tcds"
+        ],
+        "note": "The PA-60-600 section gives no cabin pressure limit, while the same data sheet gives one for each pressurised model (601P: 4.25 psi, p. 9)."
+      },
+      "values": {
+        "cruise_kts": null,
+        "min_runway_ft": null,
+        "ceiling_ft": null,
+        "max_xwind_kts": null,
+        "cruise_alt_ft": {
+          "value": 8000,
+          "kind": "preset",
+          "note": "Piston twin preset 8,000 ft (under the 12,000 ft unpressurised cap)."
+        },
+        "climb_fpm": {
+          "value": 1000,
+          "kind": "preset"
+        },
+        "climb_kts": null,
+        "descent_fpm": {
+          "value": 700,
+          "kind": "preset"
+        }
+      }
+    },
+    {
+      "type": "B36T",
+      "name": "Bonanza B36TP",
+      "variant": "Beechcraft B36TC Bonanza with the TurbineAir turbine conversion (Rocket Engineering / West Pacific Air), Pratt & Whitney Canada PT6A-21 (500 shp), unpressurised",
+      "preset": "Turboprop",
+      "icon": "single-piston",
+      "researched": "2026-10-25",
+      "checked": "2026-10-25",
+      "sources": [
+        {
+          "id": "rocket",
+          "title": "TurbineAir - Specifications",
+          "publisher": "Rocket Engineering Corp., designer of the TurbineAir conversion (archived copy of rocketengineering.com, December 2002)",
+          "page": "Specifications table: Certified Ceiling; Time to Climb (25,000 ft); High Speed Cruise (25,000 ft)",
+          "url": "https://web.archive.org/web/20021205200624/http://www.rocketengineering.com:80/turbineair_specifications.html"
+        },
+        {
+          "id": "tcds",
+          "title": "Type Certificate Data Sheet No. 3A15, Revision 98 (Models 35-33 … G36, 36, A36, A36TC, B36TC)",
+          "publisher": "Federal Aviation Administration (archived copy of the FAA Regulatory and Guidance Library PDF)",
+          "page": "p. 23, XVII. Model B36TC (Maximum Operating Altitude 25,000 feet); pp. 23-24 (no cabin pressurisation limits)",
+          "url": "https://web.archive.org/web/20210409165511/https://rgl.faa.gov/Regulatory_and_Guidance_Library/rgMakeModel.nsf/0/c3cb729491ecb94b86258051006e7667/$FILE/3A15_Rev98.pdf"
+        },
+        {
+          "id": "aopa2013",
+          "title": "Performance Bonanza: PT6 power lights a fire in the staid B36TC (pilot report), by Peter A. Bedell",
+          "publisher": "AOPA Pilot, December 2013 (web edition on aopa.org)",
+          "page": "Spec Sheet, West Pacific Air LLC TurbineAir Conversion: Performance, 'Cruise speed ... @ high-speed cruise 250 kt ... 25,000 ft'",
+          "url": "https://www.aopa.org/news-and-media/all-news/2013/december/pilot/performance-bonanza"
+        }
+      ],
+      "pressurised": {
+        "value": false,
+        "kind": "published",
+        "sources": [
+          "tcds"
+        ],
+        "note": "The converted airframe is the B36TC, which 3A15 certifies with no cabin pressurisation limits; AOPA's report adds 'Since it's not pressurized, descent planning is critical in the TurbineAir.'"
+      },
+      "values": {
+        "cruise_kts": {
+          "value": 250,
+          "kind": "published",
+          "sources": [
+            "rocket",
+            "aopa2013"
+          ],
+          "note": "High-speed cruise at 25,000 ft (Rocket Engineering; AOPA Pilot's 2013 spec box gives the same 250 kt at 25,000 ft, 29 gph). Rocket also gives long-range cruise 225 KTAS at 25,000 ft and high-speed cruise 225 kt at 18,000 ft. Rocket's page says its figures are 'based on preliminary flight test data'. AOPA's test flight saw 243 KTAS at FL230 on a warm day."
+        },
+        "min_runway_ft": null,
+        "ceiling_ft": {
+          "value": 25000,
+          "kind": "published",
+          "sources": [
+            "tcds",
+            "rocket"
+          ],
+          "note": "The B36TC airframe's certified maximum operating altitude (3A15); Rocket Engineering gives 'Certified Ceiling 25,000 ft' for the conversion, and AOPA's report calls FL250 its ceiling."
+        },
+        "max_xwind_kts": null,
+        "cruise_alt_ft": {
+          "value": 25000,
+          "kind": "published",
+          "sources": [
+            "rocket"
+          ],
+          "note": "The altitude at which the high-speed cruise speed is quoted."
+        },
+        "climb_fpm": {
+          "value": 1650,
+          "kind": "derived",
+          "sources": [
+            "rocket"
+          ],
+          "calculation": "Time to Climb (25,000 ft) 15 min (Rocket Engineering specifications): 25000 / 15 = 1666.7 → 1650 fpm",
+          "note": "Weight and conditions not stated ('preliminary flight test data'). AOPA's 2013 test climbed to 17,500 ft in 10 min, then about 1,000 fpm above FL180."
+        },
+        "climb_kts": {
+          "value": 150,
+          "kind": "preset",
+          "note": "Turboprop preset fraction: 0.6 × 250 kt = 150 kt."
+        },
+        "descent_fpm": {
+          "value": 1500,
+          "kind": "preset",
+          "note": "No manufacturer descent rate. AOPA's pilot report descended 'about 1,500 fpm' at altitude, reducing below about 6,000 ft for comfort (not a manufacturer figure)."
+        }
+      }
+    },
+    {
+      "type": "B58T",
+      "name": "Baron 58P",
+      "variant": "Beechcraft Baron 58P (Pressurized Baron), S/N TJ-169 and up, two Continental TSIO-520-WB (325 hp)",
+      "preset": "Piston twin",
+      "icon": "twin-piston",
+      "researched": "2026-10-25",
+      "checked": "2026-10-25",
+      "sources": [
+        {
+          "id": "tcds",
+          "title": "Type Certificate Data Sheet No. A23CE, Revision 16 (Models 58P, 58PA, 58TC, 58TCA)",
+          "publisher": "Federal Aviation Administration (archived copy of the FAA Regulatory and Guidance Library PDF)",
+          "page": "p. 1, I. 'Model 58P, Pressurized Baron'; p. 4, I. Model 58P (cont'd), Maximum operating limit",
+          "url": "https://web.archive.org/web/20161112224426/http://rgl.faa.gov/Regulatory_and_Guidance_Library/rgMakeModel.nsf/0/1103541d9d4c125986257c39004f4e41/$FILE/A23CE_Rev_16.pdf"
+        }
+      ],
+      "pressurised": {
+        "value": true,
+        "kind": "published",
+        "sources": [
+          "tcds"
+        ],
+        "note": "Certified as 'Model 58P, Pressurized Baron'."
+      },
+      "values": {
+        "cruise_kts": null,
+        "min_runway_ft": null,
+        "ceiling_ft": {
+          "value": 25000,
+          "kind": "published",
+          "sources": [
+            "tcds"
+          ],
+          "note": "Maximum operating limit 25,000 ft pressure altitude."
+        },
+        "max_xwind_kts": null,
+        "cruise_alt_ft": {
+          "value": 8000,
+          "kind": "preset",
+          "note": "Piston twin preset 8,000 ft (below the 25,000 ft ceiling; pressurised, so no 12,000 ft cap)."
+        },
+        "climb_fpm": {
+          "value": 1000,
+          "kind": "preset"
+        },
+        "climb_kts": null,
+        "descent_fpm": {
+          "value": 700,
+          "kind": "preset"
+        }
+      }
+    },
+    {
+      "type": "B77W",
+      "name": "B777-300ER",
+      "variant": "777-300ER with GE90-115BL engines, at the airport-planning maximum design weights (MTOW 775,000 lb, MLW 554,000 lb)",
+      "preset": "Airliner",
+      "icon": "airliner",
+      "researched": "2026-10-25",
+      "checked": "2026-10-25",
+      "sources": [
+        {
+          "id": "acap",
+          "title": "777-200LR/-300ER/-Freighter Airplane Characteristics for Airport Planning (D6-58329-2, Rev G, December 2024)",
+          "publisher": "Boeing Commercial Airplanes",
+          "page": "§2.1.1 p. 2-2 (weights); §3.2.2 p. 3-3 (payload/range, Mach 0.84 cruise); §3.3.9 p. 3-13 (takeoff, standard day, 777-300ER/GE90-115BL); §3.4.5 p. 3-29 and §3.4.6 p. 3-30 (landing, flaps 25 and 30)",
+          "url": "https://www.boeing.com/content/dam/boeing/v2/airports/acaps/777-200LR-300ER-F_Rev_G.pdf"
+        },
+        {
+          "id": "tcds",
+          "title": "Type-Certificate Data Sheet IM.A.003, Boeing 777 (Issue 20.0, 13 May 2026)",
+          "publisher": "European Union Aviation Safety Agency (EASA)",
+          "page": "Section 4 (-300ER variant): p. 22 of 52 (certification basis, FAR 25.841(a)); p. 26 of 52 (item 11 Maximum Operating Altitude, item 13 Maximum Certified Weights)",
+          "url": "https://www.easa.europa.eu/en/downloads/7521/en"
+        },
+        {
+          "id": "boeing-tech",
+          "title": "Technical Characteristics -- Boeing 777-200LR and 777-300ER (archived copy of boeing.com, 11 December 2013)",
+          "publisher": "Boeing Commercial Airplanes",
+          "page": "Table, row \"Typical Cruise Speed at 35,000 feet\", 777-300ER column",
+          "url": "https://web.archive.org/web/20131211045534/http://www.boeing.com/boeing/commercial/777family/pf/pf_lrproduct.page"
+        }
+      ],
+      "pressurised": {
+        "value": true,
+        "kind": "derived",
+        "sources": [
+          "tcds"
+        ],
+        "calculation": "The TCDS certifies the 777-300ER to a maximum operating altitude of 13,140 m (43,100 ft) pressure altitude (Section 4 item 11, p. 26) under a certification basis that includes FAR 25.841(a), Pressurized cabins (p. 22): a pressurised cabin."
+      },
+      "values": {
+        "cruise_kts": {
+          "value": 485,
+          "kind": "derived",
+          "sources": [
+            "boeing-tech",
+            "acap"
+          ],
+          "calculation": "Typical cruise speed M0.84 at 35,000 ft (Boeing technical characteristics). ISA at 35,000 ft: T = 288.15 − 0.0019812 × 35000 = 218.81 K; a = 661.47 × √(218.81 / 288.15) = 576.4 kt; TAS = 0.84 × 576.4 = 484.2 → 485 kt.",
+          "note": "The airport-planning payload/range chart (ACAP §3.2.2 p. 3-3) is likewise flown at Mach 0.84."
+        },
+        "min_runway_ft": {
+          "value": 7300,
+          "kind": "derived",
+          "sources": [
+            "acap"
+          ],
+          "calculation": "Takeoff weight midway between MLW 554,000 lb and MTOW 775,000 lb (ACAP §2.1.1 p. 2-2) = 664,500 lb. ACAP §3.3.9 p. 3-13 (standard day, zero wind, dry runway, zero gradient), sea-level curve at 664,500 lb: ≈7,270 ft (0.27 of the way from the 7,000 ft to the 8,000 ft gridline). Landing at MLW 554,000 lb, ACAP §3.4.6 p. 3-30 (flaps 30, dry runway, sea level): ≈5,810 ft (flaps 25, §3.4.5 p. 3-29: ≈6,190 ft). Longer = takeoff 7,270 ft → up to the next 100 ft = 7,300 ft.",
+          "note": "The takeoff chart has one curve per altitude with flaps 15/20 regions marked on it; no flap choice was needed. Landing flap choice does not change the result (takeoff governs)."
+        },
+        "ceiling_ft": {
+          "value": 43100,
+          "kind": "published",
+          "sources": [
+            "tcds"
+          ],
+          "note": "Certified maximum operating altitude, 13,140 m (43,100 ft) pressure altitude."
+        },
+        "max_xwind_kts": null,
+        "cruise_alt_ft": {
+          "value": 35000,
+          "kind": "published",
+          "sources": [
+            "boeing-tech"
+          ],
+          "note": "The altitude at which Boeing quotes the typical cruise speed."
+        },
+        "climb_fpm": {
+          "value": 2000,
+          "kind": "preset"
+        },
+        "climb_kts": {
+          "value": 290,
+          "kind": "preset",
+          "note": "0.6 × 485 kt = 291 → 290 kt."
+        },
+        "descent_fpm": {
+          "value": 2000,
+          "kind": "preset"
+        }
+      }
+    },
+    {
+      "type": "BT36",
+      "name": "Bonanza B36TC",
+      "variant": "Beechcraft Bonanza B36TC, Continental TSIO-520-UB (300 hp), turbocharged, unpressurised",
+      "preset": "Piston single",
+      "icon": "single-piston",
+      "researched": "2026-10-25",
+      "checked": "2026-10-25",
+      "sources": [
+        {
+          "id": "tcds",
+          "title": "Type Certificate Data Sheet No. 3A15, Revision 98 (Models 35-33 … G36, 36, A36, A36TC, B36TC)",
+          "publisher": "Federal Aviation Administration (archived copy of the FAA Regulatory and Guidance Library PDF)",
+          "page": "p. 23, XVII. Model B36TC (Maximum Operating Altitude); pp. 23-24 (no cabin pressurisation limits for the model)",
+          "url": "https://web.archive.org/web/20210409165511/https://rgl.faa.gov/Regulatory_and_Guidance_Library/rgMakeModel.nsf/0/c3cb729491ecb94b86258051006e7667/$FILE/3A15_Rev98.pdf"
+        },
+        {
+          "id": "rac-perf",
+          "title": "Bonanza B36TC - Performance",
+          "publisher": "Raytheon Aircraft Company (archived copy of raytheonaircraft.com, 2001)",
+          "page": "Performance page: Cruise Speeds (TAS at 3,500 lb), Take-Off Distance and Landing Distance at 3,850 lb",
+          "url": "https://web.archive.org/web/20011109221408/http://www.raytheonaircraft.com:80/products/pistons/bonanzab36tc/b36tc_performance.shtml"
+        },
+        {
+          "id": "aopa2000",
+          "title": "Jaguar Special Edition B36TC Bonanza (pilot report), by Peter A. Bedell",
+          "publisher": "AOPA Pilot, January 2000 (web edition on aopa.org)",
+          "page": "Spec box, Performance: 'Max demonstrated crosswind component 17 kt'; article text: climb to Flight Level 250",
+          "url": "https://www.aopa.org/news-and-media/all-news/2000/january/pilot/jaguar-special-edition-b36tc-bonanza"
+        }
+      ],
+      "pressurised": {
+        "value": false,
+        "kind": "published",
+        "sources": [
+          "tcds"
+        ],
+        "note": "The B36TC section of 3A15 gives a 25,000 ft maximum operating altitude and no cabin pressure differential or other pressurisation limits; pressurised Beech types (e.g. 58P, TCDS A23CE) are certified and named as such."
+      },
+      "values": {
+        "cruise_kts": {
+          "value": 188,
+          "kind": "published",
+          "sources": [
+            "rac-perf"
+          ],
+          "note": "Normal Cruise Power, 28 in. Hg (or full throttle) at 2,300 rpm, 25,000 ft, TAS at 3,500 lb. The same page gives 200 kt at Maximum Cruise Power (31 in. Hg, 2,400 rpm) at 25,000 ft, and 167/179 kt at normal cruise power at 10,000/18,000 ft."
+        },
+        "min_runway_ft": {
+          "value": 2130,
+          "kind": "published",
+          "sources": [
+            "rac-perf"
+          ],
+          "note": "Take-off total distance over 50 ft obstacle, 3,850 lb (max gross), sea level, ISA, zero wind, flaps 15° (flaps 0°: 2,364 ft); landing over 50 ft at 3,850 lb is 1,692 ft. No normal take-off flap setting is named on the page, so the shorter take-off figure is used."
+        },
+        "ceiling_ft": {
+          "value": 25000,
+          "kind": "published",
+          "sources": [
+            "tcds"
+          ],
+          "note": "Certified maximum operating altitude. Raytheon's performance page gives service ceiling (100 fpm) as 'above 25,000 ft'."
+        },
+        "max_xwind_kts": {
+          "value": 17,
+          "kind": "published",
+          "sources": [
+            "aopa2000"
+          ],
+          "note": "Fourth-tier source (no handbook or manufacturer page with the figure could be opened). AOPA states its spec-box figures are the manufacturer's. AOPA Pilot's June 1983 B36TC report (Mark M. Lacagnina, p. 115 ff.) gives the same 17 kt."
+        },
+        "cruise_alt_ft": {
+          "value": 25000,
+          "kind": "published",
+          "sources": [
+            "rac-perf"
+          ],
+          "note": "The altitude at which the normal-cruise-power speed above is quoted (fastest of 10,000 / 18,000 / 25,000 ft). Unpressurised: oxygen required."
+        },
+        "climb_fpm": {
+          "value": 700,
+          "kind": "preset",
+          "note": "No published time to climb to 25,000 ft from Raytheon (its page gives only a 1,053 fpm sea-level rate). AOPA Pilot's flight test (Jan 2000) took 45 minutes to FL250 from a 1,400 ft field on a warm day with a level-off for traffic; AOPA Pilot (Dec 2013) calls a stock B36TC's climb to FL250 'an agonizing 45-minute affair' (about 550 fpm). Those are flight observations, not a published time to climb, so the class preset stands."
+        },
+        "climb_kts": {
+          "value": 120,
+          "kind": "preset",
+          "note": "Piston single preset fraction: 0.65 × 188 kt = 122.2 → 120 kt."
+        },
+        "descent_fpm": {
+          "value": 500,
+          "kind": "preset"
+        }
+      }
+    },
+    {
+      "type": "C208",
+      "name": "Cessna 208B",
+      "variant": "Cessna 208B Grand Caravan (G1000), one Pratt & Whitney Canada PT6A-114A flat rated 675 shp, cargo pod installed",
+      "preset": "Turboprop",
+      "icon": "high-wing",
+      "researched": "2026-10-25",
+      "checked": "2026-10-25",
+      "sources": [
+        {
+          "id": "easa-tcds",
+          "title": "Type-Certificate Data Sheet No. IM.A.226 Cessna 208 (Caravan), Issue 15",
+          "publisher": "European Union Aviation Safety Agency (EASA)",
+          "page": "Section 2.1 Model 208B (PT6A-114/-114A), item 10 Flight Envelope (Maximum Operating Altitude), page 17 of 26",
+          "url": "https://www.easa.europa.eu/en/downloads/7230/en"
+        },
+        {
+          "id": "pim",
+          "title": "Model 208B G1000 Information Manual (duplicate of the POH/AFM 208BPHBUS-00)",
+          "publisher": "Cessna Aircraft Company (archived copy of cessna.com grandcaravan_pim.ashx)",
+          "page": "Introduction p. ii (Performance - Specifications, cargo version); p. 2-26; p. 4-4; p. 4-49; Fig. 5-10 sheet 2 p. 5-20; Fig. 5-18 sheet 2 p. 5-34; Fig. 5-25 p. 5-59; Fig. 5-26 sheet 2 p. 5-61",
+          "url": "https://web.archive.org/web/20130603100501/http://www.cessna.com/~/media/Files/caravan/super_cargomaster/grandcaravan_pim.ashx"
+        }
+      ],
+      "pressurised": {
+        "value": false,
+        "kind": "published",
+        "sources": [
+          "pim"
+        ],
+        "note": "PIM p. 4-49: \"Supplemental oxygen should be used by all occupants when cruising above 12,500 feet\" — the 208B cabin is not pressurised. Cessna's Grand Caravan EX Specification & Description (July 2012, units 208B-5000 and on, PT6A-140) states it outright: \"an unpressurized single-engine high wing turboprop\" (archived at https://web.archive.org/web/20130411051915/http://www.cessna.com:80/~/media/Files/caravan/grand_caravan_ex/grandcaravansd.ashx, p. 1); not cited because it describes the EX."
+      },
+      "values": {
+        "cruise_kts": {
+          "value": 175,
+          "kind": "published",
+          "sources": [
+            "pim"
+          ],
+          "note": "PIM Introduction p. ii, Performance - Specifications, cargo version: \"Maximum Cruise at 10,000 Feet ... 175 Knots\" (KTAS, mid-cruise weight). Without the cargo pod (passenger version, p. iv) the figure is 184 KTAS."
+        },
+        "min_runway_ft": {
+          "value": 2500,
+          "kind": "published",
+          "sources": [
+            "pim"
+          ],
+          "note": "PIM p. ii, cargo version: takeoff total distance over 50 ft obstacle 2500 ft; landing total distance over 50 ft obstacle 1740 ft (maximum weights 8750 lb takeoff / 8500 lb landing, standard atmosphere, sea level, hard dry runway, no wind). Takeoff is the longer. Fig. 5-10 sheet 2 (p. 5-20, short field takeoff, cargo pod, 8750 lb, flaps 20, SL) gives 2430 ft at 10 C and 2570 ft at 20 C, i.e. 2500 ft at 15 C; Fig. 5-26 sheet 2 (p. 5-61, 8500 lb, SL) gives 1715 / 1765 ft, i.e. 1740 ft at 15 C."
+        },
+        "ceiling_ft": {
+          "value": 25000,
+          "kind": "published",
+          "sources": [
+            "easa-tcds",
+            "pim"
+          ],
+          "note": "Certified maximum operating altitude in non-icing conditions; 20,000 ft in icing conditions. PIM p. 2-26 gives the same. The PIM's service ceiling for the cargo version is 22,800 ft (p. ii)."
+        },
+        "max_xwind_kts": {
+          "value": 20,
+          "kind": "published",
+          "sources": [
+            "pim"
+          ],
+          "note": "PIM p. 4-4: \"MAXIMUM DEMONSTRATED CROSSWIND VELOCITY: Takeoff or Landing ... 20 KNOTS\"."
+        },
+        "cruise_alt_ft": {
+          "value": 10000,
+          "kind": "published",
+          "sources": [
+            "pim"
+          ],
+          "note": "The altitude at which the PIM (p. ii) quotes the 175 KTAS maximum cruise speed."
+        },
+        "climb_fpm": {
+          "value": 750,
+          "kind": "derived",
+          "sources": [
+            "pim"
+          ],
+          "calculation": "PIM Fig. 5-18 sheet 2 (p. 5-34), cargo pod installed, time, fuel and distance to climb, cruise climb 115 KIAS, 8750 lb, standard temperature: sea level to 10,000 ft in 13 min. 10000 / 13 = 769 fpm -> 750 fpm.",
+          "note": "The maximum-rate-of-climb table (Fig. 5-18 sheet 1, p. 5-33) does not tabulate 10,000 ft (8000 ft: 9 min; 12,000 ft: 15 min); the cruise climb is the normal en-route climb."
+        },
+        "climb_kts": {
+          "value": 125,
+          "kind": "derived",
+          "sources": [
+            "pim"
+          ],
+          "calculation": "PIM Fig. 5-18 sheet 2 (p. 5-34), cruise climb 115 KIAS, 8750 lb, standard temperature, zero wind: 27 NM in 13 min to 10,000 ft. 27 / (13 / 60) = 124.6 kt -> 125 kt."
+        },
+        "descent_fpm": {
+          "value": 800,
+          "kind": "published",
+          "sources": [
+            "pim"
+          ],
+          "note": "PIM Fig. 5-25 (p. 5-59), cargo pod installed, time, fuel and distance to descend: \"Power Set for 800 Feet per Minute Rate of Descent\" (140 KIAS above 16,000 ft, 160 KIAS below)."
+        }
+      }
+    },
+    {
+      "type": "E55P",
+      "name": "Phenom 300",
+      "variant": "Embraer EMB-505 Phenom 300 (original, pre-300E), two Pratt & Whitney Canada PW535E",
+      "preset": "Light jet",
+      "icon": "jet",
+      "researched": "2026-10-25",
+      "checked": "2026-10-25",
+      "sources": [
+        {
+          "id": "easa-tcds",
+          "title": "Type-Certificate Data Sheet No. EASA.IM.A.158 EMB-505, Issue 11",
+          "publisher": "European Union Aviation Safety Agency (EASA)",
+          "page": "Section A.III, item 7 Maximum Operation Altitude, page 9 of 16",
+          "url": "https://www.easa.europa.eu/en/downloads/7282/en"
+        },
+        {
+          "id": "perf",
+          "title": "Phenom 300 — Performance (Performance Summary and Operational Weights)",
+          "publisher": "Embraer Executive Jets (archived copy of embraerexecutivejets.com, 1 June 2012)",
+          "page": "Performance Summary",
+          "url": "https://web.archive.org/web/20120601233735/http://embraerexecutivejets.com:80/en-US/jets/phenom-300/Pages/performance.aspx"
+        },
+        {
+          "id": "brochure",
+          "title": "Phenom 300 brochure",
+          "publisher": "Embraer Executive Jets (archived copy of embraerexecutivejets.com/Brochures/brochura_phenom_300.pdf, 2014)",
+          "page": "PDF page 13 (Comfort: \"Best pressurization in class (6,600 ft max)\"); PDF page 12 (Specifications / Performance data)",
+          "url": "https://web.archive.org/web/20141031135551/http://www.embraerexecutivejets.com:80/Brochures/brochura_phenom_300.pdf"
+        }
+      ],
+      "pressurised": {
+        "value": true,
+        "kind": "published",
+        "sources": [
+          "brochure"
+        ],
+        "note": "Brochure PDF p. 13: \"Best pressurization in class (6,600 ft max)\" cabin altitude."
+      },
+      "values": {
+        "cruise_kts": {
+          "value": 453,
+          "kind": "published",
+          "sources": [
+            "perf",
+            "brochure"
+          ],
+          "note": "high-speed cruise: Embraer's \"High Speed Cruise: 453 ktas (839 km/h)\" (performance page; brochure PDF p. 12), no altitude given. Embraer publishes no typical or economy cruise speed."
+        },
+        "min_runway_ft": {
+          "value": 3138,
+          "kind": "published",
+          "sources": [
+            "perf",
+            "brochure"
+          ],
+          "note": "Embraer gives no airport-planning chart, so the figure at maximum takeoff weight is used: \"Takeoff Distance: 3,138 ft (956 m) (MTOW, Sea Level, ISA)\" (MTOW 17,968 lb). Landing: \"Unfactored Landing Distance: 2,621 ft (799 m) (MLW, Sea Level, ISA)\" (MLW 16,865 lb) — shorter. Brochure p. 12 gives the same two figures."
+        },
+        "ceiling_ft": {
+          "value": 45000,
+          "kind": "published",
+          "sources": [
+            "easa-tcds",
+            "perf"
+          ],
+          "note": "TCDS: \"13,716 m (45,000 ft) pressure altitude\". Embraer's page: \"Maximum Operating Altitude: 45,000 ft (13,716 m)\"."
+        },
+        "max_xwind_kts": null,
+        "cruise_alt_ft": {
+          "value": 37000,
+          "kind": "preset",
+          "note": "Light jet class preset (37,000 ft; below the 45,000 ft ceiling). Embraer publishes no typical cruise altitude."
+        },
+        "climb_fpm": {
+          "value": 2500,
+          "kind": "preset",
+          "note": "Light jet class preset; no published time to climb found."
+        },
+        "climb_kts": {
+          "value": 270,
+          "kind": "preset",
+          "note": "Light jet class preset: 60% of the 453 kt cruise speed = 271.8 -> 270 kt."
+        },
+        "descent_fpm": {
+          "value": 2000,
+          "kind": "preset",
+          "note": "Light jet class preset; no published descent rate or time found."
+        }
+      }
+    },
+    {
+      "type": "LJ35",
+      "name": "Learjet 35A",
+      "variant": "Learjet 35A, two Garrett (Honeywell) TFE731-2-2B",
+      "preset": "Light jet",
+      "icon": "jet",
+      "researched": "2026-10-25",
+      "checked": "2026-10-25",
+      "sources": [
+        {
+          "id": "faa-tcds",
+          "title": "Type Certificate Data Sheet A10CE, Revision 67 (Learjet)",
+          "publisher": "Federal Aviation Administration (archived copy from rgl.faa.gov)",
+          "page": "Section IV, Model 35, Model 36, Model 35A (Military C-21A), Model 36A — Maximum Operating Altitude, page 11 of 38",
+          "url": "https://web.archive.org/web/20161115001948/http://rgl.faa.gov/Regulatory_and_Guidance_Library/rgMakeModel.nsf/0/396c71dfcebb3fb186257df2004e83ee/$FILE/A10CE_Rev_67.pdf"
+        },
+        {
+          "id": "nz-tar",
+          "title": "Type Acceptance Report TAR 3/21B/22 Revision 1 — Learjet 20/30/50/60 Series",
+          "publisher": "Civil Aviation Authority of New Zealand",
+          "page": "Section 3, Application Details and Background Information, page 3",
+          "url": "https://www.aviation.govt.nz/assets/aircraft/type-acceptance-reports/Learjet_35A.pdf"
+        },
+        {
+          "id": "usaf",
+          "title": "C-21 Fact Sheet",
+          "publisher": "U.S. Air Force (archived copy of af.mil, 11 May 2017)",
+          "page": "Mission (\"military version of the Lear Jet 35A\") and General Characteristics",
+          "url": "https://web.archive.org/web/20170511122029/http://www.af.mil/About-Us/Fact-Sheets/Display/Article/104522/c-21/"
+        }
+      ],
+      "pressurised": {
+        "value": true,
+        "kind": "published",
+        "sources": [
+          "nz-tar"
+        ],
+        "note": "TAR section 3: \"The Learjet is an all-metal pressurised light business twin\"."
+      },
+      "values": {
+        "cruise_kts": {
+          "value": 461,
+          "kind": "published",
+          "sources": [
+            "usaf"
+          ],
+          "note": "maximum cruise: USAF C-21 (Learjet 35A) fact sheet, \"Speed: 530 mph (Mach 0.81, 461 knots at 41,000 feet)\" - the type's MMO (TCDS A10CE: M .81 above 23,900 ft), not a typical cruise. M0.81 at FL410 in ISA is 0.81 x 573.6 = 464.6 kt TAS; the fact sheet's 461 kt is its own conversion of 530 mph (460.6 kt), under 1% apart, so the published knots are kept. No typical or economy cruise is published by any accepted source."
+        },
+        "min_runway_ft": null,
+        "ceiling_ft": {
+          "value": 45000,
+          "kind": "published",
+          "sources": [
+            "faa-tcds",
+            "usaf"
+          ],
+          "note": "TCDS A10CE section IV (Models 35/36/35A/36A): \"Maximum Operating Altitude 45,000 ft. pressure altitude\". USAF C-21 (Learjet 35A) fact sheet: \"Ceiling: 45,000 feet (13,716 meters)\"."
+        },
+        "max_xwind_kts": null,
+        "cruise_alt_ft": {
+          "value": 41000,
+          "kind": "published",
+          "sources": [
+            "usaf"
+          ],
+          "note": "The altitude at which the USAF fact sheet quotes the 461 kt speed; below the 45,000 ft ceiling."
+        },
+        "climb_fpm": {
+          "value": 2500,
+          "kind": "preset",
+          "note": "Light jet class preset; no published time to climb found."
+        },
+        "climb_kts": {
+          "value": 275,
+          "kind": "preset",
+          "note": "Light jet class preset: 60% of the 461 kt cruise speed = 276.6 -> 275 kt."
+        },
+        "descent_fpm": {
+          "value": 2000,
+          "kind": "preset",
+          "note": "Light jet class preset; no published descent rate or time found."
+        }
+      }
+    },
+    {
+      "type": "PA24",
+      "name": "Piper Comanche",
+      "variant": "Piper PA-24-250 Comanche 250 (2,900 lb gross), Lycoming O-540 (250 hp)",
+      "preset": "Piston single",
+      "icon": "single-piston",
+      "researched": "2026-10-25",
+      "checked": "2026-10-25",
+      "sources": [
+        {
+          "id": "tcds",
+          "title": "Aircraft Specification No. 1A15, Revision 34 (PA-24, PA-24-250, PA-24-260, PA-24-400)",
+          "publisher": "Federal Aviation Administration (archived copy of the FAA Regulatory and Guidance Library PDF)",
+          "page": "pp. 2-4, II. Model PA-24-250 (no cabin pressurisation, no maximum operating altitude)",
+          "url": "https://web.archive.org/web/20210420023658/https://rgl.faa.gov/Regulatory_and_Guidance_Library/rgMakeModel.nsf/0/4fcc8ad41f3024cc86257209007581ec/$FILE/1A15.pdf"
+        },
+        {
+          "id": "oh",
+          "title": "The Piper Comanche PA-24-180, PA-24-250 Owner's Handbook, Part No. 753 597, issued November 1961, revised November 1973 (complete scan)",
+          "publisher": "Piper Aircraft Corporation (scan hosted by the North East Comanche type-club document mirror; identical file at pipercomanche.info)",
+          "page": "Section I p. 1 (Specification Features: service ceiling); Section III p. 23 (Take-off Performance PA-24-250 table), p. 24 (Climb), p. 25 (Cruising), p. 28 (Landing Performance PA-24-250 table)",
+          "url": "https://docs.northeastcomanche.org/piper/753_597-aoh_pa_24_180_pa_24_250-rev_197311.pdf"
+        }
+      ],
+      "pressurised": {
+        "value": false,
+        "kind": "published",
+        "sources": [
+          "tcds"
+        ],
+        "note": "The PA-24-250 section (and the whole specification) gives no cabin pressurisation limits."
+      },
+      "values": {
+        "cruise_kts": {
+          "value": 157,
+          "kind": "derived",
+          "sources": [
+            "oh"
+          ],
+          "calculation": "'The 250 Comanche has a maximum recommended cruising speed of 181 M.P.H. at 75% power at 7000 feet' (Owner's Handbook p. 25; also p. 1, optimum cruising speed, 75% power, 181 mph): 181 mph / 1.15078 = 157.3 kt -> 157 kt (a published figure converted to knots, kept in whole units)",
+          "note": "TAS (the handbook's speeds are true airspeeds, p. 25). At 75% power at sea level the handbook gives 171 mph (p. 1)."
+        },
+        "min_runway_ft": {
+          "value": 1675,
+          "kind": "published",
+          "sources": [
+            "oh"
+          ],
+          "note": "Take-off total distance over 50 ft barrier at 2,900 lb (max gross), sea level, 60°F (the table's row nearest the 59°F standard day), zero wind, 15° Max-Lift flaps (the handbook's only PA-24-250 take-off table; ground run 1,180 ft). Landing over 50 ft barrier at 2,900 lb, sea level, 60°F, zero wind: 1,420 ft (p. 28)."
+        },
+        "ceiling_ft": {
+          "value": 20000,
+          "kind": "published",
+          "sources": [
+            "oh"
+          ],
+          "note": "Manufacturer's service ceiling (1A15 certifies no maximum operating altitude). Absolute ceiling 22,000 ft."
+        },
+        "max_xwind_kts": null,
+        "cruise_alt_ft": {
+          "value": 7000,
+          "kind": "published",
+          "sources": [
+            "oh"
+          ],
+          "note": "The altitude at which the handbook quotes the 181 mph cruise (p. 25)."
+        },
+        "climb_fpm": {
+          "value": 700,
+          "kind": "preset",
+          "note": "The handbook gives rates of climb (1,350 fpm at sea level, p. 1; rate-of-climb chart p. 42) but no time to climb."
+        },
+        "climb_kts": {
+          "value": 95,
+          "kind": "derived",
+          "sources": [
+            "oh"
+          ],
+          "calculation": "Climb schedule (p. 24): best rate of climb 105 mph IAS at sea level, decreasing about 1 mph per 1,000 ft, so 98 mph IAS at 7,000 ft. IAS taken as CAS (no position-error data); TAS = CAS / sqrt(sigma), ISA sigma(7,000 ft) = 0.8106. Sea level: 105 mph = 91.2 kt TAS; 7,000 ft: 98 mph = 85.2 kt CAS = 94.6 kt TAS. Average over the climb ≈ (91.2 + 94.6) / 2 = 92.9 kt (a time-weighted average using the p. 42 rate-of-climb line gives 93.0 kt) → 95 kt",
+          "note": "The handbook also says a good climb is obtained at 100-110 mph at lower altitudes with more forward speed."
+        },
+        "descent_fpm": {
+          "value": 500,
+          "kind": "preset"
+        }
+      }
+    },
+    {
+      "type": "SF50",
+      "name": "Vision JET",
+      "variant": "Cirrus SF50 Vision Jet G2+ (FL310 flight envelope), one Williams International FJ33-5A",
+      "preset": "Light jet",
+      "icon": "jet",
+      "researched": "2026-10-25",
+      "checked": "2026-10-25",
+      "sources": [
+        {
+          "id": "easa-tcds",
+          "title": "Type-Certificate Data Sheet No. EASA.IM.A.615 SF50, Issue 6",
+          "publisher": "European Union Aviation Safety Agency (EASA)",
+          "page": "Item 9 Maximum Operating Altitude, page 8 of 12",
+          "url": "https://www.easa.europa.eu/en/downloads/24242/en"
+        },
+        {
+          "id": "cirrus-page",
+          "title": "Vision Jet | The Next Evolution (G2+ Vision Jet page)",
+          "publisher": "Cirrus Aircraft (archived copy of cirrusaircraft.com/aircraft/vision-jet/, 18 January 2024)",
+          "page": "Header figures ('305 ktas Cruise Speed') and the 'Specs' section (weight, engine, performance: 'Max Cruise Speed 311 KTAS', takeoff, 'Max Operating Altitude 31,000 ft'); 'Pressurized Cabin' among the cabin features",
+          "url": "https://web.archive.org/web/20240118024024/https://cirrusaircraft.com/aircraft/vision-jet/"
+        }
+      ],
+      "pressurised": {
+        "value": true,
+        "kind": "published",
+        "sources": [
+          "cirrus-page"
+        ],
+        "note": "Cirrus lists \"Pressurized Cabin\" among the G2+ Vision Jet's cabin features."
+      },
+      "values": {
+        "cruise_kts": {
+          "value": 305,
+          "kind": "published",
+          "sources": [
+            "cirrus-page"
+          ],
+          "note": "maximum cruise: Cirrus's headline 'Cruise Speed 305 ktas' at the top of its G2+ Vision Jet page; the page's Specs list gives 'Max Cruise Speed 311 KTAS'. Neither names an altitude, and Cirrus publishes no typical or economy cruise speed. The lower, unqualified headline figure is used."
+        },
+        "min_runway_ft": {
+          "value": 3192,
+          "kind": "published",
+          "sources": [
+            "cirrus-page"
+          ],
+          "note": "Cirrus: \"Takeoff Over 50 ft Obstacle 3,192 ft (973 m)\" (ground roll 2,036 ft); weight and conditions not stated on the page (MTOW 6,000 lb listed alongside). No airport-planning chart exists, so this stands as the MTOW figure. Cirrus publishes only a landing ground roll (1,628 ft), not a landing distance over 50 ft, so the landing side could not be compared."
+        },
+        "ceiling_ft": {
+          "value": 31000,
+          "kind": "published",
+          "sources": [
+            "easa-tcds",
+            "cirrus-page"
+          ],
+          "note": "TCDS item 9: \"9449 m (31,000 ft) MSL — S/N 0008, 0089, 0094 and subsequent except aircraft part number 26000-003\" (28,000 ft for the earlier G1 aircraft). Cirrus: \"Max Operating Altitude 31,000 ft\"."
+        },
+        "max_xwind_kts": null,
+        "cruise_alt_ft": {
+          "value": 31000,
+          "kind": "preset",
+          "note": "Light jet class preset (37,000 ft) lowered to the 31,000 ft ceiling."
+        },
+        "climb_fpm": {
+          "value": 2500,
+          "kind": "preset",
+          "note": "Light jet class preset. Cirrus's \"Climb Rate 1,609 ft/min\" is an initial (sea-level) rate, not an average to cruise altitude, and no time to climb is published."
+        },
+        "climb_kts": {
+          "value": 185,
+          "kind": "preset",
+          "note": "Light jet class preset: 60% of the 305 kt cruise speed = 183.0 -> 185 kt."
+        },
+        "descent_fpm": {
+          "value": 2000,
+          "kind": "preset",
+          "note": "Light jet class preset; no published descent rate or time found."
+        }
+      }
+    },
+    {
+      "type": "TBM8",
+      "name": "TBM 850",
+      "variant": "TBM 850 G1000 (TBM 700N with G1000 integrated flight deck), one Pratt & Whitney Canada PT6A-66D",
+      "preset": "Turboprop",
+      "icon": "single-piston",
+      "researched": "2026-10-25",
+      "checked": "2026-10-25",
+      "sources": [
+        {
+          "id": "easa-tcds",
+          "title": "Type-Certificate Data Sheet No. EASA.A.010 TBM700, Issue 22",
+          "publisher": "European Union Aviation Safety Agency (EASA)",
+          "page": "Section B.III, item 11 Flight Envelope (\"For TBM700 C1, C2 & N: 31000 ft\"), page 17 of 31; TBM850 = TBM700N per B.I.1.2, page 6",
+          "url": "https://www.easa.europa.eu/en/downloads/16508/en"
+        },
+        {
+          "id": "pim",
+          "title": "TBM 850 Pilot's Information Manual (Pilot's Operating Handbook, G1000), Edition 1, June 22, 2007",
+          "publisher": "DAHER-SOCATA (archived copy of tbm850.com/IMG/pdf/PIM850GC.pdf)",
+          "page": "p. 2.6.10 Altitude operating limits; p. 4.5.24 crosswind; Fig. 5.9.3 p. 5.9.3 takeoff 7394 lb; Fig. 5.10.6 p. 5.10.6 MXCL time/distance to climb, ISA; Fig. 5.11.5 p. 5.11.5A max cruise ISA; Fig. 5.12.1 p. 5.12.1 descent; Fig. 5.14.1 p. 5.14.1 landing 7024 lb",
+          "url": "https://web.archive.org/web/20111003112111/http://www.tbm850.com/IMG/pdf/PIM850GC.pdf"
+        },
+        {
+          "id": "spec",
+          "title": "TBM 850 Specifications (2013)",
+          "publisher": "DAHER-SOCATA (archived copy of tbm850.com/IMG/pdf/2013_TBM850_Specifications.pdf)",
+          "page": "PDF page 3 of 4, \"PERFORMANCE (ISA conditions, MTOW, no wind)\" table",
+          "url": "https://web.archive.org/web/20140301094826/http://www.tbm850.com/IMG/pdf/2013_TBM850_Specifications.pdf"
+        }
+      ],
+      "pressurised": {
+        "value": true,
+        "kind": "published",
+        "sources": [
+          "pim"
+        ],
+        "note": "PIM p. 2.6.10, Altitude operating limits: \"Maximum differential pressure : 6.2 psi\"."
+      },
+      "values": {
+        "cruise_kts": {
+          "value": 320,
+          "kind": "published",
+          "sources": [
+            "spec",
+            "pim"
+          ],
+          "note": "Spec sheet PDF p. 3: \"Maximum cruise speed at 26,000 ft 320 KTAS\" (ISA, maximum cruise power). PIM Fig. 5.11.5 (Maximum cruise / ISA, post-Garmin 9.14 software, p. 5.11.5A) at 26,000 ft gives 323 / 320 / 317 KTAS at 5500 / 6300 / 7100 lb, consistent."
+        },
+        "min_runway_ft": {
+          "value": 2840,
+          "kind": "published",
+          "sources": [
+            "pim",
+            "spec"
+          ],
+          "note": "PIM Fig. 5.9.3 (p. 5.9.3): takeoff distance to clear 50 ft at 7394 lb (MTOW), sea level, ISA, hard dry runway, flaps TO = 2840 ft (ground roll 2035 ft). PIM Fig. 5.14.1 (p. 5.14.1): landing distance from 50 ft at 7024 lb (max landing weight), sea level, ISA, max braking without reverse = 2430 ft. Takeoff is the longer. Spec sheet PDF p. 3 gives the same 2,840 ft / 2,430 ft."
+        },
+        "ceiling_ft": {
+          "value": 31000,
+          "kind": "published",
+          "sources": [
+            "easa-tcds",
+            "pim"
+          ],
+          "note": "Certified maximum operating altitude. PIM p. 2.6.10: \"Maximum altitude : 31000 ft (9449 m)\"."
+        },
+        "max_xwind_kts": {
+          "value": 20,
+          "kind": "published",
+          "sources": [
+            "pim"
+          ],
+          "note": "PIM p. 4.5.24 (Landing procedure with strong headwind or crosswind 2/2): \"Maximum demonstrated crosswind for landing is 20 kt.\" No separate takeoff value is given."
+        },
+        "cruise_alt_ft": {
+          "value": 26000,
+          "kind": "published",
+          "sources": [
+            "spec"
+          ],
+          "note": "The altitude at which the spec sheet quotes the 320 KTAS maximum cruise speed."
+        },
+        "climb_fpm": {
+          "value": 1750,
+          "kind": "derived",
+          "sources": [
+            "pim"
+          ],
+          "calculation": "PIM Fig. 5.10.6 (p. 5.10.6), MXCL time, consumption and climb distance, IAS 130 KIAS, ISA, 7394 lb: sea level to 26,000 ft in 15 min 00 s. 26000 / 15 = 1733 fpm -> 1750 fpm.",
+          "note": "Time from 50 ft, at maximum takeoff weight. The spec sheet also gives \"Time to climb to 26,000 ft 15 min\"."
+        },
+        "climb_kts": {
+          "value": 160,
+          "kind": "derived",
+          "sources": [
+            "pim"
+          ],
+          "calculation": "PIM Fig. 5.10.6 (p. 5.10.6), 130 KIAS, ISA, 7394 lb: 40 NM covered in 15 min to 26,000 ft (zero wind). 40 / (15 / 60) = 160.0 kt -> 160 kt."
+        },
+        "descent_fpm": {
+          "value": 1500,
+          "kind": "preset",
+          "note": "Turboprop class preset. The PIM's descent table (Fig. 5.12.1, p. 5.12.1) lists constant-rate descents at 1500, 2000 and 2500 ft/min at 230 KCAS without naming one as the normal rate, so no published normal descent rate was found."
+        }
+      }
+    }
+  ]
+}

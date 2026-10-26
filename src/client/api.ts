@@ -1,4 +1,6 @@
 import type {
+  AircraftTypeEntry,
+  AircraftTypeList,
   Aircraft,
   AircraftInput,
   Airport,
@@ -135,6 +137,9 @@ export const api = {
 
   simbriefTypes: () =>
     req<{ types: { id: string; name: string }[]; source: string; fetched_at: string | null }>("GET", "/api/simbrief/aircraft"),
+
+  aircraftTypes: () => req<AircraftTypeList>("GET", "/api/aircraft-types"),
+  aircraftType: (type: string) => req<AircraftTypeEntry>("GET", `/api/aircraft-types/${encodeURIComponent(type.trim().toUpperCase())}`),
 
   plan: (q: PlanQuery) => {
     const p = new URLSearchParams({

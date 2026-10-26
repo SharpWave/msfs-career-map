@@ -62,7 +62,10 @@ restart the page reconnects across, unless a hop was logged meanwhile
 
 A leg's block time is fixed ground-and-pattern overhead, a climb at climb speed, cruise, and a
 descent — the same shape SimBrief uses, with five numbers per aircraft instead of performance
-tables ([performance.ts](../../../src/server/performance.ts)). Wind is ignored.
+tables ([performance.ts](../../../src/server/performance.ts)). Wind is ignored. The fleet's
+performance table gives each type's numbers in the meanings this model uses them in — true
+airspeeds, averages over the climb and the descent (fleet, The Performance Table) — so a change
+to the model changes what the table's numbers must mean.
 
 **Profile.** Cruise speed is required. Every other input falls back to a light-piston default
 when the aircraft leaves it blank ([performance.ts:27-38](../../../src/server/performance.ts#L27-L38)):

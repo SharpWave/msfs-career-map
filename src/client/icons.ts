@@ -1,10 +1,13 @@
+import { BUILTIN_KEYS, type BuiltinKey } from "./icon-keys";
 import type { Aircraft } from "./types";
+
+export { BUILTIN_KEYS };
 
 /**
  * Built-in top-down aircraft silhouettes (nose up, 100x100 viewBox, fill = currentColor).
  * Used when an aircraft has no custom image.
  */
-export const BUILTIN_ICONS: Record<string, { label: string; svg: string }> = {
+export const BUILTIN_ICONS: Record<BuiltinKey, { label: string; svg: string }> = {
   "single-piston": {
     label: "Single piston (low wing)",
     svg: `<rect x="37" y="1" width="26" height="3" rx="1.5"/>
@@ -63,10 +66,8 @@ export const BUILTIN_ICONS: Record<string, { label: string; svg: string }> = {
   },
 };
 
-export const BUILTIN_KEYS = Object.keys(BUILTIN_ICONS);
-
 export function builtinSvg(key: string, extraAttrs = ""): string {
-  const icon = BUILTIN_ICONS[key] ?? BUILTIN_ICONS["twin-piston"];
+  const icon = BUILTIN_ICONS[key as BuiltinKey] ?? BUILTIN_ICONS["twin-piston"];
   return `<svg viewBox="0 0 100 100" fill="currentColor" ${extraAttrs}>${icon.svg}</svg>`;
 }
 

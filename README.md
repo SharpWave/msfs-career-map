@@ -136,6 +136,12 @@ reloads itself.
   the aircraft itself. Hover an airport dot to see every arrival and departure logged there,
   hover a line for that hop's details, click a line for its flight panel. Click an aircraft (in
   Fleet or on the map) to highlight it and zoom to its path.
+- **Aircraft numbers**: in the aircraft form, type the SimBrief type (e.g. `B738`) and click **Fill
+  from table** to fill cruise speed, runway, ceiling, crosswind and the block-time model from the
+  app's performance table, researched for every type in SimBrief's list from manufacturers' and
+  aviation authorities' publications. **Sources** shows where each number comes from; a number no
+  such source gives is left blank, or for climb and descent filled from the class preset and marked
+  as such. Nothing is saved until you save, and you can change any value first.
 - **Edit**: in Fleet, expand an aircraft card (the chevron with its hop count) to see its hops.
   Each hop can be moved earlier or later, edited, or deleted. Edit the aircraft itself with the
   pencil, hide it from the map with the eye.
@@ -312,6 +318,9 @@ A release is built by GitHub Actions (`.github/workflows/release.yml`) on `windo
   installer, its blockmap, `latest.yml` and the installer's SHA-256. A tag whose version differs from
   `package.json`'s fails at once; a version already published stops the workflow.
 
+Before the first `v` tag, `npm run aircraft-types:check` must pass: the performance table covers every
+type of its SimBrief snapshot, researched and checked.
+
 The maintainer publishes a draft by hand; installed copies see a release only once it is published.
 A published release is never deleted, retagged or replaced: a broken one is fixed by publishing a
 higher version. Ship a release at least every six months, to stay on a supported Electron, and
@@ -369,6 +378,8 @@ All JSON, under `/api`:
 | GET | `/briefings/:id` | A stored briefing: summary, fixes, OFP text as HTML |
 | GET/POST/DELETE | `/hops/:id/briefing` | The hop's briefing / attach your latest OFP to it / remove it |
 | GET/POST | `/aircraft` | List / create |
+| GET | `/aircraft-types` | The performance table's types (designator, name, variant) and its SimBrief snapshot date |
+| GET | `/aircraft-types/:type` | One type's numbers, each with its source or calculation |
 | PUT/DELETE | `/aircraft/:id` | Update / delete (deletes its hops) |
 | POST | `/aircraft/:id/icon` | Upload a custom icon as a base64 data URL |
 | PUT | `/aircraft/:id/hops/order` | Reorder hops: `{ ids: [...] }` |

@@ -1,13 +1,16 @@
 # Arrow: fleet
 
 The aircraft + livery rows the user flies: identity, appearance, performance and limits, the sim
-binding fields, the aircraft form, and the aircraft card header.
+binding fields, the aircraft form, the performance table of SimBrief's types, and the aircraft card
+header.
 
 ## Status
 
 **MAPPED** — mapped 2026-10-09 from `b408604`, updated 2026-10-23 for the desktop app (uploaded
 icons travel with the logbook); not yet audited. Brownfield skeleton: the LLD describes current
-behaviour plus confirmed intended changes; specs drafted, 3 of them tested.
+behaviour plus confirmed intended changes; specs drafted, 3 of them tested. The performance table
+(2026-10-25) was designed fresh: its code — the table's file and checks, the two routes, **Fill from
+table** and **Sources** in the form, and the scripts — is built and tested; its research is under way.
 
 ## References
 
@@ -30,10 +33,12 @@ behaviour plus confirmed intended changes; specs drafted, 3 of them tested.
 - docs/intent/fleet/fleet-design.md
 
 ### EARS
-- docs/intent/fleet/fleet-specs.md (43 specs)
+- docs/intent/fleet/fleet-specs.md (61 specs)
 
 ### Tests
 - tests/fleet/fleet-list.test.tsx — FLEET-CARD-002, FLEET-LOOK-010
+- tests/fleet/aircraft-types-check.test.ts, aircraft-types-api.test.ts, aircraft-types-script.test.ts,
+  aircraft-form-table.test.tsx — FLEET-TYPE-001 to 008, 010 to 018, FLEET-SIM-004
 - tests/app-shell/page.test.tsx — FLEET-SIM-003
 - tests/app-shell/api.test.ts — cites APP-SRV-002 and APP-DATA-002 only, but its upload test checks
   FLEET-LOOK-006's file name `aircraft-<id>.png` and address `/images/aircraft-<id>.png?v=<ms>`
@@ -42,7 +47,11 @@ behaviour plus confirmed intended changes; specs drafted, 3 of them tested.
 - src/server/routes.ts — aircraft section (116-311)
 - src/server/db.ts — `aircraft` table (90-111, 163-176)
 - src/client/components/AircraftForm.tsx
-- src/client/icons.ts — built-in icons, badge HTML, palette, `nextColor`
+- src/client/icons.ts — built-in icons, badge HTML, palette, `nextColor`; src/client/icon-keys.ts — the
+  built-in keys; src/client/presets.ts — the class presets
+- src/server/aircraft-types.json (the performance table), aircraft-types.ts (`TABLE`, `typeList`,
+  `typeEntry`), aircraft-types-check.ts (`checkTable`, `missingTypes`); scripts/aircraft-types.ts
+  (`npm run aircraft-types:missing`, `aircraft-types:check`)
 - src/client/components/Fleet.tsx — fleet list with the new-aircraft form (25-82), `AircraftCard` header (102-199)
 - src/client/App.tsx — new-from-sim prefill `newFromSim` (320-324), the Fleet drawer and its **+ Aircraft** (412-427)
 
@@ -81,11 +90,15 @@ page's icon addresses are relative to its origin (FLEET-LOOK-006), so the window
 | Color, icon, visibility | FLEET-LOOK-001 to 011 | 10 | 0 | 1 |
 | Performance and limit fields | FLEET-PERF-001 to 003 | 3 | 0 | 0 |
 | Sim binding and SimBrief type | FLEET-SIM-001 to 004 | 4 | 0 | 0 |
+| Performance table | FLEET-TYPE-001 to 018 | 16 | 0 | 2 |
 | Aircraft form | FLEET-FORM-001 to 005 | 5 | 0 | 0 |
 | Card header | FLEET-CARD-001 to 002 | 2 | 0 | 0 |
 
-**Summary:** 38 of 43 specs implemented; 5 gaps; none deferred. Three specs have a test
-(FLEET-CARD-002, FLEET-LOOK-010, FLEET-SIM-003); 35 implemented specs have none.
+**Summary:** 54 of 61 specs implemented; 7 gaps; none deferred. The performance table's code is
+built and tested (FLEET-TYPE-001 to 007, 010 to 018, FLEET-SIM-004); its two gaps are the research:
+every type of the 2026-10-25 snapshot covered (FLEET-TYPE-008, which `npm run aircraft-types:check`
+reports) and the method followed by a researcher and a checker (FLEET-TYPE-009). Of the other specs,
+three have a test (FLEET-CARD-002, FLEET-LOOK-010, FLEET-SIM-003); 35 implemented specs have none.
 
 ## Key Findings
 
@@ -115,6 +128,8 @@ page's icon addresses are relative to its origin (FLEET-LOOK-006), so the window
 *(none identified)*
 
 ### Should Fix
+0. Research and check every type of the snapshot by fleet-design's method, the pilot's fleet
+   first; the first release waits for it (DESK-DIST-REL-012; FLEET-TYPE-008, 009).
 1. Refuse a duplicate name + livery with 409 (FLEET-REC-003; routes.ts:233-284).
 2. Remove every `aircraft-<id>.*` file once the aircraft's row is deleted, leaving and logging a
    file Windows will not let go of and still answering 204 (FLEET-REC-017; routes.ts:286-291).
