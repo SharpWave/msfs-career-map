@@ -148,7 +148,7 @@ arrows:
     blocks: []
     blockedBy: [shell, start-lists, live-tracking, simbrief, airports]
     detail: desktop/distribution.md
-    next: "93 of 119 DESK-DIST specs implemented (23 gaps, 3 deferred): packaging with the MIT licence and the third-party notices, the packaged smoke test, the include's steps and the release workflow with its installer round trip pass (a dry-run-v0.8.0 run on windows-latest). Next: a dry run with the licence page, then check the wizard's pages and an older installer over a newer install by hand on a test machine; the first release waits for a hand check of a start by the Store edition of MSFS"
+    next: "96 of 119 DESK-DIST specs implemented (20 gaps, 3 deferred); v0.8.0, the first release, published 2026-10-26. Next: check the wizard's pages (the licence page among them), the uninstaller's last page and an older installer over a newer install by hand on a test machine; a start by the Store edition of MSFS; watch an installed copy update to the next release (DESK-SHELL-UPD-001)"
     drift: null
 
   # Foundation: every segment relies on app-shell's conventions, so its dependencies are not listed.

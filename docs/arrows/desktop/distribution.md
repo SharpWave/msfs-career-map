@@ -36,8 +36,15 @@ installer's licence page set to it, and `LICENSE.txt` and `THIRD-PARTY-NOTICES.t
 folder, the notices written by the desktop build from the page build's record of its packages
 (`scripts/page-packages.ts`, in `vite.config.ts`), esbuild's inputs for the server and shell bundles,
 and the libraries beside the server (`scripts/third-party-notices.ts`); checked on a packaged build
-(`npm run test:packaged`). The licence page itself is still to be seen in a dry run's installer
-(DESK-DIST-INST-002).
+(`npm run test:packaged`). The licence page itself is still to be seen in the wizard on a test machine:
+the workflow's round trip installs silently (DESK-DIST-INST-002).
+
+Released (2026-10-26): v0.8.0, the first release, published from the draft of run 40409250875 on
+`5af78c5`, its installer and blockmap uploaded under the name `latest.yml` gives them
+(`MSFS-Career-Map-Setup-<version>.exe`, `scripts/release/assets.ts`; DESK-DIST-REL-006), both answering
+from the release's public download addresses. Not yet seen: an installed copy updating from one
+published release to the next (DESK-SHELL-UPD-001 and the shell's Open Question on electron-updater's
+own path wait for 0.8.1).
 
 ## References
 
@@ -109,27 +116,25 @@ other without ever reaching the logbook, built and tested from the repository be
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
 | Packaging | DESK-DIST-PKG-001 to 028 | 28 | 0 | 0 |
-| Installer, closing a running copy and an install under way | DESK-DIST-INST-001 to 030 | 20 | 1 | 9 |
+| Installer, closing a running copy and an install under way | DESK-DIST-INST-001 to 030 | 21 | 1 | 8 |
 | Uninstaller | DESK-DIST-UNINST-001 to 015 | 8 | 0 | 7 |
-| Releases | DESK-DIST-REL-001 to 018 | 10 | 2 | 6 |
+| Releases | DESK-DIST-REL-001 to 018 | 12 | 2 | 4 |
 | Development | DESK-DIST-DEV-001 to 007 (003 withdrawn) | 5 | 0 | 1 |
 | The include's tests | DESK-DIST-INCL-001, 002 | 2 | 0 | 0 |
 | Packaged smoke test | DESK-DIST-SMOKE-001 to 012 | 12 | 0 | 0 |
 | Installer round trip | DESK-DIST-TRIP-001 to 008 | 8 | 0 | 0 |
 
-**Summary:** 93 of 119 specs implemented; 23 gaps; 3 deferred (DESK-DIST-INST-017, REL-013, REL-014).
+**Summary:** 96 of 119 specs implemented; 20 gaps; 3 deferred (DESK-DIST-INST-017, REL-013, REL-014).
 Built, not yet seen working: the wizard and what only it shows — INST-002, 012, 013, 018,
 019, 026 (the include's take-up and choice of start are tested; the Finished page is not); UNINST-008
 to 010 (the last page's texts are tested, the page is not); INST-006 and DEV-007 (the Start-menu entry
 is made; its AppUserModelID and the shortcuts' empty command line are not checked); INST-011 is tested,
 INST-027 is seen only on a real Windows shutdown; UNINST-001, 003, 011 (no running copy or start-list
-entry at the round trip's uninstall, and its silence is not checked); REL-006 (a draft, made only by a
-`v<version>` tag), REL-010 (a published release), REL-011 (an older installer over a newer install).
-Built, waiting on the first release: INST-028 (the check for an install under way and the
-desktop shell's mark before it hands over are in the program, the mark and the start after an install in
-the include; true of the first release once it is cut). Built in part: UNINST-012 (every uninstaller step seen working, waiting on UNINST-001, 003 and 008
-to 011). Not code: REL-012 (the first release's gate, waiting on simbrief's SB-CARD-006 and
-SB-CARD-009 to 011), REL-016 and REL-017 (the maintainer's rules, written into the README's Releasing).
+entry at the round trip's uninstall, and its silence is not checked); REL-010 (a published release
+stopping the workflow, not yet run against one), REL-011 (an older installer over a newer install).
+Built in part: UNINST-012 (the first release carries every uninstaller step; seen working, waiting on
+UNINST-001, 003 and 008 to 011). Not code: REL-016 and REL-017 (the maintainer's rules, written into the
+README's Releasing).
 
 ## Key Findings
 
@@ -185,15 +190,14 @@ SB-CARD-009 to 011), REL-016 and REL-017 (the maintainer's rules, written into t
    folder's lists and their download times (APT-DATA-017, 018); the logbook's id and backup names with
    pruning per logbook (APP-DATA-006, APP-BAK-004, APP-BAK-007). The sim-link claim (live-tracking) is
    built and tested, a fake-feed server neither taking nor checking it (LIVE-LINK-015).
-3. **Before the first release** — the SimBrief OFP text shown as text and layout only (SB-CARD-006,
-   SB-CARD-009 to 011), the open part of DESK-DIST-REL-012, whose live-tracking items (pending legs
-   kept in a list, LIVE-HOP-003; a leg in the air kept when the sim disconnects, LIVE-LEG-008; a leg
-   restored in the air kept as a pending leg unless the sim resumes it, LIVE-LEG-016) are
-   implemented and tested — and a start by the Store edition
-   of MSFS checked by hand on a real Store install (an open question in the desktop design: the folders,
-   the single-instance lock, outliving MSFS). The uninstaller's steps (DESK-DIST-UNINST-012) and the
-   handling of a start made during an install (DESK-DIST-INST-028) ship in the first release, since an
-   install over a copy runs that copy's uninstaller and its desktop shell hands over.
+3. **The first release** — 0.8.0, published 2026-10-26 with every gate of DESK-DIST-REL-012 closed
+   (the OFP text shown as text and layout only, pending legs in a list, legs kept when the sim
+   disconnects or the app restarts in the air, the performance table complete). A start by the Store
+   edition of MSFS was not checked by hand before it (an open question in the desktop design: the
+   folders, the single-instance lock, outliving MSFS). The uninstaller's steps (DESK-DIST-UNINST-012) and
+   the handling of a start made during an install (DESK-DIST-INST-028) shipped in it, since an install
+   over a copy runs that copy's uninstaller and its desktop shell hands over; a fix to either reaches
+   installed copies one release late.
 4. **Built on its siblings** — the desktop shell's `--quit` (DESK-SHELL-CLI-008: a backup and a clean
    shutdown before the installer goes ahead), `--unregister` (DESK-SHELL-CLI-009, DESK-SHELL-NOTE-017)
    and the start lists' clean-up with its exit codes (DESK-START-UNREG-001 to 006: 0 nothing left, 1 an
@@ -232,8 +236,8 @@ SB-CARD-009 to 011), REL-016 and REL-017 (the maintainer's rules, written into t
 
 ### Should Fix
 3. The start lists' `--unregister` and the desktop shell's updates and notifications (the shell's mark
-   before it hands over); the first release after a start by the Store edition of MSFS has been checked
-   by hand.
+   before it hands over); a start by the Store edition of MSFS checked by hand; an update from 0.8.0 to
+   the next release watched end to end.
 
 ### Nice to Have
 4. Settle code signing.
