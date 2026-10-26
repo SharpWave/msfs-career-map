@@ -90,14 +90,14 @@ page's icon addresses are relative to its origin (FLEET-LOOK-006), so the window
 | Color, icon, visibility | FLEET-LOOK-001 to 011 | 10 | 0 | 1 |
 | Performance and limit fields | FLEET-PERF-001 to 003 | 3 | 0 | 0 |
 | Sim binding and SimBrief type | FLEET-SIM-001 to 004 | 4 | 0 | 0 |
-| Performance table | FLEET-TYPE-001 to 018 | 16 | 0 | 2 |
+| Performance table | FLEET-TYPE-001 to 018 | 18 | 0 | 0 |
 | Aircraft form | FLEET-FORM-001 to 005 | 5 | 0 | 0 |
 | Card header | FLEET-CARD-001 to 002 | 2 | 0 | 0 |
 
-**Summary:** 54 of 61 specs implemented; 7 gaps; none deferred. The performance table's code is
-built and tested (FLEET-TYPE-001 to 007, 010 to 018, FLEET-SIM-004); its two gaps are the research:
-every type of the 2026-10-25 snapshot covered (FLEET-TYPE-008, which `npm run aircraft-types:check`
-reports) and the method followed by a researcher and a checker (FLEET-TYPE-009). Of the other specs,
+**Summary:** 56 of 61 specs implemented; 5 gaps; none deferred. The performance table is complete
+and tested (FLEET-TYPE-001 to 018, FLEET-SIM-004): every type of the 2026-10-25 snapshot is an entry
+or left out for want of any accepted source (FLEET-TYPE-008, which `npm run aircraft-types:check`
+reports), each entry researched and checked by a second reader (FLEET-TYPE-009). Of the other specs,
 three have a test (FLEET-CARD-002, FLEET-LOOK-010, FLEET-SIM-003); 35 implemented specs have none.
 
 ## Key Findings
@@ -128,8 +128,6 @@ three have a test (FLEET-CARD-002, FLEET-LOOK-010, FLEET-SIM-003); 35 implemente
 *(none identified)*
 
 ### Should Fix
-0. Research and check every type of the snapshot by fleet-design's method, the pilot's fleet
-   first; the first release waits for it (DESK-DIST-REL-012; FLEET-TYPE-008, 009).
 1. Refuse a duplicate name + livery with 409 (FLEET-REC-003; routes.ts:233-284).
 2. Remove every `aircraft-<id>.*` file once the aircraft's row is deleted, leaving and logging a
    file Windows will not let go of and still answering 204 (FLEET-REC-017; routes.ts:286-291).

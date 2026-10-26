@@ -213,9 +213,13 @@ is recorded in the table):
 - **variant** — what the numbers describe, in words: the model, and the engines where the type has
   more than one choice (for "737-800": "737-800 with winglets, CFM56-7B26"). SimBrief's name decides
   the variant; where it covers several, the variant most built, and where no record settles which
-  was built most, the one MSFS add-ons model (which chooses the variant only, never a number);
+  was built most, the one MSFS add-ons model (which chooses the variant only, never a number), and where no
+  accepted source gives the chosen variant's numbers, the variant of the same type whose numbers are
+  published, noted; where the variant
+  is certified at several weights, the heaviest the manufacturer's planning documents give (its maximum
+  design weights);
 - **preset** — the form's class preset the type belongs to, which gives taxi + approach minutes and
-  any preset value: Piston single or Piston twin by engine count, Turboprop for any turboprop (single
+  any preset value: Piston single for one engine and Piston twin for two or more, Turboprop for any turboprop (single
   or twin), Light jet for any business jet whatever its size, Airliner for jet transports (airline
   and military), Helicopter for rotorcraft;
 - **icon** — the built-in icon whose shape fits (a single-engine turboprop takes a single piston
@@ -266,10 +270,10 @@ from a source is converted to that meaning, the conversion stated as a derivatio
 
 | Field | Meaning in the table |
 |---|---|
-| Cruise speed, kt | True airspeed in normal cruise at the typical cruise altitude, standard atmosphere: for jets, the manufacturer's typical or economy cruise Mach, else its headline (maximum or high-speed) cruise, noted as such; for pistons and turboprops, the manufacturer's headline cruise figure where it names its power and altitude, else the POH's cruise at 75% power (pistons) or normal cruise power (turboprops) at the altitude where that power is fastest |
+| Cruise speed, kt | True airspeed in normal cruise at the typical cruise altitude, standard atmosphere: for jets, the manufacturer's typical or economy cruise Mach, else its headline (maximum or high-speed) cruise, noted as such; for pistons and turboprops, the manufacturer's headline cruise figure where it names its power and altitude, else the POH's cruise at 75% power (pistons) or normal cruise power (turboprops) at the altitude where that power is fastest, else the manufacturer's headline cruise speed noted as such (naming neither power nor altitude) |
 | Min runway, ft | The longer of the takeoff field length and the landing field length, sea level, standard day, dry paved runway, at typical load: for airliners and business jets, takeoff at the weight midway between maximum landing weight and maximum takeoff weight read from the manufacturer's airport-planning chart, landing at maximum landing weight; for piston and turboprop types, the POH or flight manual's figures at maximum gross weight (over a 50 ft obstacle where it gives both). An airport-planning chart's field lengths are taken as it gives them (the regulatory takeoff and landing field lengths), read between plotted weights in a straight line, on the curve for the flap setting the manufacturer gives for normal operation, else the shortest. Where no chart gives the typical weight, the figure at maximum takeoff weight |
 | Service ceiling, ft | The certified maximum operating altitude; for a type with none certified, the manufacturer's published service ceiling |
-| Max crosswind, kt | The maximum demonstrated crosswind from the flight manual or POH, or the manufacturer's published crosswind guidance where it gives no demonstrated value; for a dry runway, and the lower of the takeoff and landing values where it gives both |
+| Max crosswind, kt | The maximum demonstrated crosswind from the flight manual or POH, or the manufacturer's published crosswind guidance where it gives no demonstrated value, or, where neither is public, the crosswind limit an authority's type certificate data sheet certifies (gusts included, noted as a limit); for a dry runway, and the lower of the takeoff and landing values where it gives both |
 | Typical cruise altitude, ft | The altitude at which the manufacturer quotes the cruise speed above, or its published typical or initial cruise altitude |
 | Climb rate, fpm | The average rate from sea level to the typical cruise altitude: that altitude divided by the published time to climb to it |
 | Climb speed, kt | The average true airspeed over that climb, which the planner uses for the distance covered while climbing: the published distance to climb divided by the time, or the published climb schedule (indicated speed and Mach) converted to true airspeed in the standard atmosphere and averaged over the climb's time |
@@ -277,7 +281,16 @@ from a source is converted to that meaning, the conversion stated as a derivatio
 
 Published times and distances to climb and descend are taken as published — from brake release or
 from 1,500 ft, to the field or to 1,500 ft above it, at the weight the source gives — with the
-conditions noted, not corrected: the planner's model is coarser than the difference. The planner
+conditions noted, not corrected: the planner's model is coarser than the difference. Where the only published time
+to climb is to an altitude other than the typical cruise altitude, the climb rate is the average to that
+altitude, noted as such: a better figure than the class preset.
+
+Two versions of one airframe with the same maximum operating Mach but different engines (an A320neo
+beside the A320, a Challenger 300 beside the 350) share a cruise Mach: where no accepted source gives
+one version's own, it takes the other's published cruise Mach, as a derived cruise speed noted as the
+sister version's figure. Only
+the cruise speed: runway, climb, descent and every other number depend on the engines and need the
+version's own source. The planner
 flies the descent at cruise speed (planner, Block-Time Model); the table's descent rate is the
 type's own all the same.
 
@@ -286,22 +299,25 @@ type's own all the same.
 In order of preference:
 
 1. Type certificate data sheets from an aviation authority (FAA, EASA, Transport Canada, ANAC and
-   the like) — ceilings, pressurisation, weights.
+   the like) — ceilings, pressurisation, weights. A complete, unaltered copy of a data sheet counts wherever it is hosted when the
+   authority's own copy cannot be opened, cited as the authority's document with its revision.
 2. The manufacturer's own publications — airport-planning manuals, the POH or pilot's information
    manual, the flight manual, flight crew operating and training manuals where the manufacturer
    publishes them, specification sheets and brochures — current, or an archived copy of the
    manufacturer's own document, or a complete, unaltered copy of it that an aviation authority or
-   agency hosts (cited as the manufacturer's document, at that address), or a complete, legible scan
-   of the manufacturer's published handbook (POH, owner's manual, flight manual) for the right model,
-   wherever it is hosted (the Internet Archive preferred), cited with its title, part number or
-   date — never an excerpt, a retyped copy or an owner's checklist. For a conversion (a turbine Bonanza, say), the holder of its
+   agency hosts (cited as the manufacturer's document, at that address), or a complete, unaltered
+   copy or legible scan of one of the manufacturer's published documents — its handbook (POH, owner's
+   manual, flight manual), a data sheet or brochure — for the right model, wherever it is hosted (the
+   Internet Archive preferred), cited with its title, part number or date — never an excerpt, a
+   retyped copy or an owner's checklist. For a conversion (a turbine Bonanza, say), the holder of its
    supplemental type certificate counts as the manufacturer, and the authority's record of that
    certificate as a type certificate data sheet.
 3. Government and military publications — official fact sheets, an authority's or research
    agency's technical reports (FAA, NASA, NTSB).
-4. Reputable aviation references and trade press, where the three above give nothing — Jane's All
-   the World's Aircraft, Flight International (FlightGlobal), Aviation Week, and the flight tests
-   and pilot reports of AOPA and Flying — cited by publication, issue or edition, and page.
+4. Reputable aviation references and trade journals with editors who answer for them, where the
+   three above give nothing — Jane's All the World's Aircraft, Flight International (FlightGlobal),
+   Aviation Week and Business & Commercial Aviation, Aircraft Commerce, and the flight tests and pilot
+   reports of AOPA and Flying, among them — cited by publication, issue or edition, and page.
 
 An encyclopedia's figure counts only through the source it cites: the researcher follows its
 reference and cites that source, if the method accepts it.
@@ -467,7 +483,8 @@ Handlers: [routes.ts:231-311](../../../src/server/routes.ts#L231-L311).
 | Which sources count | Authority type certificate data sheets, then the manufacturer's own publications, then government and military publications, each readable at a cited address; never wikis, forums, sim add-ons or databases whose terms forbid republishing | Any well-known reference; EUROCONTROL's Aircraft Performance Database, which covers nearly every type | The table is public with the app, so each number must stand on a source that would not embarrass it. EUROCONTROL's database requires its permission to reuse its figures, which the project does not hold. A source the checker cannot open cannot be checked. |
 | A number no accepted source gives | Blank for a limit (runway, ceiling, crosswind) and for cruise speed; the class preset, marked as such, for a block-time input (cruise altitude, climb rate, climb speed, descent rate) | Blank for all; an estimate | A blank limit is "no limit" to the planner, safer than a guessed one, and a blank cruise speed leaves the pilot to give it. A blank block-time input would fall back to the light-piston default, wrong for anything bigger, while the class preset is the form's own one-click answer; marked "class preset", it claims nothing. |
 | Scans of a manufacturer's handbook | Accepted when complete and legible, for the right model, the checker confirming it is the whole original | Only copies on the manufacturer's site or an archive of it | For older light aircraft the handbook is the real source and its maker no longer publishes it; a whole scan carries its own title page and part number, so its figures are as checkable as the original's, where an excerpt or retyped copy is not. |
-| Trade press and references | A fourth tier, after authority, manufacturer and government documents: Jane's, Flight International, Aviation Week, and AOPA's and Flying's flight tests | Wikipedia as a last resort; the first three tiers only | Many older and light types have no manufacturer publication online, and these titles measure or report the figures under editors who answer for them; an encyclopedia repeats such figures, often without saying where from, so it is followed to its source instead of cited. |
+| Trade press and references | A fourth tier, after authority, manufacturer and government documents: reputable references and trade journals with editors who answer for them (Jane's, Flight International, Aviation Week, Aircraft Commerce, AOPA's and Flying's flight tests among them) | Wikipedia as a last resort; the first three tiers only | Many older and light types have no manufacturer publication online, and these titles measure or report the figures under editors who answer for them; an encyclopedia repeats such figures, often without saying where from, so it is followed to its source instead of cited. |
+| A re-engined version without its own cruise figure | The base type's published cruise Mach, derived and noted as such, cruise speed only | Blank; the class preset | Airlines fly a re-engined airframe at the cruise Mach its predecessor flew, and its maker often publishes only the shared limit; the base type's own figure is a better number than none, while engine-dependent numbers stay the version's own. |
 | A jet with only a maximum cruise published | Its headline (maximum or high-speed) cruise, noted as such | Blank; the class preset | The planner needs a cruise speed to work at all, and the manufacturer's own headline figure is more rigorous than any estimate; block times come out a little short, which a reach that reads a little optimistic already allows for. |
 | Numbers by meaning, not as published | Each number converted to what the planner uses — true airspeeds, averages over the climb and descent, field length at a typical load — the conversion written out as a derivation | Copy the published figure whatever it measures | A published indicated climb speed or initial climb rate fed to the planner's averages gives wrong block times; written out, a conversion can be checked. |
 | Typical load for the runway | Airliners and business jets: takeoff midway between maximum landing and maximum takeoff weight, landing at maximum landing weight; pistons and turboprops: maximum gross weight | Maximum takeoff weight for all; a weight per typical sector | Maximum weight overstates what a typical flight needs, most for long-haul types, and rules out airports the type uses every day; the midpoint is a concrete weight anyone can rework from published weights and charts. Light aircraft fly near maximum gross weight and their manuals give that. |

@@ -138,8 +138,9 @@ reloads itself.
   Fleet or on the map) to highlight it and zoom to its path.
 - **Aircraft numbers**: in the aircraft form, type the SimBrief type (e.g. `B738`) and click **Fill
   from table** to fill cruise speed, runway, ceiling, crosswind and the block-time model from the
-  app's performance table, researched for every type in SimBrief's list from manufacturers' and
-  aviation authorities' publications. **Sources** shows where each number comes from; a number no
+  app's performance table, researched for every type in SimBrief's list from manufacturers',
+  aviation authorities' and reputable trade journals' publications (a few types no such source
+  covers are left out). **Sources** shows where each number comes from; a number no
   such source gives is left blank, or for climb and descent filled from the class preset and marked
   as such. Nothing is saved until you save, and you can change any value first.
 - **Edit**: in Fleet, expand an aircraft card (the chevron with its hop count) to see its hops.
