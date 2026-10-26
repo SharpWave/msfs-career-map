@@ -5,16 +5,88 @@ always starts where it last parked, so each one builds its own tour across the m
 draws those tours as big colorful hop-to-hop paths, shows where each plane currently sits, and
 remembers when you landed at or left each airport.
 
-Version 0.8: manual hop logging, editable paths, per-aircraft icons and colors, airport lookup
-by ICAO/IATA/local code, runway data on every airport, a "next hop" planner that shows which
-airports are within a given flight time of where a plane is parked, and live tracking from the
-sim: with MSFS running, each takeoff and landing becomes a logged hop with the actual flown track,
-a rated landing (butter to graveyard), a speed/altitude profile, fuel and weight figures, and
-optionally the SimBrief plan it was flown from.
+Version 0.8 is the first release as a Windows app, with an installer, a tray icon and updates from
+this project's GitHub Releases. It has manual hop logging, editable paths, per-aircraft icons and
+colors, airport lookup by ICAO/IATA/local code, runway data on every airport, a "next hop" planner
+that shows which airports are within a given flight time of where a plane is parked, an aircraft
+performance table that fills in a plane's numbers from its SimBrief type, and live tracking from
+the sim: with MSFS running, each takeoff and landing becomes a logged hop with the actual flown
+track, a rated landing (butter to graveyard), a speed/altitude profile, fuel and weight figures,
+and optionally the SimBrief plan it was flown from.
 
-## Quick start
+## Install
 
-Requires Node 22.16 or newer (uses Node's built-in SQLite, no native modules to compile).
+MSFS Career Map runs on 64-bit Windows 10 or 11, on the same PC as MSFS 2024.
+
+1. Download `MSFS Career Map Setup <version>.exe` from the
+   [latest release](https://github.com/SharpWave/msfs-career-map/releases/latest). The release notes
+   give its SHA-256, which `Get-FileHash` in PowerShell checks.
+2. Run it. It installs for your Windows account only, needs no administrator rights, and always
+   installs into `%LOCALAPPDATA%\Programs\MSFS Career Map`. The installer is not code-signed, so the
+   first time Windows SmartScreen may say "Windows protected your PC": choose **More info**, then
+   **Run anyway**. Where Smart App Control is on, Windows may refuse to run it at all.
+3. Start **MSFS Career Map** from the Start menu (or the desktop shortcut, if you ticked it). With MSFS
+   running on the same PC it links to the sim by itself; nothing is installed in the sim.
+
+The app lives in the tray: closing the window leaves it running and tracking, and **Quit** is in the
+tray icon's menu.
+
+**Your logbook.** The installed app keeps everything outside its program folder, and installing,
+updating and uninstalling never touch it:
+
+| Folder | Contents |
+| --- | --- |
+| `%LOCALAPPDATA%\MSFS Career Map` | The data folder: the logbook (`career.db`), uploaded icons, the airport lists |
+| `MSFS Career Map\Backups` in Documents | Backups: **Back up now**, and the one taken before every update |
+| `%APPDATA%\MSFS Career Map` | The app's settings, logs and the start-up list backups |
+
+Coming from a copy run from source? Start that copy as usual (`start.cmd` or `npm start`) before the
+installed app's first start: the installed app finds it and offers its logbook under **Bring in a
+logbook** in the **Career Map** menu. Stop the copy run from source, then bring the logbook in; it is
+copied, and the original is left as it was. You can also type that copy's data folder there.
+
+The installed app's tray menu offers **Start with MSFS 2024** and **Start with Windows**, both off
+until you turn them on. The first adds one entry, "MSFS Career Map", to the `EXE.xml` of each MSFS 2024
+edition installed (Microsoft Store in
+`%LOCALAPPDATA%\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache`, Steam in
+`%APPDATA%\Microsoft Flight Simulator 2024`), changing nothing else in the file and only while MSFS is
+closed; the second adds the value "MSFS Career Map" to Windows' per-user start-up list, which Task
+Manager's Startup apps also switches. Before each change the app copies what it changes into
+`%APPDATA%\MSFS Career Map\start-up list backups` (the five newest of each kept). An entry another
+program removes is never put back; the menu item says so until you click it. Uninstalling takes both
+entries away. A copy in test mode leaves both lists alone. If you fly MSFS 2020, turn on Start with
+Windows instead; Start with MSFS 2024 starts the app with MSFS 2024 only.
+
+The installed app tells you through Windows notifications when a leg is waiting to be logged or a hop
+is logged (only while its window isn't in front), when an update is ready, when it stopped tracking and
+when backups keep failing; they are silent while you fly, and a click opens the window on that hop or
+leg. Windows' Focus and Do Not Disturb hold them back: to let them through, add MSFS Career Map under
+Settings > System > Notifications > Set priority notifications. Windows 11 also keeps a new program's
+tray icon under ^ on the taskbar; Settings > Personalization > Taskbar > Other system tray icons keeps it
+in view.
+
+The installed app keeps itself up to date from this project's GitHub Releases. It checks a minute
+after it starts and every four hours after that, and **Check for updates** in the tray menu checks at
+once. A new version is downloaded only while MSFS is closed, and the tray's version line shows where
+it stands (up to date, downloading, ready). A ready update installs when you choose Quit or **Restart
+to update**, or by itself once MSFS and the window have stayed closed for five minutes with no leg in
+progress and casual mode off. A backup of the logbook is taken first, and if that backup fails the
+update waits: the version line gives the reason, and **Restart to update without a backup** installs
+it anyway. Closing the app any other way installs nothing. A copy in test mode never checks for
+updates.
+
+**Uninstalling.** Settings > Apps > Installed apps > MSFS Career Map > Uninstall. It takes the app's
+entries out of both start-up lists and leaves the three folders above; its last page names them, so you
+can delete them by hand.
+
+**If the app will not start after an update** (a shutdown in the middle of an install, or Defender or
+Smart App Control holding back the unsigned program), download the release's installer again and run
+it: it repairs the install, and your logbook and backups are untouched.
+
+## Running from source
+
+For development, or to run the app in a browser without installing it. Requires Node 22.16 or newer
+(uses Node's built-in SQLite, no native modules to compile).
 
 ```powershell
 npm install
@@ -55,7 +127,8 @@ on the left holds what a session uses again and again: **Live from the sim** abo
 hop**. Either card collapses to its header (the live card to a one-line status strip) and stays
 that way next time. **Career Map** at the top left opens the menu: the logbook's counts, **Log a
 hop** and **Fleet**, each of which opens as a drawer in the sidebar's place (close it to get the
-sidebar back), and **Back up now**, which copies the logbook into `data/backups/`. While the logbook
+sidebar back), and **Back up now**, which copies the logbook into the backups folder (`MSFS Career Map\Backups` in
+Documents for the installed app, `data/backups/` for a copy run from source). While the logbook
 holds no hops the menu also offers **Bring in a logbook**, listing other copies' logbooks and backups
 to bring in instead (it opens by itself when there are any). The button beside it hides the sidebar
 for a clear map. At the top right, **Layers** picks the basemap, night shading and weather hazards;
@@ -205,8 +278,9 @@ or city to search.
 
 ## Where the data lives
 
-Everything is in `data/` (git-ignored), or in the folder the server's `--data` argument names, or
-beside the database named by `CAREER_DB`:
+The installed app's folders are under [Install](#install). A copy run from source keeps everything in
+`data/` (git-ignored), or in the folder the server's `--data` argument names, or beside the database
+named by `CAREER_DB`:
 
 | File | Contents |
 | --- | --- |
@@ -236,11 +310,11 @@ tracking is off. A copy run from source started without `--sim` takes the fake f
 `TRACKER_FAKE=1`. On the sim link, `SIMCONNECT_HOST` and `SIMCONNECT_PORT` reach a sim on another
 PC (enable TCP in that PC's `SimConnect.xml`).
 
-## Desktop app (in development)
+## Desktop app development
 
-The app is becoming a Windows program: an Electron shell that runs the server in the background,
-keeps a tray icon and shows the page in a window of its own. Until it is packaged it runs from the
-repository, always in test mode, on a folder of its own:
+The Windows app is an Electron shell that runs the server in the background, keeps a tray icon and
+shows the page in a window of its own. From the repository it runs only in test mode, on a folder of
+its own:
 
 ```powershell
 npm run desktop          # build, then start the desktop app on .desktop-dev\ (port 3280, fake feed)
@@ -277,38 +351,8 @@ folder (`MSFS Career Map\Backups` in Documents) or the app's settings and logs
 hand. A build run from anywhere but the install folder (the unpacked build in `release\` included)
 runs only in test mode, with `--test-data=<folder>`.
 
-The installed app's tray menu offers **Start with MSFS 2024** and **Start with Windows**, both off
-until you turn them on. The first adds one entry, "MSFS Career Map", to the `EXE.xml` of each MSFS 2024
-edition installed (Microsoft Store in
-`%LOCALAPPDATA%\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache`, Steam in
-`%APPDATA%\Microsoft Flight Simulator 2024`), changing nothing else in the file and only while MSFS is
-closed; the second adds the value "MSFS Career Map" to Windows' per-user start-up list, which Task
-Manager's Startup apps also switches. Before each change the app copies what it changes into
-`%APPDATA%\MSFS Career Map\start-up list backups` (the five newest of each kept). An entry another
-program removes is never put back; the menu item says so until you click it. Uninstalling takes both
-entries away. A copy in test mode leaves both lists alone. If you fly MSFS 2020, turn on Start with
-Windows instead; Start with MSFS 2024 starts the app with MSFS 2024 only.
-
-The installed app tells you through Windows notifications when a leg is waiting to be logged or a hop
-is logged (only while its window isn't in front), when an update is ready, when it stopped tracking and
-when backups keep failing; they are silent while you fly, and a click opens the window on that hop or
-leg. Windows' Focus and Do Not Disturb hold them back: to let them through, add MSFS Career Map under
-Settings > System > Notifications > Set priority notifications. Windows 11 also keeps a new program's
-tray icon under ^ on the taskbar; Settings > Personalization > Taskbar > Other system tray icons keeps it
-in view.
-
-The installed app keeps itself up to date from this project's GitHub Releases. It checks a minute
-after it starts and every four hours after that, and **Check for updates** in the tray menu checks at
-once. A new version is downloaded only while MSFS is closed, and the tray's version line shows where
-it stands (up to date, downloading, ready). A ready update installs when you choose Quit or **Restart
-to update**, or by itself once MSFS and the window have stayed closed for five minutes with no leg in
-progress and casual mode off. A backup of the logbook is taken first, and if that backup fails the
-update waits: the version line gives the reason, and **Restart to update without a backup** installs
-it anyway. Closing the app any other way installs nothing. A copy in test mode never checks for
-updates.
-
 Don't run the installer on a development PC unless you mean to install the app: it is the real
-thing. The release workflow tries it on a clean GitHub runner instead (below).
+thing, the same as a release's. The release workflow tries it on a clean GitHub runner instead (below).
 
 ### Releasing
 
@@ -321,8 +365,8 @@ A release is built by GitHub Actions (`.github/workflows/release.yml`) on `windo
   installer, its blockmap, `latest.yml` and the installer's SHA-256. A tag whose version differs from
   `package.json`'s fails at once; a version already published stops the workflow.
 
-Before the first `v` tag, `npm run aircraft-types:check` must pass: the performance table covers every
-type of its SimBrief snapshot, researched and checked.
+`npm run aircraft-types:check` must pass before a `v` tag: the performance table covers every type of
+its SimBrief snapshot, researched and checked.
 
 The maintainer publishes a draft by hand; installed copies see a release only once it is published.
 A published release is never deleted, retagged or replaced: a broken one is fixed by publishing a
@@ -430,7 +474,8 @@ release/      electron-builder's output (ignored by git)
 ## Roadmap
 
 Live tracking shipped in 0.7 on [`node-simconnect`](https://github.com/EvenAR/node-simconnect);
-landing rates, flight profiles and SimBrief briefings in 0.8. Around them: thin very long tracks
+landing rates, flight profiles, SimBrief briefings, the performance table and the Windows app in 0.8.
+Around them: thin very long tracks
 before storing them, per-aircraft totals that include tracked time and landing averages, and
 comparing the flown track against the SimBrief route.
 
