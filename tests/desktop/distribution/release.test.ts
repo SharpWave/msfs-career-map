@@ -3,13 +3,15 @@
  * against `package.json`'s version, a `v<version>` tag making a draft and a `dry-run-v<version>` tag
  * only rehearsing (DESK-DIST-REL-001, DESK-DIST-REL-015, DESK-DIST-REL-018); a published release for
  * the version stopping the workflow (DESK-DIST-REL-010); the draft's notes with the installer's
- * SHA-256 and the folders kept (DESK-DIST-REL-006); and the installer round trip's guard, seeded
+ * SHA-256 and the folders kept, and its installer and blockmap under the name latest.yml gives them
+ * (DESK-DIST-REL-006); and the installer round trip's guard, seeded
  * logbook, seeded backups and newer build's version (DESK-DIST-TRIP-003, DESK-DIST-TRIP-007).
  */
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
+import { uploadAssets } from "../../../scripts/release/assets.ts";
 import { roundTripAllowed, ROUND_TRIP_REFUSED } from "../../../scripts/release/guard.ts";
 import { releaseNotes, sha256File } from "../../../scripts/release/notes.ts";
 import { publishedFor } from "../../../scripts/release/published.ts";
@@ -73,10 +75,10 @@ describe("the draft's release notes", () => {
   it("give the installer's SHA-256 and name the data and backups folders", () => {
     const notes = releaseNotes({
       version: "0.8.0",
-      installer: "MSFS Career Map Setup 0.8.0.exe",
+      installer: "MSFS-Career-Map-Setup-0.8.0.exe",
       sha256: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
     });
-    expect(notes).toContain("MSFS Career Map Setup 0.8.0.exe");
+    expect(notes).toContain("Download `MSFS-Career-Map-Setup-0.8.0.exe`");
     expect(notes).toContain("9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08");
     expect(notes).toContain("SHA-256");
     expect(notes).toContain("%LOCALAPPDATA%\\MSFS Career Map");
@@ -90,6 +92,63 @@ describe("the draft's release notes", () => {
     const file = path.join(folder, "setup.exe");
     fs.writeFileSync(file, "test");
     expect(sha256File(file)).toBe("9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08");
+  });
+});
+
+describe("the draft's installer and blockmap", () => {
+  let folder: string | null = null;
+  afterEach(() => {
+    if (folder) fs.rmSync(folder, { recursive: true, force: true });
+    folder = null;
+  });
+
+  /** electron-builder's output as the workflow finds it: the installer, its blockmap and latest.yml. */
+  function release(latest: string) {
+    folder = tempFolder("assets-");
+    const installer = path.join(folder, "MSFS Career Map Setup 0.8.0.exe");
+    fs.writeFileSync(installer, "installer bytes");
+    fs.writeFileSync(`${installer}.blockmap`, "blockmap bytes");
+    const latestYml = path.join(folder, "latest.yml");
+    fs.writeFileSync(latestYml, latest);
+    return { installer, latestYml, out: path.join(folder, "upload") };
+  }
+
+  const LATEST = [
+    "version: 0.8.0",
+    "files:",
+    "  - url: MSFS-Career-Map-Setup-0.8.0.exe",
+    "    sha512: abc==",
+    "    size: 15",
+    "path: MSFS-Career-Map-Setup-0.8.0.exe",
+    "sha512: abc==",
+    "releaseDate: '2026-10-26T21:32:44.485Z'",
+    "",
+  ].join("\n");
+
+  // @spec DESK-DIST-REL-006
+  it("are copied, byte for byte, under the name latest.yml gives the installer, with .blockmap for the blockmap", () => {
+    const r = release(LATEST);
+    const up = uploadAssets(r);
+    expect(up.installer).toBe(path.join(r.out, "MSFS-Career-Map-Setup-0.8.0.exe"));
+    expect(up.blockmap).toBe(path.join(r.out, "MSFS-Career-Map-Setup-0.8.0.exe.blockmap"));
+    expect(fs.readFileSync(up.installer, "utf8")).toBe("installer bytes");
+    expect(fs.readFileSync(up.blockmap, "utf8")).toBe("blockmap bytes");
+    expect(fs.readdirSync(r.out).sort()).toEqual(["MSFS-Career-Map-Setup-0.8.0.exe", "MSFS-Career-Map-Setup-0.8.0.exe.blockmap"]);
+  });
+
+  // @spec DESK-DIST-REL-006
+  it("take the name as latest.yml writes it, quoted or not", () => {
+    const r = release(LATEST.replace("path: MSFS-Career-Map-Setup-0.8.0.exe", "path: 'MSFS-Career-Map-Setup-0.8.0.exe'"));
+    expect(path.basename(uploadAssets(r).installer)).toBe("MSFS-Career-Map-Setup-0.8.0.exe");
+  });
+
+  // @spec DESK-DIST-REL-006
+  it("stop the draft when latest.yml names no installer, or one with a space", () => {
+    const missing = release(LATEST.replace(/^path: .*$/m, ""));
+    expect(() => uploadAssets(missing)).toThrow(/latest\.yml names no installer/);
+    const spaced = release(LATEST.replace("path: MSFS-Career-Map-Setup-0.8.0.exe", "path: MSFS Career Map Setup 0.8.0.exe"));
+    expect(() => uploadAssets(spaced)).toThrow(/space/);
+    expect(fs.existsSync(spaced.out)).toBe(false);
   });
 });
 

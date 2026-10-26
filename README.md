@@ -18,7 +18,7 @@ and optionally the SimBrief plan it was flown from.
 
 MSFS Career Map runs on 64-bit Windows 10 or 11, on the same PC as MSFS 2024.
 
-1. Download `MSFS Career Map Setup <version>.exe` from the
+1. Download `MSFS-Career-Map-Setup-<version>.exe` from the
    [latest release](https://github.com/SharpWave/msfs-career-map/releases/latest). The release notes
    give its SHA-256, which `Get-FileHash` in PowerShell checks.
 2. Run it. It installs for your Windows account only, needs no administrator rights, and always

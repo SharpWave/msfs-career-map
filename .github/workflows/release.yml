@@ -95,6 +95,8 @@ jobs:
         if: startsWith(github.ref_name, 'v')
         run: |
           version="$(node -p "require('./package.json').version")"
-          installer="release/MSFS Career Map Setup $version.exe"
+          # Uploaded under latest.yml's name for it, which electron-updater asks for (GitHub would turn
+          # the local name's spaces into dots).
+          installer="$(npx tsx scripts/release/assets.ts "release/MSFS Career Map Setup $version.exe" release/latest.yml release/upload)"
           npx tsx scripts/release/notes.ts "$version" "$installer" release/notes.md
           gh release create "${{ github.ref_name }}" --draft --verify-tag --title "MSFS Career Map $version" --notes-file release/notes.md "$installer" "$installer.blockmap" release/latest.yml

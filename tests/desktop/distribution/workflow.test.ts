@@ -165,6 +165,21 @@ describe("the draft", () => {
     expect(TEXT).toContain("scripts/release/notes.ts");
   });
 
+  // @spec DESK-DIST-REL-006
+  it("uploads the installer and blockmap under latest.yml's name, which the notes give too", () => {
+    const run = steps[stepWith("gh release create")].run!;
+    const assets = run.indexOf("scripts/release/assets.ts");
+    const notes = run.indexOf("scripts/release/notes.ts");
+    const create = run.indexOf("gh release create");
+    expect(assets).toBeGreaterThan(-1);
+    expect(assets).toBeLessThan(notes);
+    expect(notes).toBeLessThan(create);
+    expect(run).toMatch(/installer="\$\(npx tsx scripts\/release\/assets\.ts "release\/MSFS Career Map Setup \$version\.exe" release\/latest\.yml release\/upload\)"/);
+    expect(run.slice(notes)).toMatch(/notes\.ts "\$version" "\$installer"/);
+    expect(run.slice(create)).toMatch(/"\$installer" "\$installer\.blockmap" release\/latest\.yml/);
+    expect(run.slice(create)).not.toContain("MSFS Career Map Setup");
+  });
+
   // @spec DESK-DIST-REL-007
   it("waits on every step before it: none may fail and be passed over", () => {
     for (const s of steps) {

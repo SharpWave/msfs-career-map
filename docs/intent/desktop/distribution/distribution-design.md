@@ -292,7 +292,11 @@ workflow before it builds anything, and no draft is made. For a matching tag the
 4. Run the packaged smoke test against the unpacked build, and the installer round trip (Tests).
 5. For a `v<version>` tag only, publish a draft GitHub release holding the installer, its blockmap
    (which lets electron-updater download only the changed parts) and `latest.yml`, with release notes
-   giving the installer's SHA-256 and naming the data and backups folders.
+   naming the installer, giving its SHA-256 and naming the data and backups folders. The installer and
+   its blockmap are uploaded under the name `latest.yml` gives them (`path`, electron-builder's name with
+   hyphens for spaces, `MSFS-Career-Map-Setup-<version>.exe`), which electron-updater asks the release
+   for; GitHub would turn each space of the local name (`MSFS Career Map Setup <version>.exe`) into a dot,
+   leaving `latest.yml` naming a file the release does not hold.
 
 The workflow uses only its own GitHub token. The maintainer publishes the draft by hand; installed
 copies see a release only once it is published. Releases are not code-signed (Open Questions): Windows
