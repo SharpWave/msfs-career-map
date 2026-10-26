@@ -22,6 +22,10 @@
     { "from": "build/desktop/runways.csv", "to": "runways.csv" },
     { "from": "build/desktop/runways.csv.downloaded", "to": "runways.csv.downloaded" }
   ],
+  "extraFiles": [
+    { "from": "build/desktop/LICENSE.txt", "to": "LICENSE.txt" },
+    { "from": "build/desktop/THIRD-PARTY-NOTICES.txt", "to": "THIRD-PARTY-NOTICES.txt" }
+  ],
   "asar": true,
   "npmRebuild": false,
   "nodeGypRebuild": false,
@@ -40,6 +44,7 @@
     "allowElevation": false,
     "allowToChangeInstallationDirectory": false,
     "include": "build/installer.nsh",
+    "license": "LICENSE",
     "installerIcon": "assets/career-map.ico",
     "uninstallerIcon": "assets/career-map.ico",
     "createDesktopShortcut": false,

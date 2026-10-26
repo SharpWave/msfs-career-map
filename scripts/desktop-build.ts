@@ -10,6 +10,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build, type Plugin } from "esbuild";
 import { AIRPORTS_URL, RUNWAYS_URL, downloadList, writeDownloadTime } from "../src/server/airport-data.ts";
+import { PAGE_RECORD, type PagePackage } from "./page-packages.ts";
+import { packageDirOf, thirdPartyNotices, type Part } from "./third-party-notices.ts";
 import { trayIcons } from "./tray-icons.ts";
 
 export interface BuildOptions {
@@ -27,18 +29,20 @@ export function buildOptions(argv: readonly string[]): BuildOptions {
   return { repo, out: path.join(repo, "build", "desktop"), version, fresh: argv.includes("--fresh") };
 }
 
-/** Everything below, in this order: page, server bundle and its libraries, shell bundle, seed lists, icons, app manifest. */
+/** Everything below, in this order: page, server bundle and its libraries, shell bundle, licences, seed lists, icons, app manifest. */
 // @spec DESK-DIST-DEV-001
 export async function buildDesktop(o: BuildOptions): Promise<void> {
   const log = o.log ?? ((line: string) => console.log(line));
   copyPage(o.repo, o.out);
   log(`[desktop] page copied into ${path.join(o.out, "page")}`);
-  await bundleServer(o.repo, o.out, o.version);
+  const server = await bundleServer(o.repo, o.out, o.version);
   log("[desktop] server bundled: server.mjs, startup-worker.mjs");
   const libraries = copyServerLibraries(o.repo, o.out);
   log(`[desktop] server libraries copied: ${libraries.join(", ")}`);
-  await bundleShell(o.repo, o.out, o.version);
+  const shell = await bundleShell(o.repo, o.out, o.version);
   log("[desktop] shell bundled: main.cjs");
+  writeLicences({ repo: o.repo, out: o.out, serverInputs: server.inputs, shellInputs: shell.inputs, libraries });
+  log("[desktop] licences written: LICENSE.txt, THIRD-PARTY-NOTICES.txt");
   const lists = await seedLists(o.out, o.fresh, log);
   log(`[desktop] seed airport lists ${lists}`);
   writeIcons(o.repo, o.out);
@@ -76,15 +80,45 @@ export function copyServerLibraries(repo: string, out: string): string[] {
   return [...copied].sort();
 }
 
-/** The page build in `dist/` copied whole into the output as `page/`, replacing an older copy. */
-// @spec DESK-DIST-PKG-022
+/**
+ * The page build in `dist/` copied into the output as `page/`, replacing an older copy, without the
+ * page build's own `.vite/` (its record of the page's packages, which the notices are written from).
+ */
+// @spec DESK-DIST-PKG-022, DESK-DIST-PKG-025
 export function copyPage(repo: string, out: string): void {
   const dist = path.join(repo, "dist");
   if (!fs.existsSync(path.join(dist, "index.html"))) throw new Error("dist/ holds no page build: run vite build first");
+  if (!fs.existsSync(path.join(dist, ...PAGE_RECORD))) {
+    throw new Error("dist/ holds no record of the page's packages (.vite/packages.json): run vite build first");
+  }
   const page = path.join(out, "page");
   fs.rmSync(page, { recursive: true, force: true });
   fs.mkdirSync(out, { recursive: true });
-  fs.cpSync(dist, page, { recursive: true });
+  const record = path.join(dist, PAGE_RECORD[0]);
+  fs.cpSync(dist, page, { recursive: true, filter: (src) => src !== record });
+}
+
+/**
+ * The app's licence, the repository's LICENSE, as `LICENSE.txt`, and the third-party notices for every
+ * package the program ships, as `THIRD-PARTY-NOTICES.txt`, both written only once the notices are whole.
+ */
+// @spec DESK-DIST-PKG-024, DESK-DIST-PKG-026, DESK-DIST-PKG-027
+export function writeLicences(o: { repo: string; out: string; serverInputs: string[]; shellInputs: string[]; libraries: string[] }): void {
+  const page = JSON.parse(fs.readFileSync(path.join(o.repo, "dist", ...PAGE_RECORD), "utf8")) as { packages: PagePackage[] };
+  const fromInputs = (inputs: string[], part: Part) =>
+    inputs.flatMap((file) => {
+      const dir = packageDirOf(file);
+      return dir ? [{ dir, part }] : [];
+    });
+  const notices = thirdPartyNotices([
+    ...page.packages.map((p) => ({ dir: path.join(o.repo, ...p.dir.split("/")), part: "page" as const })),
+    ...fromInputs(o.serverInputs, "server"),
+    ...fromInputs(o.shellInputs, "desktop shell"),
+    ...o.libraries.map((name) => ({ dir: path.join(o.repo, "node_modules", ...name.split("/")), part: "beside the server" as const })),
+  ]);
+  fs.mkdirSync(o.out, { recursive: true });
+  fs.copyFileSync(path.join(o.repo, "LICENSE"), path.join(o.out, "LICENSE.txt"));
+  fs.writeFileSync(path.join(o.out, "THIRD-PARTY-NOTICES.txt"), notices);
 }
 
 const inputsOf = (repo: string, metafile: { inputs: Record<string, unknown> }) =>

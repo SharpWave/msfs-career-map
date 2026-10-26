@@ -180,17 +180,21 @@ describe("the shell bundle", () => {
 });
 
 describe("the page in the desktop build output", () => {
-  /** A stand-in repository holding only a page build in dist/. */
-  function fakeRepo(o: { index?: boolean } = {}): string {
+  /** A stand-in repository holding only a page build in dist/, with its record of the page's packages. */
+  function fakeRepo(o: { index?: boolean; record?: boolean } = {}): string {
     const repo = tempFolder("fake-repo-");
     fs.mkdirSync(path.join(repo, "dist", "assets"), { recursive: true });
     if (o.index !== false) fs.writeFileSync(path.join(repo, "dist", "index.html"), "<!doctype html><title>MSFS Career Map</title>");
     fs.writeFileSync(path.join(repo, "dist", "assets", "app-123.js"), "console.log('page');");
+    if (o.record !== false) {
+      fs.mkdirSync(path.join(repo, "dist", ".vite"), { recursive: true });
+      fs.writeFileSync(path.join(repo, "dist", ".vite", "packages.json"), JSON.stringify({ packages: [] }));
+    }
     return repo;
   }
 
-  // @spec DESK-DIST-PKG-022
-  it("is the page build from dist/ copied whole as page/, replacing an older copy and nothing else", () => {
+  // @spec DESK-DIST-PKG-022, DESK-DIST-PKG-025
+  it("is the page build from dist/ copied whole as page/, its record of packages left out, replacing an older copy and nothing else", () => {
     const repo = fakeRepo();
     const out = tempFolder("desktop-out-");
     fs.mkdirSync(path.join(out, "page"), { recursive: true });
@@ -216,6 +220,16 @@ describe("the page in the desktop build output", () => {
     fs.mkdirSync(path.join(out, "page"), { recursive: true });
     fs.writeFileSync(path.join(out, "page", "old.js"), "earlier");
     expect(() => copyPage(repo, out)).toThrow("dist/ holds no page build: run vite build first");
+    expect(read(path.join(out, "page", "old.js"))).toBe("earlier");
+  });
+
+  // @spec DESK-DIST-PKG-025
+  it("is refused when the page build holds no record of its packages, the earlier copy left as it was", () => {
+    const repo = fakeRepo({ record: false });
+    const out = tempFolder("desktop-out-");
+    fs.mkdirSync(path.join(out, "page"), { recursive: true });
+    fs.writeFileSync(path.join(out, "page", "old.js"), "earlier");
+    expect(() => copyPage(repo, out)).toThrow("dist/ holds no record of the page's packages (.vite/packages.json): run vite build first");
     expect(read(path.join(out, "page", "old.js"))).toBe("earlier");
   });
 

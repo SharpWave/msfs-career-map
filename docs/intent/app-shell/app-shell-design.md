@@ -876,7 +876,7 @@ on the PC holds the sim-link claim (live-tracking).
 |---|---|
 | `npm run dev` | The server on 127.0.0.1 at `PORT` (default 3080), restarting on change, with no `--sim` argument, so it never links to the sim (its sim mode is live-tracking's, LIVE-LINK-013), and the page's dev server on 127.0.0.1:5173, passing `/api/` and `/images/` to `http://127.0.0.1:<PORT>`; the trailing slash keeps the page's own `/api.ts` module on the page server |
 | `npm run dev:sim` | As `npm run dev`, its server started with `--sim=link`, which puts it on the sim link (LIVE-LINK-013) |
-| `npm run build` | Builds the page into `dist/`, the page build a copy run from source serves; the desktop build copies it into `page/` in the desktop build output (The Program Folder; desktop distribution) |
+| `npm run build` | Builds the page into `dist/`, the page build a copy run from source serves; the desktop build copies it into `page/` in the desktop build output (The Program Folder; desktop distribution). The build also records the npm packages the page bundle takes in, in `dist/.vite/packages.json`, which distribution's third-party notices are written from (DESK-DIST-PKG-025) and the server, serving no dot-folder, never serves |
 | `npm start` | Runs a copy from source, which serves the build; `npm start -- --sim=link` links it to the sim |
 | `npm run typecheck` | Checks the page and the server (with the scripts and tests) against their TypeScript settings |
 | `npm test` | Runs the Vitest suites once (see Tests) |

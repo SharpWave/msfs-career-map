@@ -37,6 +37,7 @@ interface BuilderConfig {
   electronFuses?: Record<string, boolean>;
   win?: { target?: unknown; icon?: string; requestedExecutionLevel?: string };
   nsis?: Record<string, unknown>;
+  extraFiles?: unknown;
   publish?: unknown;
 }
 
@@ -136,10 +137,8 @@ describe("the installer", () => {
   });
 
   // @spec DESK-DIST-INST-002
-  it("shows a licence page only where the repository has a licence", () => {
-    const licence = ["LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE"].find((f) => fs.existsSync(path.join(REPO, f)));
-    if (licence) expect(config.nsis?.license).toBe(licence);
-    else expect(config.nsis?.license).toBeUndefined();
+  it("shows the repository's LICENSE as its licence page", () => {
+    expect(config.nsis?.license).toBe("LICENSE");
   });
 
   // @spec DESK-DIST-INST-004, DESK-DIST-INST-006, DESK-DIST-DEV-007
@@ -160,6 +159,25 @@ describe("the installer", () => {
   // @spec DESK-DIST-UNINST-007
   it("never deletes the app's own folders on uninstall", () => {
     expect(config.nsis?.deleteAppDataOnUninstall ?? false).toBe(false);
+  });
+});
+
+describe("the app's licence", () => {
+  // @spec DESK-DIST-PKG-023
+  it("is the MIT License in LICENSE at the repository's root, held by SharpWave", () => {
+    const text = read("LICENSE").replace(/\r\n/g, "\n");
+    expect(text.split("\n")[0]).toBe("MIT License");
+    expect(text).toContain("\nCopyright (c) 2026 SharpWave\n");
+    expect(text).toContain("Permission is hereby granted, free of charge, to any person obtaining a copy");
+    expect(text).toContain('THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND');
+  });
+
+  // @spec DESK-DIST-PKG-024
+  it("is put in the install folder as LICENSE.txt beside the third-party notices", () => {
+    expect(config.extraFiles).toEqual([
+      { from: "build/desktop/LICENSE.txt", to: "LICENSE.txt" },
+      { from: "build/desktop/THIRD-PARTY-NOTICES.txt", to: "THIRD-PARTY-NOTICES.txt" },
+    ]);
   });
 });
 

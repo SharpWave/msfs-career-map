@@ -71,6 +71,29 @@ from source (app-shell, APP-RUN-002).
   The repository keeps only `assets/career-map.ico`: the desktop build scripts copy it into the desktop
   build output's `icons/` and make the tray icons there from it (`scripts/tray-icons.ts`), the same mark
   always giving the same files (Decisions & Alternatives: The tray icons).
+- **The licences**: the app's own, the MIT License, from the repository's `LICENSE` ("Copyright (c)
+  2026 SharpWave"), as `LICENSE.txt`, and a list of the third-party software the program carries,
+  `THIRD-PARTY-NOTICES.txt` — both in the install folder, beside Electron's own (`LICENSE.electron.txt`
+  and `LICENSES.chromium.html`, which electron-builder puts there). The desktop build writes the list
+  from what the program ships, never from `package.json`, which also names tools that never ship: the
+  npm packages the page bundle takes in, recorded by the page build as it builds
+  (`dist/.vite/packages.json`, left out of `page/`); those the server and desktop-shell bundles take in,
+  from esbuild's own record of each bundle's inputs; and the libraries copied beside the server bundle
+  (node-simconnect and its dependencies). A page build with no such record fails the desktop build, as
+  one with no page does. Each package is listed once for each version, sorted by name, with its
+  licence as its `package.json` names it, the parts of the program that carry it (the page, the
+  server, the desktop shell, beside the server), and the text of every licence and notice file it ships
+  (every file at its root whose name begins with `LICENSE`, `LICENCE`, `COPYING` or `NOTICE`, in any
+  case). A package
+  that ships no such file is given the standard text of its licence where that is MIT or ISC, with the
+  author its `package.json` names as the holder, and the build fails for any other, so nothing ships
+  without its terms. The list opens with the app's own licence, points to Electron's and Chromium's, and names every package not under a
+  permissive licence like it (MIT, ISC, the BSD licences, 0BSD, Apache-2.0, Blue Oak): react-leaflet and
+  @react-leaflet/core under the Hippocratic License 2.1, whose conditions on how the software is used
+  bind whoever uses the app (it is not an OSI licence); node-simconnect under LGPL-3.0, shipped as
+  separate files in `resources\node_modules` so it can be replaced; the B612 fonts under the SIL Open
+  Font License 1.1; and DOMPurify under MPL-2.0 or Apache-2.0. It ends with OurAirports' seed lists, in the public domain (Decisions & Alternatives:
+  Licence; Third-party notices).
 
 **Fuses** — switches built into the Electron program when it is packaged: RunAsNode and `NODE_OPTIONS`
 are off, so neither variable can change what the installed program runs. The inspect switches stay on:
@@ -82,7 +105,7 @@ anyway.
 **The wizard** installs for the current Windows user only, needing no administrator rights, and offers
 no folder choice:
 
-1. The licence, shown only once the repository has one.
+1. The licence: the app's MIT licence, the repository's `LICENSE`.
 2. Installing.
 3. Finished. On a first install it has two boxes, both ticked: "Create a desktop shortcut" and "Launch
    MSFS Career Map now". Over an installed copy it has only the Launch box, ticked.
@@ -182,7 +205,7 @@ update, and then shuts Windows down, and one who shuts Windows down while a read
 itself at a quiet moment ([Shell › Updates](../shell/shell-design.md#updates)). The hold belongs to the
 installer being run, the new release's own, so unlike the uninstaller's steps (The uninstaller, below)
 it protects installs from the release that brings it (Decisions & Alternatives: A session end while
-installing; Open Questions 5 and 6).
+installing; Open Questions 4 and 5).
 
 **Install folder.** The program is always installed in `%LOCALAPPDATA%\Programs\MSFS Career Map`. A
 different folder given on the installer's command line (`/D=`) stops the installer before it installs
@@ -487,6 +510,8 @@ design and specs say how. What the desktop parts share from other segments is in
 |----------|--------|------------------------|-----------|
 | A broken release | Fixed by a higher version; published releases never deleted, retagged or replaced; an older installer run by hand not refused | Pulling or replacing the release; refusing to install over a newer version | Installed copies and the update chain may already hold a published release, and a replaced file under the same version breaks the blockmap and hashes they rely on. A pilot running an older installer has chosen it, the logbook stays readable to it, and the updater offers the newer release again. |
 | Packaging | electron-builder 26.18.0: an NSIS wizard, per user | Electron Forge with Squirrel, WiX MSI or MSIX; Inno Setup | A conventional wizard, uninstall entry and in-place updates through electron-updater. Forge has no NSIS maker of its own, and electron-builder's `electron-forge-maker-nsis` would bring electron-builder in anyway; Squirrel installs silently into `%LOCALAPPDATA%\<name>`, which could be the data folder; WiX v3 is out of support; MSIX needs signing and deletes app data it redirected when uninstalled; Inno Setup would need an updater of its own. |
+| Licence | MIT for the app's own code | GPL-3.0; MPL-2.0; Apache-2.0; none | A free hobby app gains most from being easy to reuse, and MIT asks the least of whoever reuses it; GPL-3.0 would keep changed copies open, which the project does not need to require. An OSI licence also makes the app eligible for free code signing through SignPath and for a winget listing (Open Questions; Deferred). MIT carries no patent grant, Apache-2.0's chief addition, which matters little to a project with no patents. It covers only the project's own code: the libraries the program ships keep their own licences, which the third-party notices give. |
+| Third-party notices | One text file in the install folder, written by the desktop build from the packages each bundle takes in and those copied beside the server | A list kept by hand; every package `package.json` names; a licence-checking package or a bundler's licence plugin | Built from the bundles' own inputs, the list names exactly what ships and follows every dependency change, where a hand-kept list drifts and `package.json` names tools (tsx, the build tools) that never ship. esbuild already records its inputs and Vite's build hands its modules to a plugin, so no new tool is needed. Failing the build for a package with no licence text the build can give keeps a new dependency from shipping without its terms. |
 | Who it installs for | The current user only, the install-for-everyone page skipped | electron-builder's choice page; a per-machine install | A per-user install needs no administrator rights to install or update, like the other sim companions on the pilot's PC (Volanta, Navigraph Hub). A per-machine install asks for them at every update, so it could not install one by itself at a quiet moment, and its installer's **Launch** would start the app as administrator, at a different integrity level from the sim and from the copy MSFS starts. |
 | The install folder | Always `%LOCALAPPDATA%\Programs\MSFS Career Map`; another folder given with `/D=` refused | Accepting any folder; refusing only a folder that is or holds the data folder | The uninstaller removes the install folder and everything in it. A fixed folder is one it can be shown never to share with the logbook, its backups or Electron's folder, whatever else the pilot keeps on the disk. |
 | Shortcuts over an installed copy | Kept as the pilot left them by every install over an installed copy (update, repair, older installer); its Finished page offers only Launch | Offering "Create a desktop shortcut" on every wizard run; recreating the shortcuts at each install; recreating only a missing Start-menu entry | Whether to keep a desktop shortcut is the pilot's choice, made at the first install; an update or repair that brought a deleted one back would undo it, and a box on every run would ask again what was already answered. The Start-menu entry, which every first install makes, is the pilot's to remove in the same way. Notification clicks are routed through it ([Shell › Notifications](../shell/shell-design.md#notifications)), so a pilot who deletes it may leave a click on a notification without its way to the app; uninstalling and installing again brings it back. |
@@ -512,9 +537,7 @@ design and specs say how. What the desktop parts share from other segments is in
 
 ### Open
 
-1. **Licence** — the repository has none. MIT is the suggestion; the installer's licence page appears
-   once one exists, and free code signing through SignPath requires an OSI licence.
-2. **Code signing** — releases are unsigned. Windows SmartScreen shows "Windows protected your PC" when a
+1. **Code signing** — releases are unsigned. Windows SmartScreen shows "Windows protected your PC" when a
    downloaded installer is first run, until that version builds reputation, and Smart App Control blocks
    unsigned programs without reputation. Updates the app installs itself get no SmartScreen prompt, but
    Smart App Control checks every program it runs, so where it is on an unsigned update can be blocked
@@ -528,10 +551,10 @@ design and specs say how. What the desktop parts share from other segments is in
    from the repository, approval of each release, and "SignPath Foundation" shown as publisher), Azure
    Artifact Signing (about $9.99 a month, for individuals only in the US and Canada), or an OV
    certificate (about $150–300 a year, on a hardware key).
-3. **The desktop-shortcut box** is not part of electron-builder's wizard; the include adds it to the
+2. **The desktop-shortcut box** is not part of electron-builder's wizard; the include adds it to the
    last page of a first install, and keeps it off that page over an installed copy.
-4. **Playwright's Electron support** is marked experimental.
-5. **Skipping the install-for-everyone page** (the include's `customInstallMode`, choosing the current
+3. **Playwright's Electron support** is marked experimental.
+4. **Skipping the install-for-everyone page** (the include's `customInstallMode`, choosing the current
    user; electron-builder 26.18.0's template tests the name as `customInstallmode`, which NSIS macro
    names, ignoring case, match), refusing a `/D=` folder, and the install folder's name are read from
    electron-builder 26.18.0's templates and compiled with the include, not yet run. Whether its uninstaller already removes the update downloads
@@ -539,7 +562,7 @@ design and specs say how. What the desktop parts share from other segments is in
    installer gives the installed copy's uninstaller (Installer and Uninstaller): before the first
    release, the build's installer is run over an installed copy of a lower version, of the same version
    and of a higher version, each with its wizard and silently, to confirm that every one passes it, and
-   electron-updater's own run is checked with the first pair of published releases (question 6). A
+   electron-updater's own run is checked with the first pair of published releases (question 5). A
    missing mark would remove the shortcuts and the update downloads folder and run `--unregister` at an
    ordinary update, and a fix to the uninstaller's reading of it takes effect only a release later. Also
    still to be run: the include holding the session end while it installs — Windows takes a reason only
@@ -548,7 +571,7 @@ design and specs say how. What the desktop parts share from other segments is in
    26.18.0's NSIS not allow it, that is recorded here and the README's repair step stays the remedy —
    and the include starting the app at the end of an install, once, with "Launch MSFS Career Map now"
    folded in.
-6. **electron-updater's own path** ([Shell › Updates](../shell/shell-design.md#updates)) — finding a
+5. **electron-updater's own path** ([Shell › Updates](../shell/shell-design.md#updates)) — finding a
    published release, downloading it, the backup, installing on Quit, **Restart to update** starting the
    app with `--updated`, a quiet-moment install starting it with `--background`, a start made during the
    install left in the install-under-way mark and started afterwards, and the session end held while
@@ -560,7 +583,7 @@ design and specs say how. What the desktop parts share from other segments is in
 
 1. **electron-builder 27** signs update manifests with an Ed25519 key it requires by default; moving to
    it means keeping that key for good.
-2. **A winget listing** — it needs a licence value. A package manager would run the installer silently
+2. **A winget listing** — under the app's MIT licence. A package manager would run the installer silently
    over a live copy, which nothing else does; before a listing, a silent run that finds the app's running
    copy with [the sim in use](../desktop-design.md#the-sim-is-in-use) leaves that copy running and exits
    with an "application in use" code.

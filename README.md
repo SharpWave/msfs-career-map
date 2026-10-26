@@ -415,13 +415,15 @@ src/client/   Vite + React + Leaflet UI
   components/FlightPanel.tsx, ProfileChart.tsx   the bottom panel and its chart
 src/desktop/  Electron shell: runs the server, keeps it running, the window, the tray and its start lists (main.ts is the Electron glue)
 scripts/      import-airports.ts, sim-probe.ts (print what the sim reports), sim-fake.ts (synthetic flight),
-              desktop-build.ts and tray-icons.ts (the desktop build), desktop.ts (npm run desktop),
+              desktop-build.ts, tray-icons.ts, page-packages.ts and third-party-notices.ts (the desktop
+              build and its notices), desktop.ts (npm run desktop),
               test-packaged.ts (npm run test:packaged), release/ (the release workflow's scripts and installer round trip)
 tests/        tests by segment, desktop/ shell and build tests, e2e/ browser tests, installer/ the installer's
               steps, packaged/ the packaged smoke test, fixtures/ airport lists, support/ shared setup
 data/         runtime data (ignored by git)
 build/        installer.nsh and installer-steps.nsh (the installer's own steps); desktop/ the desktop build (ignored by git)
-electron-builder.json  packaging: names, the per-user NSIS installer, fuses
+electron-builder.json  packaging: names, the per-user NSIS installer, its licence page, fuses
+LICENSE       the app's licence (MIT)
 release/      electron-builder's output (ignored by git)
 ```
 
@@ -434,3 +436,14 @@ comparing the flown track against the SimBrief route.
 
 Other ideas: engine-hours per aircraft, flight-time totals, exporting the map, importing a
 logbook from other tools.
+
+## Licence
+
+MSFS Career Map is released under the [MIT License](LICENSE). The libraries it is built on keep their
+own licences: the installed app lists each one, with its licence text, in `THIRD-PARTY-NOTICES.txt` in
+its install folder, which the desktop build writes from what the program ships. Most are MIT, ISC or
+BSD. The map uses [react-leaflet](https://github.com/PaulLeCam/react-leaflet), under the Hippocratic
+License 2.1, whose conditions on how software is used apply to whoever uses the app; the sim link,
+[node-simconnect](https://github.com/EvenAR/node-simconnect), is LGPL-3.0 and ships as separate files
+so it can be replaced; the B612 fonts are under the SIL Open Font License. OurAirports' airport and
+runway lists are in the public domain.

@@ -31,6 +31,14 @@ windows-latest — every check, both packagings, the packaged smoke test and the
 app, a silent uninstall, the seeded logbook and backups untouched throughout) — making no draft. Not yet
 seen: the wizard's pages and notices, a draft release, an older installer over a newer install.
 
+Built and tested (2026-10-26) — the licences: the repository's MIT `LICENSE` (SharpWave), the
+installer's licence page set to it, and `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt` in the install
+folder, the notices written by the desktop build from the page build's record of its packages
+(`scripts/page-packages.ts`, in `vite.config.ts`), esbuild's inputs for the server and shell bundles,
+and the libraries beside the server (`scripts/third-party-notices.ts`); checked on a packaged build
+(`npm run test:packaged`). The licence page itself is still to be seen in a dry run's installer
+(DESK-DIST-INST-002).
+
 ## References
 
 ### HLD
@@ -54,7 +62,8 @@ seen: the wizard's pages and notices, a draft release, an older installer over a
   installed program runs outside test mode), package (pinned versions, the npm commands, the folders
   kept out of git), packaging (the fixed names and electron-builder's configuration), release (the
   release scripts: the tag, the published-release check, the notes, the round trip's guard and seed),
-  workflow (the release workflow's shape), test-packaged (the port message and Electron's environment);
+  workflow (the release workflow's shape), test-packaged (the port message and Electron's environment),
+  notices (the page build's record, the third-party notices, the licences in the build output);
   tests/desktop/shell/install-mark.test.ts (the mark's form and the start's check)
 - tests/installer/ — `npm run test:installer`: the include's steps built into NSIS test programs run on
   temp folders (the install folder check, finding and closing a running copy, the mark and the start
@@ -63,7 +72,9 @@ seen: the wizard's pages and notices, a draft release, an older installer over a
 - scripts/release/round-trip.ts — the installer round trip, run only by the release workflow
 
 ### Code
-- scripts/desktop-build.ts (the desktop build output: page, bundles, seed lists, icons, app manifest),
+- scripts/desktop-build.ts (the desktop build output: page, bundles, licences, seed lists, icons, app
+  manifest), scripts/third-party-notices.ts and scripts/page-packages.ts (the notices and the page
+  build's record of its packages), LICENSE,
   scripts/tray-icons.ts (the tray icons from assets/career-map.ico), scripts/desktop.ts
   (`npm run desktop`), src/desktop/installed.ts (the installed program's path), tsconfig.desktop.json,
   the `desktop` and `desktop:build` npm commands, .gitignore
@@ -97,7 +108,7 @@ other without ever reaching the logbook, built and tested from the repository be
 
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
-| Packaging | DESK-DIST-PKG-001 to 022 | 22 | 0 | 0 |
+| Packaging | DESK-DIST-PKG-001 to 028 | 28 | 0 | 0 |
 | Installer, closing a running copy and an install under way | DESK-DIST-INST-001 to 030 | 20 | 1 | 9 |
 | Uninstaller | DESK-DIST-UNINST-001 to 015 | 8 | 0 | 7 |
 | Releases | DESK-DIST-REL-001 to 018 | 10 | 2 | 6 |
@@ -106,7 +117,7 @@ other without ever reaching the logbook, built and tested from the repository be
 | Packaged smoke test | DESK-DIST-SMOKE-001 to 012 | 12 | 0 | 0 |
 | Installer round trip | DESK-DIST-TRIP-001 to 008 | 8 | 0 | 0 |
 
-**Summary:** 87 of 113 specs implemented; 23 gaps; 3 deferred (DESK-DIST-INST-017, REL-013, REL-014).
+**Summary:** 93 of 119 specs implemented; 23 gaps; 3 deferred (DESK-DIST-INST-017, REL-013, REL-014).
 Built, not yet seen working: the wizard and what only it shows — INST-002, 012, 013, 018,
 019, 026 (the include's take-up and choice of start are tested; the Finished page is not); UNINST-008
 to 010 (the last page's texts are tested, the page is not); INST-006 and DEV-007 (the Start-menu entry
@@ -210,7 +221,7 @@ SB-CARD-009 to 011), REL-016 and REL-017 (the maintainer's rules, written into t
 6. **Known behaviour** — a test-mode copy of the installed program is matched by the installer's and
    uninstaller's running-copy check but never reached by their `--quit`, so it is ended once the 90 s
    wait is over (DESK-DIST-INST-011, INST-016; recorded in the LLD's Decisions & Alternatives).
-7. **Open with the user** — the licence and code signing.
+7. **Open with the user** — code signing.
 
 ## Work Required
 
@@ -221,8 +232,8 @@ SB-CARD-009 to 011), REL-016 and REL-017 (the maintainer's rules, written into t
 
 ### Should Fix
 3. The start lists' `--unregister` and the desktop shell's updates and notifications (the shell's mark
-   before it hands over); the first release after SB-CARD-006 and SB-CARD-009 to 011 are closed and a
-   start by the Store edition of MSFS has been checked by hand.
+   before it hands over); the first release after a start by the Store edition of MSFS has been checked
+   by hand.
 
 ### Nice to Have
-4. Settle the licence and code signing.
+4. Settle code signing.

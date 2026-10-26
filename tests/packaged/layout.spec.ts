@@ -198,6 +198,20 @@ test.describe("the packaged program in release/win-unpacked", () => {
     expect(wire[FuseV1Options.EnableNodeOptionsEnvironmentVariable], "EnableNodeOptionsEnvironmentVariable").toBe(FUSE_DISABLE);
     expect(wire[FuseV1Options.EnableNodeCliInspectArguments], "EnableNodeCliInspectArguments").toBe(FUSE_ENABLE);
   });
+
+  // @spec DESK-DIST-PKG-024, DESK-DIST-PKG-026, DESK-DIST-PKG-028
+  test("holds the app's licence and the third-party notices in its install folder, beside Electron's and Chromium's", () => {
+    expect(fs.readFileSync(path.join(UNPACKED, "LICENSE.txt"))).toEqual(fs.readFileSync(path.join(REPO, "LICENSE")));
+    expect(exists(path.join(UNPACKED, "LICENSE.electron.txt"))).toBe(true);
+    expect(exists(path.join(UNPACKED, "LICENSES.chromium.html"))).toBe(true);
+    const notices = fs.readFileSync(path.join(UNPACKED, "THIRD-PARTY-NOTICES.txt"), "utf8");
+    for (const heading of ["react 18.3.1", "react-leaflet 4.2.1", "leaflet 1.9.4", "dompurify 3.4.17", "express 4.22.3", "electron-updater 6.8.11", "saxes 6.0.0", "node-simconnect 4.2.1"]) {
+      expect(notices.split("\r\n"), heading).toContain(heading);
+    }
+    expect(notices).toMatch(/^- react-leaflet 4\.2\.1: Hippocratic-2\.1 \(the page\)$/m);
+    expect(notices).toMatch(/^- node-simconnect 4\.2\.1: LGPL-3\.0-or-later \(beside the server\)$/m);
+    expect(notices).not.toMatch(/^(tsx|vite|esbuild|electron|vitest) \d/m);
+  });
 });
 
 test.describe("electron-builder's output in release/", () => {
