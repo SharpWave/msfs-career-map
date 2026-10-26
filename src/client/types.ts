@@ -92,7 +92,8 @@ export type TableNumberField =
 export type TableProvenance<T> =
   | { value: T; kind: "published"; sources: string[]; note?: string }
   | { value: T; kind: "derived"; sources: string[]; calculation: string; note?: string }
-  | { value: T; kind: "preset"; note?: string };
+  | { value: T; kind: "preset"; note?: string }
+  | { value: T; kind: "estimated"; from: string; note: string };
 
 /** `GET /api/aircraft-types`: the table's snapshot date and its types. */
 export interface AircraftTypeList {
@@ -111,7 +112,7 @@ export interface AircraftTypeEntry {
   icon: string;
   researched: string;
   checked: string;
-  sources: { id: string; title: string; publisher: string; page: string; url: string }[];
+  sources: { id: string; title: string; publisher: string; page: string; url: string; simManual?: true }[];
   pressurised: TableProvenance<boolean> | null;
   values: Record<TableNumberField, TableProvenance<number> | null>;
 }

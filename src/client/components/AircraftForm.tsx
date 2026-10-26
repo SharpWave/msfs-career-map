@@ -164,7 +164,7 @@ export function AircraftForm({ initial, prefill, usedColors, onSaved, onCancel, 
     const next = { ...now };
     for (const f of TABLE_FIELDS) {
       const p = entry.values[f];
-      if (!p || (p.kind === "preset" && now[f].trim() !== "")) continue;
+      if (!p || ((p.kind === "preset" || p.kind === "estimated") && now[f].trim() !== "")) continue;
       next[f] = String(p.value);
     }
     const preset = presetByLabel(entry.preset);
@@ -461,7 +461,7 @@ export function AircraftForm({ initial, prefill, usedColors, onSaved, onCancel, 
           {entryError && <span className="hint bad">{entryError}</span>}
         </div>
       )}
-      {sources && sources.type === sbCode && <TypeSources entry={sources} />}
+      {sources && sources.type === sbCode && <TypeSources entry={sources} names={tableTypes} />}
 
       <div className="two">
         <label>
@@ -503,8 +503,11 @@ export function AircraftForm({ initial, prefill, usedColors, onSaved, onCancel, 
   );
 }
 
-/** Where each of a type's numbers comes from: its sources, calculation or class preset (FLEET-TYPE-017). */
-function TypeSources({ entry }: { entry: AircraftTypeEntry }) {
+/**
+ * Where each of a type's numbers comes from: its sources, calculation, class preset or the similar type
+ * it is estimated from, named from the table's list (FLEET-TYPE-017).
+ */
+function TypeSources({ entry, names }: { entry: AircraftTypeEntry; names: Map<string, string> | null }) {
   const rows: [string, TableProvenance<number | boolean>][] = [];
   for (const f of TABLE_FIELDS) {
     const p = entry.values[f];
@@ -524,6 +527,8 @@ function TypeSources({ entry }: { entry: AircraftTypeEntry }) {
             <span className="label">{label}</span> <b>{typeof p.value === "boolean" ? (p.value ? "yes" : "no") : String(p.value)}</b>
             {p.kind === "preset" ? (
               <span className="muted"> — class preset ({entry.preset})</span>
+            ) : p.kind === "estimated" ? (
+              <span className="muted"> — estimated from {names?.get(p.from) ?? p.from}</span>
             ) : (
               p.sources.map((id) => {
                 const s = source(id);

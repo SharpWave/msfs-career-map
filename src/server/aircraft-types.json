@@ -219,14 +219,6 @@
     {
       "type": "DHC7",
       "reason": "No accepted source gives any of its numbers: no type certificate data sheet, De Havilland Canada document or trade-journal page for the production Dash 7 could be opened; the only record found (Canada Aviation and Space Museum) describes the 1975 prototype."
-    },
-    {
-      "type": "IL18",
-      "reason": "No accepted source gives any of its numbers: no type certificate data sheet, Ilyushin document or trade-journal page for the Il-18D could be read; the only documents found (Il-18 technical descriptions and pilot's instructions released by the CIA) are illegible scans of an earlier model."
-    },
-    {
-      "type": "YS11",
-      "reason": "No accepted source gives any of its numbers: the FAA type certificate data sheet A1PC could not be opened, and no NAMC, Japanese authority, NTSB or trade-journal document with its figures could be found."
     }
   ],
   "entries": [
@@ -236,8 +228,8 @@
       "variant": "A320-251N (A320neo) with CFM LEAP-1A26 engines, at weight variant WV055 (MTOW 79,000 kg, MLW 67,400 kg)",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "ac",
@@ -259,6 +251,14 @@
           "publisher": "Airbus (Flight Operations Support & Line Assistance, Customer Services)",
           "page": "§5.2.2 The effect of climb technique on fuel burn, p. 28",
           "url": "https://ansperformance.eu/library/airbus-fuel-economy.pdf"
+        },
+        {
+          "id": "fbw",
+          "simManual": true,
+          "title": "Aircraft Limitations, A320neo Pilot Briefing, FlyByWire A32NX documentation (A320-251N, CFM LEAP 1A-26; MSFS 2020 and 2024; page dated October 9, 2026)",
+          "publisher": "FlyByWire Simulations",
+          "page": "Aircraft General > Airport Operations and Wind Limitations: maximum certified crosswind for takeoff 35 kt (incl. gust), maximum demonstrated crosswind for landing 38 kt (incl. gust); aircraft model: docs.flybywiresim.com/aircraft/a32nx/ Simulated Hardware",
+          "url": "https://docs.flybywiresim.com/pilots-corner/a32nx/a32nx-briefing/limitations/"
         }
       ],
       "pressurised": {
@@ -296,7 +296,14 @@
           ],
           "note": "Certified maximum operating altitude without options (39,800 ft if modification 30748 is embodied). The sheet gives one figure for the whole series section, neo models included; the approved Airplane Flight Manual governs. ACJ320neo with modification 162744: 41,000 ft."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 35,
+          "kind": "published",
+          "sources": [
+            "fbw"
+          ],
+          "note": "The lower of the two values the A32NX documentation's limitations page gives: maximum certified crosswind for takeoff 35 kt and maximum demonstrated crosswind for landing 38 kt, both gusts included (the landing figure is the A320 flight manual's)."
+        },
         "cruise_alt_ft": {
           "value": 35000,
           "kind": "preset",
@@ -323,8 +330,8 @@
       "variant": "A321-251N (A321neo) with CFM LEAP-1A engines, at weight variant WV080 (MTOW 95,000 kg, MLW 79,200 kg)",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "ac",
@@ -346,6 +353,14 @@
           "publisher": "Airbus (Flight Operations Support & Line Assistance, Customer Services)",
           "page": "§5.2.2 The effect of climb technique on fuel burn, p. 28",
           "url": "https://ansperformance.eu/library/airbus-fuel-economy.pdf"
+        },
+        {
+          "id": "inimanual",
+          "title": "Airbus A321LR Manual, Version 1.0.0 (23 September 2024), for the iniBuilds A321LR in Microsoft Flight Simulator",
+          "publisher": "iniBuilds (published by Microsoft)",
+          "page": "Limitations, Wind Speed Limitations, printed p. 11",
+          "url": "https://flightsimulator.azureedge.net/wp-content/uploads/2024/11/A321-MSFS-Manual.pdf",
+          "simManual": true
         }
       ],
       "pressurised": {
@@ -383,7 +398,14 @@
           ],
           "note": "Certified maximum operating altitude without options (39,800 ft if modification 30748 is embodied). The sheet gives one figure for the whole A321 series section, neo models included; the approved Airplane Flight Manual governs."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 38,
+          "kind": "published",
+          "sources": [
+            "inimanual"
+          ],
+          "note": "MSFS add-on manual (iniBuilds A321LR, the A321neo at its LR weights; the crosswind does not depend on weight): 'Maximum Demonstrated Crosswind (Dry and Wet Runway)' 38 kt. The same table gives a computed takeoff crosswind capability of 35 kt."
+        },
         "cruise_alt_ft": {
           "value": 35000,
           "kind": "preset",
@@ -410,8 +432,8 @@
       "variant": "Antonov An-225 Mriya (the one completed airframe, UR-82060; six Ivchenko Progress D-18T turbofans; destroyed February 2022)",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "an-hist",
@@ -433,6 +455,14 @@
           "publisher": "ANTONOV Company (archived copy of antonov.com, 1 April 2018)",
           "page": "Main text, paragraph on the cargo compartment: \"The cargo compartment is pressurized\"",
           "url": "https://web.archive.org/web/20180401123712/http://www.antonov.com/aircraft/transport-aircraft/an-225-mriya"
+        },
+        {
+          "id": "inib-an225",
+          "title": "iniBuilds Antonov AN-225 manual for Microsoft Flight Simulator, Version 2 (AN225_MSFS_Manual_V2, April 2023)",
+          "publisher": "iniBuilds (hosted on Microsoft Flight Simulator's Aircraft Manuals page)",
+          "page": "Limitations, Speeds & Performance Limits, Wind Speed Limitations table (PDF p. 23): Maximum Demonstrated Crosswind (Dry Runway) 52 KPH / 28 KTS",
+          "url": "https://flightsimulator.azureedge.net/wp-content/uploads/2023/04/AN225_MSFS_Manual_V2.pdf",
+          "simManual": true
         }
       ],
       "pressurised": {
@@ -471,7 +501,14 @@
           "calculation": "Antonov's Flight characteristics: Operational ceiling 9,000 m; 9,000 / 0.3048 = 29,527.6 -> 29,528 ft.",
           "note": "Antonov's current page gives 'Operational ceiling (m) 9 000', which is the manufacturer's published service ceiling (no certified maximum operating altitude could be opened). Antonov's older performance page (2018, an-perf) gives 'Cruising altitude, m up to 12 000', a different quantity that is not reconciled with it; the newer page of the same manufacturer is followed."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 28,
+          "kind": "published",
+          "sources": [
+            "inib-an225"
+          ],
+          "note": "The iniBuilds An-225 manual's Wind Speed Limitations table: Maximum Demonstrated Crosswind (Dry Runway) 52 km/h / 28 kt (it also lists a 'Computed Crosswind Capability (Dry and Wet Runways)' of 69 km/h / 37 kt, not used). Dry-runway figure, as the manual reproduces it."
+        },
         "cruise_alt_ft": {
           "value": 29528,
           "kind": "preset",
@@ -806,8 +843,8 @@
       "variant": "A310-304 with General Electric CF6-80C2A2 engines, at the heaviest weight variant certified for the -304, WV05 (MTOW 157,000 kg / 346,125 lb, MLW 124,000 kg / 273,372 lb)",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "ac",
@@ -829,6 +866,14 @@
           "publisher": "Airbus (Flight Operations Support & Line Assistance, Customer Services)",
           "page": "§3.1 Table 1 p. 10 (A300/A310 cost index); §5.2 Table 6 p. 21 (climb to FL330, A310 CF6-80); §7 p. 47 (A300-600/A310 Optimum Mach 0.79 GE); §7.6 Figure 35 p. 50 (A310-304 ECON Mach: 'Typical cruise conditions' FL350, Opt. MN 0.79); §8.2 Table 15 p. 53 (descent from FL370, A310 CF6-80)",
           "url": "https://ansperformance.eu/library/airbus-cost-index.pdf"
+        },
+        {
+          "id": "inibuilds-a310",
+          "title": "iniBuilds A310-300 Manual for Microsoft Flight Simulator (A310_MSFS_Manual v2, 2023)",
+          "publisher": "iniBuilds",
+          "page": "Limitations chapter, Wind Speed Limitations table (PDF p. 13)",
+          "url": "https://flightsimulator.azureedge.net/wp-content/uploads/2023/02/A310_MSFS_Manual.pdf",
+          "simManual": true
         }
       ],
       "pressurised": {
@@ -867,7 +912,14 @@
           ],
           "note": "Maximum authorized altitude for 'A310 all series – all models' (section 14.9). Pressure altitude not stated, 41,100 ft (12,530 m)."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 28,
+          "kind": "published",
+          "sources": [
+            "inibuilds-a310"
+          ],
+          "note": "The manual's Wind Speed Limitations table, which it builds from real A300/A310 operator manuals, gives a maximum demonstrated crosswind (dry runway) of 28 kt and a computed crosswind capability (dry and wet runways) of 37 kt; the lower, 28 kt, is used. (Its autoland crosswind limit, 15 kt, is a separate limit.) Crosswind does not depend on engines or weight variant."
+        },
         "cruise_alt_ft": {
           "value": 35000,
           "kind": "published",
@@ -1335,8 +1387,8 @@
       "variant": "A330-200 (A330-243) with Rolls-Royce Trent 700 engines, at weight variant WV081 (MTOW 242,000 kg, MLW 182,000 kg), the heaviest the AC lists",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "ac",
@@ -1358,6 +1410,14 @@
           "publisher": "Airbus (Flight Operations Support & Line Assistance, Customer Services)",
           "page": "Section 7.3 'Cruise managed versus cruise selected', Table 13 'Potential fuel savings', p. 44 (PDF page 48); Figure 28 'ECON cruise Mach = f(CI), A330-342/RR772', p. 42 (PDF page 46); Table 3 'A330/A340 cost index', p. 12",
           "url": "https://ansperformance.eu/library/airbus-cost-index.pdf"
+        },
+        {
+          "id": "inimanual",
+          "title": "Airbus A330 Manual, Version 1.0.1 (17 September 2024), for the iniBuilds A330 in Microsoft Flight Simulator 2024 (A330-200 RR and GE variants)",
+          "publisher": "iniBuilds (published by Microsoft)",
+          "page": "Limitations, Wind Speed Limitations table, printed p. 12 (PDF p. 13)",
+          "url": "https://flightsimulator.azureedge.net/wp-content/uploads/2024/11/Airbus-A330-MSFS-Manual.pdf",
+          "simManual": true
         }
       ],
       "pressurised": {
@@ -1395,7 +1455,14 @@
           ],
           "note": "Certified maximum operating altitude, 41,450 ft (12,634 m) (item 10.1, Section 1, p. 22 of 116)."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 32,
+          "kind": "published",
+          "sources": [
+            "inimanual"
+          ],
+          "note": "MSFS add-on manual (iniBuilds A330, A330-200 column): 'Maximum Certified Crosswind for Take Off (Dry Runway)' 32 kt and 'Computed Demonstrated Crosswind for Landing' 40 kt; the lower, the takeoff figure, is used. Autoland crosswind limit 20 kt."
+        },
         "cruise_alt_ft": {
           "value": 35000,
           "kind": "preset",
@@ -1422,8 +1489,8 @@
       "variant": "A330-300 (A330-343) with Rolls-Royce Trent 700 engines, at weight variant WV081 (MTOW 242,000 kg, MLW 187,000 kg), the heaviest the AC lists",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "ac",
@@ -1445,6 +1512,14 @@
           "publisher": "Airbus (Flight Operations Support & Line Assistance, Customer Services)",
           "page": "Section 7.3 'Cruise managed versus cruise selected', Table 13 'Potential fuel savings', p. 44 (PDF page 48); Figure 28 'ECON cruise Mach = f(CI), A330-342/RR772', p. 42 (PDF page 46); Table 3 'A330/A340 cost index', p. 12",
           "url": "https://ansperformance.eu/library/airbus-cost-index.pdf"
+        },
+        {
+          "id": "ini",
+          "simManual": true,
+          "title": "A330-200/300/P2F Manual, iniBuilds Airbus A330 for Microsoft Flight Simulator 2024 (Version 1, PDF dated 17 Nov 2024; aircraft A330-300 (RR))",
+          "publisher": "iniBuilds",
+          "page": "Limitations, Wind Speed Limitations table (printed p. 12, PDF p. 13): A330-300 maximum certified crosswind for take-off (dry runway) 32 kt, computed demonstrated crosswind for landing 40 kt; Aircraft Selection and Liveries (printed p. 7, PDF p. 8) shows the aircraft as 'Airbus A330-300(RR)'",
+          "url": "https://flightsimulator.azureedge.net/wp-content/uploads/2024/11/Airbus-A330-MSFS-Manual.pdf"
         }
       ],
       "pressurised": {
@@ -1482,7 +1557,14 @@
           ],
           "note": "Certified maximum operating altitude, 41,450 ft (12,634 m) (item 10.1, Section 2, p. 41 of 116)."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 32,
+          "kind": "published",
+          "sources": [
+            "ini"
+          ],
+          "note": "The lower of the two values the iniBuilds A330 manual's Wind Speed Limitations table gives for the A330-300: maximum certified crosswind for take-off on a dry runway 32 kt, computed demonstrated crosswind for landing 40 kt. The manual is the add-on's (the Rolls-Royce A330-300(RR) it models); the figures are the add-on's reproduction of the aircraft's limits, and the manual's own maximum weight (233,000 kg) is not the entry's weight variant, which does not affect a crosswind."
+        },
         "cruise_alt_ft": {
           "value": 35000,
           "kind": "preset",
@@ -2061,8 +2143,8 @@
       "variant": "A350-900 with Rolls-Royce Trent XWB-84 / -84EP engines, at weight variant WV020, the heaviest the AC lists (MTOW 283,000 kg per the EASA TCDS and Airbus's specification page, MLW 207,000 kg)",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "ac",
@@ -2084,6 +2166,14 @@
           "publisher": "Airbus",
           "page": "Technical specifications, Performance: Cruise Mach 0.85; Max take-off weight 283.00 tonnes",
           "url": "https://aircraft.airbus.com/en/aircraft/a350/a350-900"
+        },
+        {
+          "id": "inimanual",
+          "simManual": true,
+          "title": "iniBuilds A350 Airliner - Aircraft Manual, Version 1.3.0, February 25th, 2025 (iniBuilds A350 for MSFS 2024 and 2020)",
+          "publisher": "iniBuilds",
+          "page": "Limitations, Wind Speed Limitations table, p. 12 (PDF p. 13)",
+          "url": "https://forum.inibuilds.com/topic/25085-a350-aircraft-manual/"
         }
       ],
       "pressurised": {
@@ -2123,7 +2213,14 @@
           ],
           "note": "Certified maximum operating altitude, 43,100 ft (TCDS item 2.7, p. 14, all A350-900 series)."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 35,
+          "kind": "published",
+          "sources": [
+            "inimanual"
+          ],
+          "note": "The iniBuilds manual's Wind Speed Limitations table gives the A359 a maximum certified crosswind for take-off (dry runway) of 35 kt and a computed demonstrated crosswind for landing of 40 kt; the lower, 35 kt, is taken."
+        },
         "cruise_alt_ft": {
           "value": 35000,
           "kind": "preset",
@@ -2150,8 +2247,8 @@
       "variant": "A350-1000 with Rolls-Royce Trent XWB-97 engines, at weight variant WV006, the heaviest the AC lists (MTOW 319,000 kg, MLW 236,000 kg)",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "ac",
@@ -2173,6 +2270,14 @@
           "publisher": "Airbus",
           "page": "Technical specifications, Performance: Cruise Mach 0.85; Max take-off weight 324.00 tonnes",
           "url": "https://aircraft.airbus.com/en/aircraft/a350/a350-1000"
+        },
+        {
+          "id": "inimanual",
+          "simManual": true,
+          "title": "iniBuilds A350 Airliner - Aircraft Manual, Version 1.3.0, February 25th, 2025 (iniBuilds A350 for MSFS 2024 and 2020)",
+          "publisher": "iniBuilds",
+          "page": "Limitations, Wind Speed Limitations table, p. 12 (PDF p. 13)",
+          "url": "https://forum.inibuilds.com/topic/25085-a350-aircraft-manual/"
         }
       ],
       "pressurised": {
@@ -2210,7 +2315,14 @@
           ],
           "note": "Certified maximum operating altitude, 41,450 ft (TCDS item 2.7, p. 29, A350-1000 series)."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 35,
+          "kind": "published",
+          "sources": [
+            "inimanual"
+          ],
+          "note": "The iniBuilds manual's Wind Speed Limitations table gives the A35K a maximum certified crosswind for take-off (dry runway) of 35 kt and a computed demonstrated crosswind for landing of 40 kt; the lower, 35 kt, is taken."
+        },
         "cruise_alt_ft": {
           "value": 35000,
           "kind": "preset",
@@ -2237,8 +2349,8 @@
       "variant": "A380-841/-842 (A380-800) with Rolls-Royce Trent 900 engines, at weight variant WV011 (MTOW 575,000 kg, MLW 395,000 kg)",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "ac",
@@ -2260,6 +2372,14 @@
           "publisher": "Airbus",
           "page": "p. 3: 'It offers a cruise Mach number of M 0.85' and the operating-data table row 'Long Range Cruise M 0.85'",
           "url": "https://www.airbus.com/sites/g/files/jlcbta136/files/2022-01/EN-Airbus-A380-Facts-and-Figures-January-2022.pdf"
+        },
+        {
+          "id": "ini",
+          "simManual": true,
+          "title": "iniBuilds A380 Manual 1.2 (iniBuilds A380 Airliner for Microsoft Flight Simulator 2024, PDF created 15 Sep 2026; engine options RR Trent 972-84 and Engine Alliance GP7270)",
+          "publisher": "iniBuilds",
+          "page": "Limitations, Wind speed limitations (printed p. 9, PDF p. 10): maximum certified crosswind (take-off and landing) 30 kt; Specifications (printed p. 10, PDF p. 11): Max Altitude 43,100 ft; Engines (printed p. 177, PDF p. 178): RR option Trent 972-84",
+          "url": "https://forum.inibuilds.com/topic/40789-aircraft-manual-a380-airliner/"
         }
       ],
       "pressurised": {
@@ -2290,12 +2410,26 @@
           "calculation": "Takeoff weight midway between MLW 395,000 kg and MTOW 575,000 kg (AC 2-1-1 pp. 1-2, WV011; same in EASA TCDS III 1.7) = 485,000 kg (485 t). AC 3-3-1 p. 2 (take-off weight limitation, ISA, Trent 900; vector curves), the 0 ft curve at 485 t on the chart's metre axis (vertical gridlines every 500 m, 1,500-5,500 m): 2,023 m = 6,638 ft. Landing at MLW 395 t, AC 3-4-1 p. 2 (landing field length, dry runway), the 0 ft curve on the metre axis (gridlines every 100 m): 1,937 m = 6,354 ft. Longer = takeoff 6,638 ft -> up to the next 100 ft = 6,700 ft.",
           "note": "Charts are 'given for information only' (Airbus). Read on the metre axis, whose gridlines the curves are drawn against: 6,638 ft. The printed feet scale (5,000-18,000 ft) is not an exact conversion of the metre scale and reads about 6,700 ft (on the rounding line, 6,800 ft if it rounded up); the metre axis is used. For the GP7200 chart (3-3-1 p. 3) the same method gives about 2,053 m = 6,735 ft -> 6,800 ft."
         },
-        "ceiling_ft": null,
-        "max_xwind_kts": null,
+        "ceiling_ft": {
+          "value": 43100,
+          "kind": "published",
+          "sources": [
+            "ini"
+          ],
+          "note": "The iniBuilds A380 manual's Specifications table gives 'Max Altitude 43,100 ft' (the add-on's, for both its Trent 900 and GP7200 options)."
+        },
+        "max_xwind_kts": {
+          "value": 30,
+          "kind": "published",
+          "sources": [
+            "ini"
+          ],
+          "note": "The iniBuilds A380 manual's Wind speed limitations table: 'Maximum certified crosswind (Take-off & Landing) 30 kt'; one value for both, no separate demonstrated figure. The manual's MTOW is 572,000 kg, not the entry's WV011 weight variant; this does not change a crosswind limit."
+        },
         "cruise_alt_ft": {
           "value": 35000,
           "kind": "preset",
-          "note": "Airliner class preset: 35,000 ft (pressurised; no ceiling in the entry)."
+          "note": "Airliner class preset: 35,000 ft (pressurised; below the 43,100 ft ceiling)."
         },
         "climb_fpm": {
           "value": 2000,
@@ -2331,8 +2465,18 @@
       ],
       "pressurised": null,
       "values": {
-        "cruise_kts": null,
-        "min_runway_ft": null,
+        "cruise_kts": {
+          "value": 465,
+          "kind": "estimated",
+          "from": "A30F",
+          "note": "No source gives it; the A300F4-600R's 465 as it stands: a version of the same family by the same maker (the Beluga is built on the A300-600 freighter airframe)."
+        },
+        "min_runway_ft": {
+          "value": 6000,
+          "kind": "estimated",
+          "from": "A30F",
+          "note": "No source gives it; the A300F4-600R's 6000 as it stands: a version of the same family by the same maker (the Beluga is built on the A300-600 freighter airframe)."
+        },
         "ceiling_ft": {
           "value": 35000,
           "kind": "published",
@@ -2351,7 +2495,11 @@
           "value": 2000,
           "kind": "preset"
         },
-        "climb_kts": null,
+        "climb_kts": {
+          "value": 420,
+          "kind": "preset",
+          "note": "Airliner class preset: 90% of the 465 kt estimated cruise speed = 418.5 -> 420 kt."
+        },
         "descent_fpm": {
           "value": 2000,
           "kind": "preset"
@@ -2531,8 +2679,8 @@
       "variant": "Ted Smith / Piper Aerostar PA-60-600 (Aerostar 600, incl. the 600A), two Lycoming IO-540 (290 hp), normally aspirated, unpressurised",
       "preset": "Piston twin",
       "icon": "twin-piston",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "tcds",
@@ -2540,6 +2688,14 @@
           "publisher": "Federal Aviation Administration (archived copy of the FAA Regulatory and Guidance Library PDF)",
           "page": "pp. 1-3, I. Aerostar Model PA-60-600 (no maximum operating altitude, no cabin pressure); compare p. 9, PA-60-601P 'Maximum Cabin Operating Pressure 4.25 PSI'",
           "url": "https://web.archive.org/web/20161111023153/http://rgl.faa.gov/Regulatory_and_Guidance_Library/rgMakeModel.nsf/0/abbbb99ff89dc2ed86257a8b006ee54b/$FILE/A17WE_Rev_23.pdf"
+        },
+        {
+          "id": "a2a",
+          "simManual": true,
+          "title": "A2A Simulations Accu-Sim Aerostar 600 Manual (for Microsoft Flight Simulator; (c) 2025; Aerostar 600, Lycoming IO-540-G1B5, MSFS 2020 and 2024)",
+          "publisher": "A2A Simulations Inc.",
+          "page": "Performance, p. 8 (Takeoff Distance, Landing Distance, Cruise Performance); pp. 11-13 (cruise tables at 5,000 / 7,500 / 10,000 ft); Limitations p. 7",
+          "url": "https://orbx-user-guides.storage.googleapis.com/a2a-simulations-a2a-aerostar-msfs-user-guide-99f11b.pdf"
         }
       ],
       "pressurised": {
@@ -2551,20 +2707,42 @@
         "note": "The PA-60-600 section gives no cabin pressure limit, while the same data sheet gives one for each pressurised model (601P: 4.25 psi, p. 9)."
       },
       "values": {
-        "cruise_kts": null,
-        "min_runway_ft": null,
+        "cruise_kts": {
+          "value": 217,
+          "kind": "published",
+          "sources": [
+            "a2a"
+          ],
+          "note": "The manual's headline 'Cruise (70% Power, 10,000 ft): 250 mph (217 kts)', which names its power and altitude (p. 8); its other lines: 65% 209 kt and 55% 195 kt at 10,000 ft, top speed 226 kt at sea level. Its own cruise tables (pp. 11-13) show 66% as the most power at 10,000 ft (243 mph = 211 kt at full throttle) and 75% only up to 5,000 ft (245 mph = 213 kt at 2,300 rpm, full throttle), so the headline is a little above them."
+        },
+        "min_runway_ft": {
+          "value": 2500,
+          "kind": "derived",
+          "sources": [
+            "a2a"
+          ],
+          "calculation": "Performance p. 8, at 5,500 lb (the maximum takeoff and landing weight, pp. 6-7), sea level, hard level runway: total takeoff distance over a 50 ft obstacle 1,850 ft; total landing distance over a 50 ft obstacle 2,420 ft (3 degree approach, 45 degree flaps, heavy braking). Longer = landing 2,420 ft -> up to the next 100 ft = 2,500 ft.",
+          "note": "The manual says its performance information is flight-test data corrected to ICAO standard day conditions (p. 8)."
+        },
         "ceiling_ft": null,
         "max_xwind_kts": null,
         "cruise_alt_ft": {
-          "value": 8000,
-          "kind": "preset",
-          "note": "Piston twin preset 8,000 ft (under the 12,000 ft unpressurised cap)."
+          "value": 10000,
+          "kind": "published",
+          "sources": [
+            "a2a"
+          ],
+          "note": "The altitude at which the manual quotes the 217 kt cruise speed (p. 8); under the 12,000 ft cap for an unpressurised type."
         },
         "climb_fpm": {
           "value": 1000,
           "kind": "preset"
         },
-        "climb_kts": null,
+        "climb_kts": {
+          "value": 150,
+          "kind": "preset",
+          "note": "Piston twin preset fraction: 0.7 x 217 kt = 151.9 -> 150 kt."
+        },
         "descent_fpm": {
           "value": 700,
           "kind": "preset"
@@ -3463,8 +3641,8 @@
       "variant": "Beechcraft B36TC Bonanza with the TurbineAir turbine conversion (Rocket Engineering / West Pacific Air), Pratt & Whitney Canada PT6A-21 (500 shp), unpressurised",
       "preset": "Turboprop",
       "icon": "single-piston",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "rocket",
@@ -3486,6 +3664,14 @@
           "publisher": "AOPA Pilot, December 2013 (web edition on aopa.org)",
           "page": "Spec Sheet, West Pacific Air LLC TurbineAir Conversion: Performance, 'Cruise speed ... @ high-speed cruise 250 kt ... 25,000 ft'",
           "url": "https://www.aopa.org/news-and-media/all-news/2013/december/pilot/performance-bonanza"
+        },
+        {
+          "id": "bksq-bon",
+          "simManual": true,
+          "title": "Black Square - Bonanza Professional User Guide (2025), B36TP Turbine Conversion Supplement (B36TP, 500 shp Pratt & Whitney PT6A-21; MSFS 2020 and 2024)",
+          "publisher": "Black Square (distributed by Just Flight)",
+          "page": "B36TP Turbine Conversion Supplement, Aircraft Performance (B36TP Turboprop), printed p. 155; Engine Power Settings (Turboprop B36TP), p. 167",
+          "url": "https://downloads.justflight.com/products/JFF004080/BKSQ_BonanzaProfessionalManual.pdf"
         }
       ],
       "pressurised": {
@@ -3506,7 +3692,14 @@
           ],
           "note": "High-speed cruise at 25,000 ft (Rocket Engineering; AOPA Pilot's 2013 spec box gives the same 250 kt at 25,000 ft, 29 gph). Rocket also gives long-range cruise 225 KTAS at 25,000 ft and high-speed cruise 225 kt at 18,000 ft. Rocket's page says its figures are 'based on preliminary flight test data'. AOPA's test flight saw 243 KTAS at FL230 on a warm day."
         },
-        "min_runway_ft": null,
+        "min_runway_ft": {
+          "value": 1200,
+          "kind": "derived",
+          "sources": [
+            "bksq-bon"
+          ],
+          "calculation": "Aircraft Performance (B36TP Turboprop) p. 155, at maximum takeoff and landing weight 4,050 lb: takeoff distance 840 ft (ground roll 700 ft; the p. 167 take-off table gives 840 ft over a 50 ft obstacle at sea level, standard day, maximum gross weight); landing distance 1,105 ft (ground roll 720 ft). Longer = landing 1,105 ft -> up to the next 100 ft = 1,200 ft."
+        },
         "ceiling_ft": {
           "value": 25000,
           "kind": "published",
@@ -3792,8 +3985,8 @@
       "variant": "BAe 146 Series 100, four Avco Lycoming ALF 502R-3 or R-5",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "tcds",
@@ -3822,6 +4015,14 @@
           "publisher": "Civil Aviation Authority of New Zealand, Aircraft Certification Unit",
           "page": "p. 7, rule 91.535 'Oxygen for Pressurised Aircraft': passenger masks deploy automatically 'when cabin altitude 13,250-14,500 ft'",
           "url": "https://www.aviation.govt.nz/assets/aircraft/type-acceptance-reports/BAe_146_Series-Rev1.pdf"
+        },
+        {
+          "id": "jf146",
+          "simManual": true,
+          "title": "146 Professional Operations Manual (Just Flight, MSFS 2020 and 2024; file 146_Professional_MSFS_manual_v2.4.pdf, as hosted 2026-10-26)",
+          "publisher": "Just Flight",
+          "page": "Introduction, Aircraft specifications, Performance, printed p. 12 (146-100: 'Economical cruise 383 TAS at 30,000 ft'; 'Take-off to 35 ft, surface level, ISA 4,000 ft'; 'FAR landing, surface level, ISA, max. landing weight 3,630 ft'); HANDLING NOTES, Take-off and landing, Maximum crosswind, printed p. 246",
+          "url": "https://downloads.justflight.com/products/JFF003642/146_Professional_MSFS_manual_v2.4.pdf"
         }
       ],
       "pressurised": {
@@ -3835,8 +4036,22 @@
         "note": "AAIB Bulletin 1/2000 (a BAe 146-300) describes the family's pressure controller adjusting the two cabin air discharge valves to hold the selected cabin altitude; FAA AD 2004-18-07 covers the discharge valves and cabin pressure controllers of BAe 146 series airplanes. NZ CAA TAR 9/21B/9 Rev 1 (p. 7, NZCAR 91.535 'Oxygen for Pressurised Aircraft', passenger masks deploy automatically when cabin altitude 13,250-14,500 ft) is a second, weaker source: the rule's title and the compliance items applied to the type, not a sentence saying the cabin is pressurised."
       },
       "values": {
-        "cruise_kts": null,
-        "min_runway_ft": null,
+        "cruise_kts": {
+          "value": 383,
+          "kind": "published",
+          "sources": [
+            "jf146"
+          ],
+          "note": "Economical cruise, 146-100: 383 TAS at 30,000 ft, as printed in the Just Flight 146 Professional manual's Performance table (p. 12). The add-on models the 100, 200 and 300 with ALF502R-5 engines (the variant allows R-3 or R-5)."
+        },
+        "min_runway_ft": {
+          "value": 4000,
+          "kind": "published",
+          "sources": [
+            "jf146"
+          ],
+          "note": "The manual's 146-100 take-off to 35 ft, surface level, ISA: 4,000 ft; its FAR landing at maximum landing weight is 3,630 ft; the longer is 4,000. The manual does not state the take-off weight (presumably maximum take-off weight), so this may overstate a midpoint-weight takeoff."
+        },
         "ceiling_ft": {
           "value": 31000,
           "kind": "published",
@@ -3846,18 +4061,32 @@
           ],
           "note": "Maximum Operating Altitude 31,000 ft (EASA TCDS A.182 Section 2 item 11, p. 9 of 20; aircraft before change HCM50043 limited to 30,000 ft), for the Series 100, 200 and 300. The NZ CAA TAR (p. 7) agrees: 31,000 ft maximum en-route altitude with Mod HCM 50043A&B. The RJ70 is certified to 35,000 ft; this is the Series 100's own figure."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 30,
+          "kind": "published",
+          "sources": [
+            "jf146"
+          ],
+          "note": "Handling Notes, Maximum crosswind (p. 246): maximum demonstrated crosswind component 30 kt for take-off and 35 kt for landing, at 90 degrees to the flight path; the lower is taken. The same text covers the 100, 200 and 300 series."
+        },
         "cruise_alt_ft": {
-          "value": 31000,
-          "kind": "preset",
-          "note": "Airliner preset 35,000 ft lowered to the 31,000 ft ceiling."
+          "value": 30000,
+          "kind": "published",
+          "sources": [
+            "jf146"
+          ],
+          "note": "The altitude at which the manual quotes the 383 kt TAS economical cruise (30,000 ft); below the 31,000 ft ceiling."
         },
         "climb_fpm": {
           "value": 2000,
           "kind": "preset",
           "note": "No published time to climb; Airliner preset."
         },
-        "climb_kts": null,
+        "climb_kts": {
+          "value": 345,
+          "kind": "preset",
+          "note": "Airliner class preset: 90% of the 383 kt cruise speed = 344.7 -> 345 kt."
+        },
         "descent_fpm": {
           "value": 2000,
           "kind": "preset",
@@ -3871,8 +4100,8 @@
       "variant": "BAe 146 Series 200 (four ALF502R-5), at the heaviest weights the TCDS gives (absolute maximum take-off 93,000 lb / 42,184 kg; basic 89,500 lb / 40,596 kg)",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "tcds",
@@ -3894,6 +4123,14 @@
           "publisher": "Air Accidents Investigation Branch (UK Department for Transport)",
           "page": "'System description' and 'Analysis': 'the Pressure controller continually adjusting the two cabin air discharge valves to maintain the selected cabin altitude'; the crew read a cabin rate of descent on the Pressurisation panel in the climb through FL190",
           "url": "https://assets.publishing.service.gov.uk/media/5422f23ded915d13710003d1/dft_avsafety_pdf_500915.pdf"
+        },
+        {
+          "id": "jf146",
+          "title": "146 Professional (MSFS) Operations Manual, v2.4 (Just Flight 146 Professional for Microsoft Flight Simulator 2020/2024)",
+          "publisher": "Just Flight",
+          "page": "Aircraft specifications, Performance, printed p. 12 (PDF p. 12); Handling Notes, Take-off and landing, Maximum crosswind, printed p. 246 (PDF p. 246)",
+          "url": "https://downloads.justflight.com/products/JFF003642/146_Professional_MSFS_manual_v2.4.pdf",
+          "simManual": true
         }
       ],
       "pressurised": {
@@ -3906,8 +4143,22 @@
         "note": "Stated in words by the AAIB: the BAe 146's pressurisation system has a controller that holds the selected cabin altitude by modulating two cabin air discharge valves (AAIB Bulletin 1/2000; the aircraft in it is a Series 300, the system is the BAe 146's). The FAA's AD 2004-18-07, which names the whole BAe 146 / Avro 146-RJ family, concerns those pressurization discharge valves and cabin pressure controllers."
       },
       "values": {
-        "cruise_kts": null,
-        "min_runway_ft": null,
+        "cruise_kts": {
+          "value": 383,
+          "kind": "published",
+          "sources": [
+            "jf146"
+          ],
+          "note": "The manual's Performance table for the 146-200: 'Economical cruise 383 TAS at 30,000 ft'. It reproduces the aircraft's published specification; no cruise table at other altitudes."
+        },
+        "min_runway_ft": {
+          "value": 4950,
+          "kind": "published",
+          "sources": [
+            "jf146"
+          ],
+          "note": "Manual's 146-200 Performance table: 'Take-off to 35 ft, surface level, ISA 4,950 ft (1,509 m)' and 'FAR landing, surface level, ISA, max. landing weight 3,760 ft (1,146 m)'. The takeoff weight is not stated (read as maximum takeoff weight, which is the variant's weight); the takeoff figure is the longer."
+        },
         "ceiling_ft": {
           "value": 31000,
           "kind": "published",
@@ -3916,13 +4167,27 @@
           ],
           "note": "'Maximum Operating Altitude: 31,000 ft; pre change series HCM50043 aircraft are limited to 30,000 ft' (Section 2, III item 11, printed p. 9/20), for all BAe 146 Series 100, 200 and 300."
         },
-        "max_xwind_kts": null,
-        "cruise_alt_ft": {
-          "value": 31000,
-          "kind": "preset",
-          "note": "Airliner class preset 35,000 ft lowered to the type's 31,000 ft ceiling."
+        "max_xwind_kts": {
+          "value": 30,
+          "kind": "published",
+          "sources": [
+            "jf146"
+          ],
+          "note": "Handling Notes: 'The maximum crosswind component in which the aircraft has been demonstrated to be satisfactory is 30 knots for take-off and 35 knots for landing, at 90 degrees to the flight path.' The lower figure is used. The manual gives it for the 146 in general (not by series)."
         },
-        "climb_kts": null,
+        "cruise_alt_ft": {
+          "value": 30000,
+          "kind": "published",
+          "sources": [
+            "jf146"
+          ],
+          "note": "The altitude at which the manual quotes the 383 TAS economical cruise (below the 31,000 ft ceiling)."
+        },
+        "climb_kts": {
+          "value": 345,
+          "kind": "preset",
+          "note": "Airliner class preset: 90% of the 383 kt cruise speed = 344.7 -> 345 kt."
+        },
         "climb_fpm": {
           "value": 2000,
           "kind": "preset"
@@ -3939,8 +4204,8 @@
       "variant": "BAe 146 Series 300 (four ALF502R-5), at the heaviest weights the TCDS gives (absolute maximum take-off 99,500 lb / 45,132 kg; basic 95,000 lb / 43,091 kg)",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "tcds",
@@ -3962,6 +4227,14 @@
           "publisher": "Air Accidents Investigation Branch (UK Department for Transport)",
           "page": "'System description' and 'Analysis': 'the Pressure controller continually adjusting the two cabin air discharge valves to maintain the selected cabin altitude'; the crew read a cabin rate of descent on the Pressurisation panel in the climb through FL190",
           "url": "https://assets.publishing.service.gov.uk/media/5422f23ded915d13710003d1/dft_avsafety_pdf_500915.pdf"
+        },
+        {
+          "id": "jf146",
+          "title": "146 Professional (MSFS) Operations Manual, v2.4 (Just Flight 146 Professional for Microsoft Flight Simulator 2020/2024)",
+          "publisher": "Just Flight",
+          "page": "Aircraft specifications, Performance, printed p. 12 (PDF p. 12); Handling Notes, Take-off and landing, Maximum crosswind, printed p. 246 (PDF p. 246)",
+          "url": "https://downloads.justflight.com/products/JFF003642/146_Professional_MSFS_manual_v2.4.pdf",
+          "simManual": true
         }
       ],
       "pressurised": {
@@ -3974,8 +4247,22 @@
         "note": "Stated in words by the AAIB: the BAe 146's pressurisation system has a controller that holds the selected cabin altitude by modulating two cabin air discharge valves (AAIB Bulletin 1/2000; the aircraft in it is a Series 300, the system is the BAe 146's). The FAA's AD 2004-18-07, which names the whole BAe 146 / Avro 146-RJ family, concerns those pressurization discharge valves and cabin pressure controllers."
       },
       "values": {
-        "cruise_kts": null,
-        "min_runway_ft": null,
+        "cruise_kts": {
+          "value": 383,
+          "kind": "published",
+          "sources": [
+            "jf146"
+          ],
+          "note": "The manual's Performance table for the 146-300: 'Economical cruise 383 TAS at 30,000 ft'. It reproduces the aircraft's published specification; no cruise table at other altitudes."
+        },
+        "min_runway_ft": {
+          "value": 4950,
+          "kind": "published",
+          "sources": [
+            "jf146"
+          ],
+          "note": "Manual's 146-300 Performance table: 'Take-off to 35 ft, surface level, ISA 4,950 ft (1,509 m)' and 'FAR landing, surface level, ISA, max. landing weight 4,030 ft (1,228 m)'. The takeoff weight is not stated (read as maximum takeoff weight, which is the variant's weight); the takeoff figure is the longer."
+        },
         "ceiling_ft": {
           "value": 31000,
           "kind": "published",
@@ -3984,13 +4271,27 @@
           ],
           "note": "'Maximum Operating Altitude: 31,000 ft; pre change series HCM50043 aircraft are limited to 30,000 ft' (Section 2, III item 11, printed p. 9/20), for all BAe 146 Series 100, 200 and 300."
         },
-        "max_xwind_kts": null,
-        "cruise_alt_ft": {
-          "value": 31000,
-          "kind": "preset",
-          "note": "Airliner class preset 35,000 ft lowered to the type's 31,000 ft ceiling."
+        "max_xwind_kts": {
+          "value": 30,
+          "kind": "published",
+          "sources": [
+            "jf146"
+          ],
+          "note": "Handling Notes: 'The maximum crosswind component in which the aircraft has been demonstrated to be satisfactory is 30 knots for take-off and 35 knots for landing, at 90 degrees to the flight path.' The lower figure is used. The manual gives it for the 146 in general (not by series)."
         },
-        "climb_kts": null,
+        "cruise_alt_ft": {
+          "value": 30000,
+          "kind": "published",
+          "sources": [
+            "jf146"
+          ],
+          "note": "The altitude at which the manual quotes the 383 TAS economical cruise (below the 31,000 ft ceiling)."
+        },
+        "climb_kts": {
+          "value": 345,
+          "kind": "preset",
+          "note": "Airliner class preset: 90% of the 383 kt cruise speed = 344.7 -> 345 kt."
+        },
         "climb_fpm": {
           "value": 2000,
           "kind": "preset"
@@ -4099,8 +4400,8 @@
       "variant": "Beechcraft Baron 58P (Pressurized Baron), S/N TJ-169 and up, two Continental TSIO-520-WB (325 hp)",
       "preset": "Piston twin",
       "icon": "twin-piston",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "tcds",
@@ -4108,6 +4409,14 @@
           "publisher": "Federal Aviation Administration (archived copy of the FAA Regulatory and Guidance Library PDF)",
           "page": "p. 1, I. 'Model 58P, Pressurized Baron'; p. 4, I. Model 58P (cont'd), Maximum operating limit",
           "url": "https://web.archive.org/web/20161112224426/http://rgl.faa.gov/Regulatory_and_Guidance_Library/rgMakeModel.nsf/0/1103541d9d4c125986257c39004f4e41/$FILE/A23CE_Rev_16.pdf"
+        },
+        {
+          "id": "bksq-bar",
+          "simManual": true,
+          "title": "Black Square - Baron Professional User Guide (2025) (Baron Professional: B58, B58TC and pressurised B58P, Continental TSIO-520-WB; MSFS 2020 and 2024)",
+          "publisher": "Black Square (distributed by Just Flight)",
+          "page": "Aircraft Performance (Turbocharged), printed p. 14; Engine Power Settings (Turbocharged B58TC & B58P), p. 75 (take-off power and 75% Maximum Continuous Power tables)",
+          "url": "https://downloads.justflight.com/products/JFF004079/BKSQ_BaronProfessionalManual.pdf"
         }
       ],
       "pressurised": {
@@ -4119,8 +4428,22 @@
         "note": "Certified as 'Model 58P, Pressurized Baron'."
       },
       "values": {
-        "cruise_kts": null,
-        "min_runway_ft": null,
+        "cruise_kts": {
+          "value": 241,
+          "kind": "published",
+          "sources": [
+            "bksq-bar"
+          ],
+          "note": "The manual's 75% Maximum Continuous Power table (33 inHg, 2,400 rpm, standard day), p. 75: 241 KTAS at 25,000 ft, the fastest row (184 kt at sea level, 207 at 10,000, 218 at 15,000, 232 at 20,000). The performance page's headline 'Maximum Cruising Speed 261 ktas' names no power or altitude and is not used; the table is shared by the B58TC and the B58P."
+        },
+        "min_runway_ft": {
+          "value": 2700,
+          "kind": "derived",
+          "sources": [
+            "bksq-bar"
+          ],
+          "calculation": "Aircraft Performance (Turbocharged) p. 14 and the take-off table p. 75, at maximum takeoff weight 6,200 lb (also the 58P's TCDS maximum), sea level, standard day: takeoff distance over a 50 ft obstacle 2,643 ft (ground roll 1,555 ft); landing distance 2,490 ft (maximum landing weight 6,200 lb). Longer = takeoff 2,643 ft -> up to the next 100 ft = 2,700 ft."
+        },
         "ceiling_ft": {
           "value": 25000,
           "kind": "published",
@@ -4131,15 +4454,22 @@
         },
         "max_xwind_kts": null,
         "cruise_alt_ft": {
-          "value": 8000,
-          "kind": "preset",
-          "note": "Piston twin preset 8,000 ft (below the 25,000 ft ceiling; pressurised, so no 12,000 ft cap)."
+          "value": 25000,
+          "kind": "published",
+          "sources": [
+            "bksq-bar"
+          ],
+          "note": "The altitude at which the manual's 75% power table gives the 241 kt cruise speed (p. 75); equal to the 25,000 ft ceiling, and the type is pressurised so there is no 12,000 ft cap."
         },
         "climb_fpm": {
           "value": 1000,
           "kind": "preset"
         },
-        "climb_kts": null,
+        "climb_kts": {
+          "value": 170,
+          "kind": "preset",
+          "note": "Piston twin preset fraction: 0.7 x 241 kt = 168.7 -> 170 kt."
+        },
         "descent_fpm": {
           "value": 700,
           "kind": "preset"
@@ -4152,8 +4482,8 @@
       "variant": "Beech 60 Duke converted by Rocket Engineering / Northwest Turbine (STC) to the Royal Turbine Duke: two Pratt & Whitney Canada PT6A-35 (1,050 shp total), maximum takeoff weight 7,000-7,050 lb (a PT6A-21 option exists; AOPA's figures are the -35)",
       "preset": "Turboprop",
       "icon": "turboprop",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "aopa07",
@@ -4168,6 +4498,14 @@
           "publisher": "AOPA Pilot (Aircraft Owners and Pilots Association)",
           "page": "Spec sheet: PT6A-35, max takeoff weight 7,050 lb, takeoff over 50-foot obstacle 1,200 ft, max cruise speed 290 kt; text: pressurisation 'only able to hold a 12,000-foot cabin at FL280'",
           "url": "https://www.aopa.org/news-and-media/all-news/2017/may/pilot/quick-look-duke"
+        },
+        {
+          "id": "bksq",
+          "simManual": true,
+          "title": "Black Square - Turbine Duke User Guide (2025) (Turbine Duke, PT6A-35, MSFS 2020 and 2024; BKSQ_TurbineDukeManual.pdf, as hosted 2026-10-26)",
+          "publisher": "Black Square (distributed by Just Flight)",
+          "page": "Aircraft Performance (Turbine Duke), printed p. 13: 'Service Ceiling 28,000 ft'; 'Maximum Demonstrated Crosswind Component: 25 kts'",
+          "url": "https://downloads.justflight.com/products/JFF003870/BKSQ_TurbineDukeManual.pdf"
         }
       ],
       "pressurised": {
@@ -4195,8 +4533,22 @@
           ],
           "note": "AOPA Pilot Spec Sheet (May 2017): takeoff over 50-foot obstacle 1,200 ft at maximum takeoff weight 7,050 lb. Takeoff only: no landing-over-50-ft figure is published (AOPA quotes about 1,000 ft roll with reverse), so the longer of the two cannot be formed and this may understate the minimum; consistent with the B200 entry."
         },
-        "ceiling_ft": null,
-        "max_xwind_kts": null,
+        "ceiling_ft": {
+          "value": 28000,
+          "kind": "published",
+          "sources": [
+            "bksq"
+          ],
+          "note": "The manual's Aircraft Performance table gives 'Service Ceiling 28,000 ft' for the Turbine Duke (two PT6A-35, maximum take-off weight 7,000 lb, as its specification page states). It agrees with AOPA's FL280 limit; no certified maximum operating altitude was found."
+        },
+        "max_xwind_kts": {
+          "value": 25,
+          "kind": "published",
+          "sources": [
+            "bksq"
+          ],
+          "note": "'Maximum Demonstrated Crosswind Component: 25 kts' in the manual's Aircraft Performance table (p. 13); one figure, not split by take-off and landing."
+        },
         "cruise_alt_ft": {
           "value": 28000,
           "kind": "published",
@@ -4228,8 +4580,8 @@
       "variant": "707-320C convertible/freighter with Pratt & Whitney JT3D-7 (improved cowl doors) engines, at the ACAP's -320C weights: MTOW 333,600 lb, MLW 247,000 lb",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "acap",
@@ -4244,6 +4596,14 @@
           "publisher": "Boeing",
           "page": "PDF p. 3, Historical Snapshot: the 707 fuselage tested as a 'fully pressurized' fuselage ('pierced the pressurized fuselage')",
           "url": "https://www.boeing.com/content/dam/boeing/v2/company/history/pdf/Boeing_Products.pdf"
+        },
+        {
+          "id": "wt707",
+          "title": "Boeing 707-320C Manual, v4.1, for the Microsoft Flight Simulator 2024 707 (Working Title Simulations)",
+          "publisher": "Working Title Simulations (published by Microsoft)",
+          "page": "§1.5 Specifications: 'High cruise speed Mach 0.84'",
+          "url": "https://flightsimulator.azureedge.net/wp-content/uploads/2026/08/BOEING-707-320C-Manual-v4.1.pdf",
+          "simManual": true
         }
       ],
       "pressurised": {
@@ -4255,7 +4615,15 @@
         "note": "Boeing's history brochure describes the 707 fuselage as a pressurized fuselage (its decompression test, p. 3). The FAA data sheet 4A26 (Rev 11) states neither pressurisation nor a maximum operating altitude (it points to the manufacturer's weight-and-balance documents), so it cannot be cited for either."
       },
       "values": {
-        "cruise_kts": null,
+        "cruise_kts": {
+          "value": 485,
+          "kind": "derived",
+          "sources": [
+            "wt707"
+          ],
+          "calculation": "Mach 0.84 at the entry's cruise altitude 35,000 ft, ISA: T = 288.15 - 0.0019812 x 35000 = 218.81 K; a = 661.47 x sqrt(218.81 / 288.15) = 576.4 kt; TAS = 0.84 x 576.4 = 484.2 -> 485 kt.",
+          "note": "MSFS add-on manual's headline 'high cruise speed', noted as such: it gives no altitude, so the speed is taken at the class preset's cruise altitude."
+        },
         "min_runway_ft": {
           "value": 7600,
           "kind": "derived",
@@ -4277,7 +4645,11 @@
           "kind": "preset",
           "note": "Airliner class preset; no published time to climb."
         },
-        "climb_kts": null,
+        "climb_kts": {
+          "value": 435,
+          "kind": "preset",
+          "note": "Airliner class preset: 90% of the 485 kt cruise speed = 436.5 -> 435 kt."
+        },
         "descent_fpm": {
           "value": 2000,
           "kind": "preset",
@@ -4613,7 +4985,12 @@
         "note": "NTSB's report on the 737-200 N73711 describes the fuselage sections that make up the pressure vessel (p. 13; a scan, PDF page 19). The FAA TCDS and ACAP are silent."
       },
       "values": {
-        "cruise_kts": null,
+        "cruise_kts": {
+          "value": 430,
+          "kind": "estimated",
+          "from": "B733",
+          "note": "No source gives it; the B737-300's 430 as it stands: a version of the same family by the same maker (the 737-300 is the next 737 version)."
+        },
         "min_runway_ft": {
           "value": 6900,
           "kind": "derived",
@@ -4641,7 +5018,11 @@
           "value": 2000,
           "kind": "preset"
         },
-        "climb_kts": null,
+        "climb_kts": {
+          "value": 385,
+          "kind": "preset",
+          "note": "Airliner class preset: 90% of the 430 kt estimated cruise speed = 387.0 -> 385 kt."
+        },
         "descent_fpm": {
           "value": 2000,
           "kind": "preset"
@@ -7449,8 +7830,8 @@
       "variant": "Beechcraft Super King Air B200 (Model B200), two Pratt & Whitney Canada PT6A-42 (850 shp each), 12,500 lb maximum takeoff and landing weight (12,590 lb ramp)",
       "preset": "Turboprop",
       "icon": "turboprop",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "easa",
@@ -7479,6 +7860,14 @@
           "publisher": "Aircraft Owners and Pilots Association (AOPA Pilot)",
           "page": "B200 specifications: 'Takeoff distance over 50-ft obstacle (sea level)' 2,845 ft; maximum takeoff weight 12,500 lb",
           "url": "https://www.aopa.org/news-and-media/all-news/2020/september/pilot/turbine-quick-look-beechraft-king-air-200"
+        },
+        {
+          "id": "carenado-b200",
+          "title": "Carenado B200 King Air for Microsoft Flight Simulator - Normal Procedures (B200_Documents.zip from the product's documents tab, 2026)",
+          "publisher": "Carenado",
+          "page": "Normal Procedures, printed p. 1, 'Airspeeds for Safe Operation (12,500 lbs)': 'Maximum Demonstrated Crosswind Component ... 25 Knots'",
+          "url": "https://carprod01.s3.us-west-1.amazonaws.com/CARDOCS/B200_Documents.zip",
+          "simManual": true
         }
       ],
       "pressurised": {
@@ -7514,7 +7903,14 @@
           ],
           "note": "Maximum operating altitude 35,000 ft (10,668 m) for B200 serials BB-54 and after (31,000 ft for earlier BB serials; 25,000 ft in the high-density configuration). NASA's sheet gives a 32,800 ft service ceiling; the TCDS (higher rank) wins."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 25,
+          "kind": "published",
+          "sources": [
+            "carenado-b200"
+          ],
+          "note": "Maximum demonstrated crosswind component 25 kt at 12,500 lb, as the Carenado B200 manual reproduces the Beechcraft B200 handbook's airspeeds table (the same table gives 16 kt crosswind and 10 kt tailwind for coupled approaches, not used). Carenado's B200 is a Super King Air B200 at 12,500 lb, available for MSFS 2024 and 2020; the figure is the demonstrated one, not a limit."
+        },
         "cruise_alt_ft": {
           "value": 25000,
           "kind": "published",
@@ -7942,7 +8338,7 @@
       "variant": "Beechcraft Duke B60 with the BLR Aerospace 'Grand Duke' package (vortex generators, winglets, dual aft body strakes; gross takeoff weight 7,000 lb, maximum ramp weight 7,039 lb, landing weight 6,775 lb), two Lycoming TIO-541-E1C4 (380 hp each), pressurised",
       "preset": "Piston twin",
       "icon": "twin-piston",
-      "researched": "2026-10-25",
+      "researched": "2026-10-26",
       "checked": "2026-10-26",
       "sources": [
         {
@@ -7965,6 +8361,14 @@
           "publisher": "Aircraft Owners and Pilots Association (AOPA Pilot)",
           "page": "Printed p. 35, text: pressurisation differential 4.6 psi (now 4.7 psi), 10,000-ft cabin at 24,800 ft",
           "url": "https://www.aeroresourcesinc.com/uploads/198302-1983%20Beech%20Duke%20B60.pdf"
+        },
+        {
+          "id": "bksq-duke",
+          "simManual": true,
+          "title": "Black Square - Piston Duke User Guide (2025) (Piston Duke: stock B60 and Grand Duke, Lycoming TIO-541; MSFS 2020 and 2024)",
+          "publisher": "Black Square (distributed by Just Flight)",
+          "page": "Aircraft Performance (Grand Duke), printed p. 15: Takeoff Distance 2,360 ft, Landing Distance 2,885 ft, Max Takeoff Weight 7,000 lb, Max Ramp Weight 7,039 lb, Max Landing Weight 7,000 lb, Maximum Demonstrated Crosswind Component 25 kts; Engine Power Settings table, printed p. 75 (Grand Duke take-off distance over a 50 ft obstacle at sea level 2,360 ft)",
+          "url": "https://downloads.justflight.com/products/JFF003869/BKSQ_PistonDukeManual.pdf"
         }
       ],
       "pressurised": {
@@ -7984,7 +8388,14 @@
           ],
           "note": "BLR's 'True Airspeed @ FL260' for the Grand Duke, 212 (the stock Duke tested at 205); BLR names the altitude but not the power setting, so this is its headline cruise speed. BLR's chart gives no Mach or power. AOPA Pilot's 240 kt at 26,000 ft (79% power) is for the stock B60 and is not used here. Different conditions from the stock B60's 240 kt (AOPA: approx. 79% power best economy at 26,000 ft, 6,125 lb): BLR's 212 kt TAS at FL260 names no power setting and was tested at BLR's own test conditions (stock 205 kt on the same chart); the two are not comparable."
         },
-        "min_runway_ft": null,
+        "min_runway_ft": {
+          "value": 2885,
+          "kind": "published",
+          "sources": [
+            "bksq-duke"
+          ],
+          "note": "Black Square's Grand Duke performance page: landing distance 2,885 ft at 7,000 lb maximum landing weight, longer than the takeoff distance over a 50 ft obstacle (2,360 ft at 7,000 lb, sea level, ISA); the longer of the two. The page does not state the landing distance's obstacle height. Figures of the add-on's manual, which reproduces the Grand Duke package's performance."
+        },
         "ceiling_ft": {
           "value": 30000,
           "kind": "published",
@@ -7993,7 +8404,14 @@
           ],
           "note": "Certified maximum operating limit of the Duke B60 airframe (TCDS A12CE Rev 27, p. 3). BLR's Grand Duke documents publish no different ceiling and the TCDS lists no change for the supplemental type certificates."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 25,
+          "kind": "published",
+          "sources": [
+            "bksq-duke"
+          ],
+          "note": "'Maximum Demonstrated Crosswind Component: 25 kts' on the Grand Duke performance page (the same figure is given for the stock B60); one value for takeoff and landing."
+        },
         "cruise_alt_ft": {
           "value": 26000,
           "kind": "published",
@@ -8278,8 +8696,8 @@
       "variant": "Boeing C-17A Globemaster III, four Pratt & Whitney F117-PW-100 (PW2040) turbofans, maximum gross takeoff weight 585,000 lb",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "afsheet",
@@ -8294,9 +8712,24 @@
           "publisher": "U.S. Air Force (af.mil), via the Internet Archive",
           "page": "Features, paragraph 4: 'initial cruise altitude of 28,000 feet ... cruise speed is approximately 450 knots (.74 Mach)'",
           "url": "https://web.archive.org/web/20260208223324id_/https://www.af.mil/About-Us/Fact-Sheets/Display/Article/977489/c-17-globemaster-iii/"
+        },
+        {
+          "id": "miltech",
+          "title": "Boeing C-17 Globemaster III for Microsoft Flight Simulator 2024, user manual (PDF, November 2024)",
+          "publisher": "Miltech Simulations (hosted on Microsoft Flight Simulator's Aircraft Manuals page)",
+          "page": "PDF p. 9, 2.2 Performance Characteristics table (Max Takeoff Weight 585,000 lb; Takeoff Run at MTOW 8,200 ft; Landing Distance 3,500 ft); PDF p. 16, 2.4.3 Centre Console Panel Overview item 3 'Cabin Pressurization System Panel'; PDF p. 34, 3.4 Pneumatic / Environmental System (sub-systems include Pressurization)",
+          "url": "https://flightsimulator.azureedge.net/wp-content/uploads/2024/11/C17-Manual.pdf",
+          "simManual": true
         }
       ],
-      "pressurised": null,
+      "pressurised": {
+        "value": true,
+        "kind": "published",
+        "sources": [
+          "miltech"
+        ],
+        "note": "Miltech's C-17 manual lists a Cabin Pressurization System Panel on the centre console (PDF p. 16) and Pressurization as a sub-system of the Pneumatic / Environmental System (PDF p. 34), which uses 'pressurized air'."
+      },
       "values": {
         "cruise_kts": {
           "value": 450,
@@ -8307,7 +8740,14 @@
           ],
           "note": "Air Force fact sheet: 'Speed: 450 knots at 28,000 feet (8,534 meters) (Mach .74)'; the current sheet repeats 'cruise speed is approximately 450 knots (.74 Mach)'. Kept as published. (ISA, M0.74 at 28,000 ft works out to about 440 kt TAS; the Air Force's own figure is used.) An older Air Force sheet (govinfo copy) pairs the same 450 kt at 28,000 ft with 'Mach .76', which is what 450 kt works out to in the standard atmosphere; the later sheet says .74. The knots figure is the one used."
         },
-        "min_runway_ft": null,
+        "min_runway_ft": {
+          "value": 8200,
+          "kind": "published",
+          "sources": [
+            "miltech"
+          ],
+          "note": "Miltech manual, Performance Characteristics: 'Takeoff Run at MTOW 8,200 ft' (MTOW 585,000 lb, the variant's weight). The manual gives no planning chart for the midpoint weight between MLW and MTOW (it lists only this and 3,000 ft at 395,000 lb), so the MTOW figure is used. Landing Distance 3,500 ft is shorter."
+        },
         "ceiling_ft": {
           "value": 45000,
           "kind": "published",
@@ -8847,8 +9287,8 @@
       "variant": "Cessna 525C Citation CJ4, two Williams FJ44-4A, MTOW 17,110 lb / MLW 15,660 lb (Specification & Description, units 525C-0119 and on)",
       "preset": "Light jet",
       "icon": "jet",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "tcds",
@@ -8870,6 +9310,14 @@
           "publisher": "Cessna Aircraft Company (archived copy of cessna.com/~/media/Files/citation/cj4/CJ4.ashx, 15 April 2013)",
           "page": "PDF page 28 (printed p. 27): Maximum Cruise Speed (31,000 ft, mid-cruise weight) 451 ktas, Airport Performance, Ceiling, Pressurization 9.0 psi, Design Weights (MTOW 16,950 lb in this earlier edition)",
           "url": "https://web.archive.org/web/20130415235759id_/http://www.cessna.com:80/~/media/Files/citation/cj4/CJ4.ashx"
+        },
+        {
+          "id": "msfsguide",
+          "simManual": true,
+          "title": "MSFS Cessna Citation CJ4 (Model 525C) Operator's Guide, v1 (Microsoft Flight Simulator Cessna Citation CJ4, MSFS 2020 and 2024)",
+          "publisher": "Microsoft / Asobo Studio (Microsoft Flight Simulator aircraft manuals page)",
+          "page": "Section 2 Limitations, Wind Limits, p. 2-1 (PDF p. 5)",
+          "url": "https://flightsimulator.azureedge.net/wp-content/uploads/2023/02/Cessna-Citation-CJ4-User-Guide-v1.pdf"
         }
       ],
       "pressurised": {
@@ -8908,7 +9356,14 @@
           ],
           "note": "TCDS D.III item 11: \"13,716 m (45,000 ft)\". Specification and Description: \"Maximum Altitude 45,000 ft (13,716 m)\"."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 25,
+          "kind": "published",
+          "sources": [
+            "msfsguide"
+          ],
+          "note": "The MSFS Operator's Guide's Limitations chapter (which reproduces the real 525C's weight limits, 17,110 lb MTOW / 15,660 lb MLW, as the entry) lists \"Maximum demonstrated crosswind 25 KTS\" (and maximum landing tailwind 10 kt). No separate takeoff figure is given."
+        },
         "cruise_alt_ft": {
           "value": 31000,
           "kind": "published",
@@ -8945,7 +9400,7 @@
       "variant": "Lockheed Martin C-130J (standard 97 ft 9 in fuselage), four Rolls-Royce AE 2100D3 turboprops, 4,700 shp, maximum take-off weight 164,000 lb (the Air Force fact sheet gives 164,000 lb / 74,393 kg)",
       "preset": "Turboprop",
       "icon": "turboprop",
-      "researched": "2026-10-25",
+      "researched": "2026-10-26",
       "checked": "2026-10-26",
       "sources": [
         {
@@ -8954,9 +9409,24 @@
           "publisher": "U.S. Air Force (af.mil)",
           "page": "General Characteristics: 'Speed: C-130J: 417 mph/362 ktas (Mach 0.59) at 22,000 feet (6,706 meters)'; 'Ceiling: C-130J: 28,000 feet (8,615 meters) with 42,000 pounds (19,090 kilograms) payload'; 'Maximum Takeoff Weight: C-130J: 164,000 pounds'",
           "url": "https://web.archive.org/web/20250111064810id_/https://www.af.mil/About-Us/Fact-Sheets/Display/Article/1555054/c-130-hercules/"
+        },
+        {
+          "id": "bbman",
+          "simManual": true,
+          "title": "C-130J ADV User Guide (Blackbird Simulations, copyright 2025; MSFS 2024; the guide linked from the product page, as hosted 2026-10-26)",
+          "publisher": "Blackbird Simulations",
+          "page": "Overview, Environmental control systems, printed p. A4-13 (PDF p. 35): 'The aircraft is heated, cooled, and pressurized by engine or APU bleed air ... Cabin pressurization is regulated by two valves'",
+          "url": "https://blackbirdsims.com/flight/PG.php?id=85"
         }
       ],
-      "pressurised": null,
+      "pressurised": {
+        "value": true,
+        "kind": "published",
+        "sources": [
+          "bbman"
+        ],
+        "note": "The add-on's guide describes the cabin as pressurized by bleed air with a wastegate and safety valve (printed p. A4-13). The add-on models both a long and a short fuselage."
+      },
       "values": {
         "cruise_kts": {
           "value": 362,
@@ -9208,8 +9678,18 @@
         "note": "NZ CAA report: 'The Cessna 404 is an unpressurised low-wing light twin-engine piston aircraft'."
       },
       "values": {
-        "cruise_kts": null,
-        "min_runway_ft": null,
+        "cruise_kts": {
+          "value": 224,
+          "kind": "estimated",
+          "from": "C414",
+          "note": "No source gives it; the Cessna 414AW's 224 as it stands: same maker and class of cabin piston twin, within a fifth of its weight (6,750 lb against 8,400 lb)."
+        },
+        "min_runway_ft": {
+          "value": 2600,
+          "kind": "estimated",
+          "from": "C414",
+          "note": "No source gives it; the Cessna 414AW's 2600 as it stands: same maker and class of cabin piston twin, within a fifth of its weight (6,750 lb against 8,400 lb)."
+        },
         "ceiling_ft": {
           "value": 30000,
           "kind": "published",
@@ -9229,7 +9709,11 @@
           "kind": "preset",
           "note": "Piston twin class preset; no accepted source gives a time to climb."
         },
-        "climb_kts": null,
+        "climb_kts": {
+          "value": 155,
+          "kind": "preset",
+          "note": "Piston twin class preset: 70% of the 224 kt estimated cruise speed = 156.8 -> 155 kt."
+        },
         "descent_fpm": {
           "value": 700,
           "kind": "preset",
@@ -9556,7 +10040,12 @@
           ],
           "note": "Fourth-tier source (AOPA Pilot buyer's article); it names no altitude, power or weight, so this is the headline cruise speed, not a typical-cruise TAS at a stated altitude. The same article gives a maximum takeoff weight of 13,300 lb (the earlier serial numbers). The same article says the II's maximum cruise was 'advertised in the 350-knot range at 35,000 feet' though many say that is optimistic; AOPA's 1992 Turbine Pilot piece was not used for a figure. 375 kt is kept as the article's stated cruise speed, noted as a headline figure."
         },
-        "min_runway_ft": null,
+        "min_runway_ft": {
+          "value": 3180,
+          "kind": "estimated",
+          "from": "C25B",
+          "note": "No source gives it; the Citation CJ3's 3180 as it stands: same maker and class, the closest maximum takeoff weight (Citation CJ3, 13,870 lb, against 13,300 lb)."
+        },
         "ceiling_ft": {
           "value": 43000,
           "kind": "published",
@@ -11489,8 +11978,8 @@
       "variant": "DC-6 as given in Boeing's DC-6/C-118A Liftmaster specification sheet (four Pratt & Whitney R-2800-CB engines of 2,400 hp, weight 107,000 lb, up to 102 passengers; the sheet's model number reads 'DC-6' and its first-flight date is the 1946 DC-6, but its weight, power and passenger figures are those of the DC-6B, the most-built version)",
       "preset": "Piston twin",
       "icon": "twin-piston",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "bp",
@@ -11498,6 +11987,14 @@
           "publisher": "The Boeing Company",
           "page": "Printed p. 23: Power four 2,400-hp Pratt & Whitney R2800CB, weight 107,000 pounds, operating altitude 28,000 feet, range 2,990 miles, speed 308 mph; text: 'pressurized cabin ... maintain the cabin pressure of 5,000 feet while flying at 20,000 feet'",
           "url": "https://www.boeing.com/content/dam/boeing/v2/company/history/pdf/Boeing_Products.pdf"
+        },
+        {
+          "id": "pmdg",
+          "title": "DC-6 Operation Manual, PMDG DC-6 for MSFS 2020 & 2024 (August 2021)",
+          "publisher": "Precision Manuals Development Group (PMDG)",
+          "page": "Section IV Operating Restrictions and Limitations, item 18 'Critical Cross-Wind Operation', printed p. 192 (PDF p. 203)",
+          "url": "https://downloads.pmdg.com/supportfiles/Docs/PMDG_DC-6_MSFS_POH.pdf",
+          "simManual": true
         }
       ],
       "pressurised": {
@@ -11518,7 +12015,12 @@
           "calculation": "Boeing's specification sheet: speed 308 mph; 308 / 1.150779 = 267.7 -> 268 kt (mph to knots).",
           "note": "Boeing's headline figure, labelled only 'Speed', naming neither power nor altitude; taken as the headline cruise speed."
         },
-        "min_runway_ft": null,
+        "min_runway_ft": {
+          "value": 4600,
+          "kind": "estimated",
+          "from": "CONS",
+          "note": "No source gives it; the L-1049G's 4600 as it stands: same class and engine kind, the closest maximum takeoff weight (Super Constellation 1049E, 133,000 lb against DC-6, 107,000 lb), a four-engined airliner of the same era."
+        },
         "ceiling_ft": {
           "value": 28000,
           "kind": "published",
@@ -11527,7 +12029,14 @@
           ],
           "note": "Boeing's 'operating altitude', taken as the manufacturer's published ceiling; no certified maximum found (TCDS not found)."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 26,
+          "kind": "published",
+          "sources": [
+            "pmdg"
+          ],
+          "note": "The manual (a reproduction of the Douglas DC-6 operation manual, for the R-2800-CB16 DC-6) says the airplane 'is considered to be satisfactory for landings and take-offs in direct cross-winds up to 26 knots' (wind measured at the control tower, 50 ft above the field), and that 26 knots 'is not the limiting value for cross-wind handling, but was the highest value available during the type certification tests': a demonstrated value, one figure for takeoff and landing. Read from a simulator manual; the add-on models the DC-6A and DC-6B."
+        },
         "cruise_alt_ft": {
           "value": 8000,
           "kind": "preset",
@@ -11968,7 +12477,12 @@
           ],
           "note": "Aircraft Commerce's tabulated 'Max. cruise speed' for the Dash 8-102 (PW120A): 265 kt. The journal's headline maximum cruise names neither power nor altitude, so this is the manufacturer-type headline figure, not a TAS at the typical cruise altitude (tier 4; table MTOW 34,500 lb vs the variant's TCDS 34,700 lb; same model and engine)."
         },
-        "min_runway_ft": null,
+        "min_runway_ft": {
+          "value": 4694,
+          "kind": "estimated",
+          "from": "DH8D",
+          "note": "No source gives it; the DHC8-402's 4694 as it stands: a version of the same family by the same maker; the Dash 8-400 is much heavier, so the runway is likely overstated."
+        },
         "ceiling_ft": {
           "value": 25000,
           "kind": "published",
@@ -12046,7 +12560,12 @@
           ],
           "note": "Aircraft Commerce's tabulated 'Max. cruise speed' for the Dash 8-201 and -202 (both columns read 300): 300 kt. The journal's headline maximum cruise names neither power nor altitude, so this is the manufacturer-type headline figure, not a TAS at the typical cruise altitude (tier 4; table MTOW 36,300 lb vs the variant's TCDS 36,500 lb; same models and engines)."
         },
-        "min_runway_ft": null,
+        "min_runway_ft": {
+          "value": 4694,
+          "kind": "estimated",
+          "from": "DH8D",
+          "note": "No source gives it; the DHC8-402's 4694 as it stands: a version of the same family by the same maker; the Dash 8-400 is much heavier, so the runway is likely overstated."
+        },
         "ceiling_ft": {
           "value": 25000,
           "kind": "published",
@@ -12124,7 +12643,12 @@
           ],
           "note": "Aircraft Commerce's tabulated 'Max. cruise speed' for the Dash 8-311HGW (PW123): 287 kt. The journal's headline maximum cruise names neither power nor altitude, so this is the manufacturer-type headline figure, not a TAS at the typical cruise altitude (tier 4; table MTOW 43,000 lb vs the variant's TCDS 43,200 lb; same model and engine)."
         },
-        "min_runway_ft": null,
+        "min_runway_ft": {
+          "value": 4694,
+          "kind": "estimated",
+          "from": "DH8D",
+          "note": "No source gives it; the DHC8-402's 4694 as it stands: a version of the same family by the same maker; the Dash 8-400 is heavier, so the runway is likely overstated."
+        },
         "ceiling_ft": {
           "value": 25000,
           "kind": "published",
@@ -12969,8 +13493,8 @@
       "variant": "ERJ 170-200 (Embraer 175) AR model, GE CF34-8E5A1 engines, at the heaviest weights the planning manual gives (MTOW 40,370 kg / 89,000 lb, MLW 34,100 kg / 75,177 lb). First-generation E-Jet (E1), not the E2",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "tcds",
@@ -12992,6 +13516,14 @@
           "publisher": "Embraer Commercial Aviation",
           "page": "Performance Characteristics table, page 2 of the sheet (Service ceiling; Time to climb to FL350; Landing field length, MLW, ISA, SL); Payload range page 3 (note \"Cruise at M\")",
           "url": "https://web.archive.org/web/20150824045525/http://www.embraercommercialaviation.com/AircraftPDF/E175_Performance.pdf"
+        },
+        {
+          "id": "fss",
+          "simManual": true,
+          "title": "Limitations, E-Jet Series documentation, FlightSim Studio E-Jets 170/175 (MSFS 2020 and 2024; page read 26 October 2026)",
+          "publisher": "FlightSim Studio AG",
+          "page": "Normal Procedures > Limitations > Speeds & X Wind > XWIND > Takeoff (Dry 38 kt; Wet 31 kt; contaminated 12-20 kt)",
+          "url": "https://docs.flightsim-studio.com/e-jet-series/normal-procedures/limitations"
         }
       ],
       "pressurised": {
@@ -13031,7 +13563,14 @@
           ],
           "note": "TCDS: Maximum Operating Altitude 12,497 m (41,000 ft) pressure altitude; Embraer's sheet gives the same service ceiling."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 38,
+          "kind": "published",
+          "sources": [
+            "fss"
+          ],
+          "note": "The dry-runway crosswind limit the E-Jet Series limitations page lists (Takeoff: dry 38 kt, wet 31 kt, compact snow 20 kt, other contaminated 18 kt, ice 12 kt); the page gives no separate landing figure. Its weights and dimensions are the E175's (max takeoff 38,790 kg, max landing 34,000 kg)."
+        },
         "cruise_alt_ft": {
           "value": 35000,
           "kind": "published",
@@ -13679,8 +14218,8 @@
       "variant": "Fokker F28 Mark 0100 (Fokker 100), two Rolls-Royce Tay 650-15 turbofans, high gross weight: maximum take-off weight 45,810 kg (101,000 lb), maximum landing weight 39,915 kg (88,000 lb)",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "tcds",
@@ -13702,6 +14241,14 @@
           "publisher": "Fokker Services Group (type-support successor to Fokker; current booklet)",
           "page": "PDF p. 4 'Performance': Takeoff Field Length vs Range chart (ISA@Sea Level curve) and Payload vs Range chart (MTOW = 45,810 kg); 'Landing Field Length @ MLW' table: ISA, Sea Level 1345 m; PDF p. 6 Weights: MTOW 45,810 kg, MLW 39,915 kg",
           "url": "https://fokkerservicesgroup.com/media/emccsdnm/fsg_fokker-100.pdf"
+        },
+        {
+          "id": "jfman",
+          "simManual": true,
+          "title": "F70 and F100 Professional Operations Manual (Just Flight, MSFS 2020 and 2024; current manual as hosted 2026-10-26)",
+          "publisher": "Just Flight",
+          "page": "Introduction, Aircraft specifications, Performance table (printed p. 10): F100 'Economical cruise 0.73 Mach / 246 IAS at 35,000 ft'",
+          "url": "https://downloads.justflight.com/products/JFF003811/F70_F100_Professional_MSFS_manual.pdf"
         }
       ],
       "pressurised": {
@@ -13713,7 +14260,15 @@
         "note": "The Mark 0100 is certified to a maximum operating pressure altitude of 35,000 ft, with a cabin pressurization control system (JAR 25.841(b)(3)) and pressurized cabin loads (JAR 25.365(e)) in its certification basis."
       },
       "values": {
-        "cruise_kts": null,
+        "cruise_kts": {
+          "value": 420,
+          "kind": "derived",
+          "sources": [
+            "jfman"
+          ],
+          "calculation": "The manual gives the F100's economical cruise as 0.73 Mach at 35,000 ft. Standard atmosphere at 35,000 ft: T = 288.15 - 0.0019812 x 35000 = 218.81 K; a = 661.47 x sqrt(218.81/288.15) = 576.4 kt; TAS = 0.73 x 576.4 = 420.8 kt -> 420 kt.",
+          "note": "Economical cruise Mach as printed in the Just Flight F70/F100 Professional manual's specification table (its 246 kt IAS is the same point). The add-on's sim engines are Tay 620-15 where this entry's variant is the Tay 650-15; cruise Mach is not taken to depend on that."
+        },
         "min_runway_ft": {
           "value": 5900,
           "kind": "derived",
@@ -13741,15 +14296,22 @@
         },
         "cruise_alt_ft": {
           "value": 35000,
-          "kind": "preset",
-          "note": "Airliner class preset 35,000 ft; equal to the 35,000 ft certified ceiling, so not lowered. No accepted source gives a typical cruise altitude."
+          "kind": "published",
+          "sources": [
+            "jfman"
+          ],
+          "note": "The altitude at which the manual quotes the 0.73 Mach economical cruise (35,000 ft); equal to the 35,000 ft certified ceiling."
         },
         "climb_fpm": {
           "value": 2000,
           "kind": "preset",
           "note": "No accepted source gives a time to climb; Airliner class preset."
         },
-        "climb_kts": null,
+        "climb_kts": {
+          "value": 380,
+          "kind": "preset",
+          "note": "Airliner class preset: 90% of the 420 kt cruise speed = 378 -> 380 kt."
+        },
         "descent_fpm": {
           "value": 2000,
           "kind": "preset",
@@ -13894,7 +14456,12 @@
         "note": "EASA.A.036 Issue 07 lists the 'Cabin pressurization control system (JAR 25.841(b)(3))' among the certification review items for the Mark 050/0502/0604 (p. 28 of 33), and the type is certified to 25,000 ft."
       },
       "values": {
-        "cruise_kts": null,
+        "cruise_kts": {
+          "value": 278,
+          "kind": "estimated",
+          "from": "AT72",
+          "note": "No source gives it; the ATR-72-201's 278 as it stands: same class and engine kind, the closest maximum takeoff weight (ATR 72-200, about 48,500 lb against Fokker 50, 45,900 lb)."
+        },
         "min_runway_ft": {
           "value": 4500,
           "kind": "derived",
@@ -13923,7 +14490,11 @@
           "kind": "preset",
           "note": "Turboprop class preset; no accepted source gives a time to climb."
         },
-        "climb_kts": null,
+        "climb_kts": {
+          "value": 165,
+          "kind": "preset",
+          "note": "Turboprop class preset: 60% of the 278 kt estimated cruise speed = 166.8 -> 165 kt."
+        },
         "descent_fpm": {
           "value": 1500,
           "kind": "preset",
@@ -13937,8 +14508,8 @@
       "variant": "Fokker 70 (F28 Mark 0070), two Rolls-Royce Tay 620-15, at MTOW 41,730 kg (92,000 lb) / MLW 36,740 kg (81,000 lb)",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "tcds",
@@ -13953,6 +14524,14 @@
           "publisher": "Fokker Services Group",
           "page": "PDF page 4 'Performance': chart 'Takeoff Field Length vs Range' (ISA@Sea Level, ends at 1700 nm at 1640 m) and table 'Landing Field Length @ MLW' (ISA, Sea Level 1270 m); PDF page 6 weights (MTOW 41,730 kg / 92,000 lb, MLW 36,740 kg / 81,000 lb)",
           "url": "https://fokkerservicesgroup.com/media/dzah2lpk/fsg_fokker-70.pdf"
+        },
+        {
+          "id": "jf-ops",
+          "simManual": true,
+          "title": "F70 and F100 Professional Operations Manual (Just Flight, MSFS 2020 and 2024), 2026 edition, product JFF003811",
+          "publisher": "Just Flight",
+          "page": "Specifications, Performance, printed p. 10 (F70: 'Economical cruise 0.73 Mach / 246 IAS at 35,000 ft'); Limitations and system data, Maximum wind components, printed p. 188 (Take-off and Manual Landing table)",
+          "url": "https://downloads.justflight.com/products/JFF003811/F70_F100_Professional_MSFS_manual.pdf"
         }
       ],
       "pressurised": {
@@ -13964,7 +14543,15 @@
         "note": "The Mark 0070 certification basis (the Mark 0100's, p. 33) carries special conditions on pressurized cabin loads (JAR 25.365(e), p. 34) and the cabin pressurization control system (JAR 25.841(b)(3), p. 35); the ceiling is a 'maximum operating pressure altitude'. No cabin altitude or differential given."
       },
       "values": {
-        "cruise_kts": null,
+        "cruise_kts": {
+          "value": 420,
+          "kind": "derived",
+          "sources": [
+            "jf-ops"
+          ],
+          "calculation": "The manual's F70 'Economical cruise 0.73 Mach / 246 IAS at 35,000 ft' (p. 10). ISA at 35,000 ft: T = 218.81 K; a = 661.47 x sqrt(218.81 / 288.15) = 576.4 kt; TAS = 0.73 x 576.4 = 420.8 -> 420 kt (nearest 5).",
+          "note": "Just Flight reproduces Fokker's economical cruise for the F70 (Tay 620-15, MTOW 41,730 kg / MLW 36,740 kg, as the variant) in its Operations Manual; the same Mach and altitude are given for the F100."
+        },
         "min_runway_ft": {
           "value": 5400,
           "kind": "derived",
@@ -13982,18 +14569,32 @@
           ],
           "note": "EASA TCDS A.037, Model F28 Mark 0070, item 9 'Maximum operating pressure altitude 35 000 ft' (p. 27 of 40)."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 35,
+          "kind": "published",
+          "sources": [
+            "jf-ops"
+          ],
+          "note": "The manual's 'Maximum wind components' table, Take-off and Manual Landing, braking action GOOD (friction coefficient 0.40 or more): crosswind 35 kt (15 kt at medium 0.30-0.35, 5 kt at poor); one figure for take-off and manual landing, so no lower of the two to take. Lower limits apply to CAT II manual landing (25 kt) and autoland (25 kt), special approach cases not used, and to system failures (10-20 kt, p. 190). It is the limitations page of the Fokker operations manual as Just Flight reproduces it, not the developer's sim advice."
+        },
         "cruise_alt_ft": {
           "value": 35000,
-          "kind": "preset",
-          "note": "Airliner class preset altitude, equal to the 35,000 ft ceiling."
+          "kind": "published",
+          "sources": [
+            "jf-ops"
+          ],
+          "note": "The altitude at which the manual quotes the 0.73 Mach economical cruise (p. 10); equal to the 35,000 ft ceiling."
         },
         "climb_fpm": {
           "value": 2000,
           "kind": "preset",
           "note": "Airliner class preset; no published time to climb found."
         },
-        "climb_kts": null,
+        "climb_kts": {
+          "value": 380,
+          "kind": "preset",
+          "note": "Airliner class preset: 90% of the 420 kt cruise speed = 378 -> 380 kt."
+        },
         "descent_fpm": {
           "value": 2000,
           "kind": "preset",
@@ -14007,8 +14608,8 @@
       "variant": "Mystère-Falcon 50 (Falcon 50, the original model, not the 50EX), three Honeywell/Allied Signal TFE731-3-1C (3,700 lb thrust each); weights at the heaviest TCDS option (modification M1230/M1430: MTOW 18,500 kg / 40,780 lb, MLW 16,200 kg / 35,715 lb); without modification M17",
       "preset": "Light jet",
       "icon": "jet",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "tcds",
@@ -14030,6 +14631,14 @@
           "publisher": "Aircraft Owners and Pilots Association (AOPA Pilot)",
           "page": "Article text, paragraph on operation: 'Operators typically fly the 50 at Mach 0.8/460 KTAS at altitudes of FL360 to FL410'; spec sheet: Balanced field length (sea level) 4,700 ft; Maximum takeoff weight 38,800 (50) to 40,780 (EX) lb",
           "url": "https://www.aopa.org/news-and-media/all-news/2016/august/pilot/quick-look"
+        },
+        {
+          "id": "contrail",
+          "simManual": true,
+          "title": "Contrail FA50 documentation, Specs & Limitations (Contrail Falcon 50 for MSFS 2020 and 2024), page read 26 October 2026",
+          "publisher": "Contrail",
+          "page": "Aircraft > Specs & Limitations, Miscellaneous table: 'Demonstrated crosswind component 23 kts'",
+          "url": "https://docs.contrail.shop/aircraft/falcon-50/aircraft/specs-and-limitations"
         }
       ],
       "pressurised": {
@@ -14066,7 +14675,14 @@
           ],
           "note": "Maximum operating altitude without Modification M17: FL450 (EASA 2.5.9); FAA A46EU also gives 45,000 ft. With M17 or SB F50-0163 it is FL490 (EASA). AOPA's Quick Look quotes the 50's service ceiling as FL410, a lower-ranked figure."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 23,
+          "kind": "published",
+          "sources": [
+            "contrail"
+          ],
+          "note": "Contrail's Specs & Limitations page gives a demonstrated crosswind component of 23 kt (one figure, no separate takeoff and landing values). The page's weights (MTOW 40,780 lb, MLW 35,715 lb, three TFE731-3-1C) match this entry."
+        },
         "cruise_alt_ft": {
           "value": 37000,
           "kind": "preset",
@@ -14747,6 +15363,71 @@
       "checked": "2026-10-25"
     },
     {
+      "type": "IL18",
+      "name": "Ilyushin IL-18D",
+      "variant": "Ilyushin Il-18D, four Ivchenko AI-20M turboprops with AV-68I propellers (the Il-18D, with enlarged fuel tanks, as the Nemeth Designs add-on models it)",
+      "preset": "Turboprop",
+      "icon": "turboprop",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
+      "sources": [
+        {
+          "id": "nem",
+          "title": "Ilyushin Il-18, Technical Description, Part 1 - Systems Information, Nemeth Designs Ilyushin Il-18D for Microsoft Flight Simulator 2024 (2026)",
+          "publisher": "Nemeth Designs",
+          "page": "Chapter I General information about the aircraft (p. 3: pressurized cabin) and Flight and take-off/landing data (p. 6: practical ceiling 9200 m); Chapter IX Pressurization, heating and ventilation system (p. 44)",
+          "url": "https://www.nemethdesigns.com/wp-content/uploads/2026/08/Nemeth_IL-18_Description.pdf",
+          "simManual": true
+        }
+      ],
+      "pressurised": {
+        "value": true,
+        "kind": "published",
+        "sources": [
+          "nem"
+        ],
+        "note": "'Crew and passengers occupy a pressurized cabin that maintains adequate pressure and normal temperature at all altitudes'; Chapter IX describes the pressurization system (the Il-18D/E has a new cabin pressure-regulation system)."
+      },
+      "values": {
+        "cruise_kts": {
+          "value": 362,
+          "kind": "estimated",
+          "from": "C30J",
+          "note": "No source gives it; the C-130J Super Hercules's 362 as it stands: same class and engine kind, the closest maximum takeoff weight (C-130J, 164,000 lb against Il-18D, about 141,000 lb)."
+        },
+        "min_runway_ft": null,
+        "ceiling_ft": {
+          "value": 30184,
+          "kind": "published",
+          "sources": [
+            "nem"
+          ],
+          "note": "'the practical ceiling (where climb falls to 0.5 m/s) is 9200 m' (standard atmosphere, take-off weight 61,200 kg), converted to feet (9,200 / 0.3048 = 30,184). A published service ceiling, not a certified maximum operating altitude (none found)."
+        },
+        "max_xwind_kts": null,
+        "cruise_alt_ft": {
+          "value": 24000,
+          "kind": "preset",
+          "note": "Turboprop class preset (24,000 ft), below the 30,184 ft ceiling; pressurised, so no 12,000 ft cap. The manual gives a maximum speed at 8,000 m but no cruise speed at an altitude."
+        },
+        "climb_fpm": {
+          "value": 1500,
+          "kind": "preset",
+          "note": "No published time to climb; Turboprop class preset."
+        },
+        "climb_kts": {
+          "value": 215,
+          "kind": "preset",
+          "note": "Turboprop class preset: 60% of the 362 kt estimated cruise speed = 217.2 -> 215 kt."
+        },
+        "descent_fpm": {
+          "value": 1500,
+          "kind": "preset",
+          "note": "No published descent rate; Turboprop class preset."
+        }
+      }
+    },
+    {
       "type": "JS41",
       "name": "BAE JS-41",
       "variant": "BAe Jetstream 4100 series (Jetstream 41, Model 4101), two Honeywell (Garrett) TPE331-14GR/HR",
@@ -14772,8 +15453,18 @@
         "note": "Indirect: the TCDS certification basis lists a Rapid Decompression special condition (JS41/07) and the JAR 25.783(f) door requirement 'means of preventing pressurisation'. It states no cabin pressure differential."
       },
       "values": {
-        "cruise_kts": null,
-        "min_runway_ft": null,
+        "cruise_kts": {
+          "value": 283,
+          "kind": "estimated",
+          "from": "SF34",
+          "note": "No source gives it; the Saab 340B's 283 as it stands: same class and engine kind, the closest maximum takeoff weight (Saab 340B, 29,000 lb against Jetstream 41, about 24,000 lb)."
+        },
+        "min_runway_ft": {
+          "value": 4300,
+          "kind": "estimated",
+          "from": "SF34",
+          "note": "No source gives it; the Saab 340B's 4300 as it stands: same class and engine kind, the closest maximum takeoff weight (Saab 340B, 29,000 lb against Jetstream 41, about 24,000 lb)."
+        },
         "ceiling_ft": {
           "value": 26000,
           "kind": "published",
@@ -14793,7 +15484,11 @@
           "kind": "preset",
           "note": "No published time to climb found; Turboprop class preset."
         },
-        "climb_kts": null,
+        "climb_kts": {
+          "value": 170,
+          "kind": "preset",
+          "note": "Turboprop class preset: 60% of the 283 kt estimated cruise speed = 169.8 -> 170 kt."
+        },
         "descent_fpm": {
           "value": 1500,
           "kind": "preset",
@@ -14849,7 +15544,12 @@
           ],
           "note": "Daher's maximum cruise speed: \"Maximum Cruise 174 ktas, 12,000 ft\" (ISA, maximum takeoff weight, without cargo pod; the manufacturer's web page for the Kodiak 100 gives the same). The long-range cruise is 135 ktas at 12,000 ft. Newer Daher web copy quotes 183 KTS for the Series III."
         },
-        "min_runway_ft": null,
+        "min_runway_ft": {
+          "value": 2430,
+          "kind": "estimated",
+          "from": "TBM9",
+          "note": "No source gives it; the TBM 900's 2430 as it stands: same class and engine kind, the closest maximum takeoff weight (TBM 900, 7,394 lb against Kodiak 100, 7,255 lb); the Kodiak is a STOL design, so the runway is likely overstated."
+        },
         "ceiling_ft": {
           "value": 25000,
           "kind": "published",
@@ -14891,8 +15591,8 @@
       "variant": "L-1011-500 TriStar (FAA model L-1011-385-3), three Rolls-Royce RB211-524 (48,000 lb thrust class), at the weights of Lockheed's own TriStar 500 brochure (complete scan): MTOW 496,000 lb, MLW 368,000 lb. The FAA data sheet certifies takeoff up to 504,000 / 510,000 lb by service bulletin, but no complete Lockheed planning document or chart covers those weights, so the brochure's are kept",
       "preset": "Airliner",
       "icon": "airliner",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "tcds",
@@ -14907,6 +15607,14 @@
           "publisher": "Lockheed-California Company (scan hosted by TriStar500.net)",
           "page": "Cover panel 'Dimensions and Characteristics' (Maximum Gross Takeoff Weight 496,000 lb; Maximum Landing Weight 368,000 lb); PDF p. 2 'Performance' (cruise 'at a cruise speed of Mach 0.83'; chart 'Dash 500 Airport Performance', sea level, 15 C day, FAR takeoff and landing field length against aircraft weight)",
           "url": "https://www.tristar500.net/library/dash500.pdf"
+        },
+        {
+          "id": "inimanual",
+          "simManual": true,
+          "title": "iniBuilds TriStar Airliner - Aircraft Manual, Version 1.0, March 23rd, 2026 (iniBuilds L-1011-500 TriStar for MSFS 2024)",
+          "publisher": "iniBuilds",
+          "page": "Limitations, Wind Speed Limitations table, printed p. 7",
+          "url": "https://forum.inibuilds.com/topic/35986-aircraft-manual-tristar-airliner/"
         }
       ],
       "pressurised": {
@@ -14946,7 +15654,14 @@
           ],
           "note": "Certified maximum operating altitude: 'Maximum Operating Altitude 43,000 ft. Models L-1011-385-1-15 and -3' (A23WE p. 18 of 23)."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 30,
+          "kind": "published",
+          "sources": [
+            "inimanual"
+          ],
+          "note": "iniBuilds' TriStar manual (L-1011-500, three RB211-524), Wind Speed Limitations table: 'Maximum Certified Crosswind for Take Off & Landing' 30 kt (also 'Maximum Tailwind Component' 10 kt). One figure for takeoff and landing; independent of weight."
+        },
         "cruise_alt_ft": {
           "value": 35000,
           "kind": "preset",
@@ -14984,6 +15699,14 @@
           "publisher": "Federal Aviation Administration (archived copy from rgl.faa.gov)",
           "page": "Section II, Models 25, 25A, 25B, 25C, 25D, 25F - Maximum Operating Altitude and Maximum Weights, page 5 of 38; note on the high-altitude special condition and pressure vessel (Models 25D, 25F with ECR 1409), page 37 of 38",
           "url": "https://web.archive.org/web/20161115001948/http://rgl.faa.gov/Regulatory_and_Guidance_Library/rgMakeModel.nsf/0/396c71dfcebb3fb186257df2004e83ee/$FILE/A10CE_Rev_67.pdf"
+        },
+        {
+          "id": "xp",
+          "title": "Gates Learjet Model 25 Flight Manual, Xtreme Prototypes GLJ Model 25 Classic SE v1 for Microsoft Flight Simulator 2020 (MSFS 2024 compatible), Rev. 02, 20 August 2025",
+          "publisher": "Xtreme Prototypes",
+          "page": "Section 7 Flight Planning: Table 6-9 (cruise FL410, Mach 0.77, page 7), Table 6-5 (takeoff distance requirements, page 5) and Table 6-13 (landing distance requirements, page 11); Section 3 Aircraft Specifications (two CJ610-8A, service ceiling 45,000 ft)",
+          "url": "https://www.xtremeprototypes.com/xp-manuals-en/XTPRO_GLJ25_CSE_v1_MSFS2020_MANUAL_En_R02.pdf",
+          "simManual": true
         }
       ],
       "pressurised": {
@@ -14995,8 +15718,24 @@
         "note": "Indirect: the TCDS notes a pressurisation-system special condition and a pressure-vessel opening limit (3.5 sq in) for the Models 25D and 25F with ECR 1409; the pressure vessel itself is standard to the type."
       },
       "values": {
-        "cruise_kts": null,
-        "min_runway_ft": null,
+        "cruise_kts": {
+          "value": 440,
+          "kind": "derived",
+          "sources": [
+            "xp"
+          ],
+          "calculation": "The manual's cruise planning tables (Tables 6-7 to 6-10, FL250 to FL450) are all at Mach 0.77. Above 36,089 ft ISA is 216.65 K, a = 661.47 x sqrt(216.65/288.15) = 573.5 kt; TAS = 0.77 x 573.5 = 441.6 -> 440 kt (nearest 5 kt).",
+          "note": "Mach 0.77 is the manual's one cruise Mach; it is not labelled typical or economy, so it is the best available cruise figure. The manual's own KTAS entries are a little lower (Table 6-9, FL410, row 0: 437 KTAS; its rows are headed OAT in degrees C without saying ISA deviation), so the standard-atmosphere calculation is used."
+        },
+        "min_runway_ft": {
+          "value": 5100,
+          "kind": "derived",
+          "sources": [
+            "xp"
+          ],
+          "calculation": "Meaning: the longer of takeoff at the weight midway between MLW 13,300 lb and MTOW 15,000 lb (14,150 lb) and landing at MLW (13,300 lb), sea level, standard day (density altitude 0). Table 6-5, density altitude 0: 14,000 lb 4,100 ft, 15,000 lb 4,500 ft -> 4,100 + 0.15 x 400 = 4,160 ft. Table 6-13, density altitude 0: 13,000 lb 5,000 ft, 14,000 lb 5,300 ft -> 5,000 + 0.3 x 300 = 5,090 ft. The longer is the landing, 5,090 -> 5,100 ft (up to the next 100 ft).",
+          "note": "The manual labels its tables simplified and for reference only (the simulator differs from the real world); they are 'takeoff distance requirements' and 'landing distance requirements' by density altitude, not airport-planning field lengths. The landing figure assumes full flaps, spoilers, thrust reversers and normal braking."
+        },
         "ceiling_ft": {
           "value": 45000,
           "kind": "published",
@@ -15007,16 +15746,23 @@
         },
         "max_xwind_kts": null,
         "cruise_alt_ft": {
-          "value": 37000,
-          "kind": "preset",
-          "note": "Light jet class preset, below the 45,000 ft ceiling."
+          "value": 41000,
+          "kind": "published",
+          "sources": [
+            "xp"
+          ],
+          "note": "The manual's Mach 0.77 cruise table quoted at FL410 (Table 6-9); below the 45,000 ft ceiling. Its other cruise tables are FL250, FL350 and FL450, at the same Mach."
         },
         "climb_fpm": {
           "value": 2500,
           "kind": "preset",
           "note": "No published time to climb found; Light jet class preset."
         },
-        "climb_kts": null,
+        "climb_kts": {
+          "value": 395,
+          "kind": "preset",
+          "note": "Light jet class preset: 90% of the 440 kt cruise speed = 396 -> 395 kt."
+        },
         "descent_fpm": {
           "value": 2000,
           "kind": "preset",
@@ -15072,7 +15818,12 @@
           ],
           "note": "maximum cruise: USAF C-21 (Learjet 35A) fact sheet, \"Speed: 530 mph (Mach 0.81, 461 knots at 41,000 feet)\" - the type's MMO (TCDS A10CE: M .81 above 23,900 ft), not a typical cruise. M0.81 at FL410 in ISA is 0.81 x 573.6 = 464.6 kt TAS; the fact sheet's 461 kt is its own conversion of 530 mph (460.6 kt), under 1% apart, so the published knots are kept. No typical or economy cruise is published by any accepted source."
         },
-        "min_runway_ft": null,
+        "min_runway_ft": {
+          "value": 5100,
+          "kind": "estimated",
+          "from": "LJ25",
+          "note": "No source gives it; the Learjet 25's 5100 as it stands: a version of the same family by the same maker (the Learjet 35 is the turbofan development of the 25)."
+        },
         "ceiling_ft": {
           "value": 45000,
           "kind": "published",
@@ -16287,6 +17038,14 @@
           "publisher": "Civil Aviation Authority of New Zealand",
           "page": "PDF page 11 (oxygen rules for aircraft: 'Not applicable - not pressurised')",
           "url": "https://www.aviation.govt.nz/assets/aircraft/type-acceptance-reports/Tecnam-P2012.pdf"
+        },
+        {
+          "id": "fss",
+          "title": "Tecnam P2012 Traveller (MSFS 2020 / V2 for MSFS 2024) online Aircraft Flight Manual, Section 5 - Performance (FlightSim Studio documentation)",
+          "publisher": "FlightSim Studio AG",
+          "page": "Section 5 - Performance, 'CROSSWIND': 'Maximum demonstrated crosswind is 24 Kts.'",
+          "url": "https://docs.flightsim-studio.com/tecnam-p2012/aircraft-flight-manual/section-5-performance",
+          "simManual": true
         }
       ],
       "pressurised": {
@@ -16323,7 +17082,14 @@
           ],
           "note": "Certified maximum operating altitude 19500 ft (TCDS item 11, note 8: with at most 4 occupants and oxygen above 13000 ft). Tecnam's brochure gives no ceiling."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 24,
+          "kind": "published",
+          "sources": [
+            "fss"
+          ],
+          "note": "Maximum demonstrated crosswind 24 kt as the FlightSim Studio add-on's flight manual reproduces it (Section 5, Crosswind); no separate takeoff figure is given."
+        },
         "cruise_alt_ft": {
           "value": 10000,
           "kind": "published",
@@ -16455,8 +17221,8 @@
       "variant": "Piper PA-24-250 Comanche 250 (2,900 lb gross), Lycoming O-540 (250 hp)",
       "preset": "Piston single",
       "icon": "single-piston",
-      "researched": "2026-10-25",
-      "checked": "2026-10-25",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
       "sources": [
         {
           "id": "tcds",
@@ -16471,6 +17237,14 @@
           "publisher": "Piper Aircraft Corporation (scan hosted by the North East Comanche type-club document mirror; identical file at pipercomanche.info)",
           "page": "Section I p. 1 (Specification Features: service ceiling); Section III p. 23 (Take-off Performance PA-24-250 table), p. 24 (Climb), p. 25 (Cruising), p. 28 (Landing Performance PA-24-250 table)",
           "url": "https://docs.northeastcomanche.org/piper/753_597-aoh_pa_24_180_pa_24_250-rev_197311.pdf"
+        },
+        {
+          "id": "a2a-manual",
+          "title": "Accu-Sim Comanche 250 for Microsoft Flight Simulator - Pilot's Manual (A2A Simulations, (c) 2023)",
+          "publisher": "A2A Simulations",
+          "page": "p. 35, 'Airspeeds for Normal Operation' table: 'Maximum Demonstrated Crosswind Velocity 17 kts'",
+          "url": "https://www.a2asimulations.com/Manuals/MSFS/Comanche_Pilots_Manual_MSFS.pdf",
+          "simManual": true
         }
       ],
       "pressurised": {
@@ -16507,7 +17281,14 @@
           ],
           "note": "Manufacturer's service ceiling (1A15 certifies no maximum operating altitude). Absolute ceiling 22,000 ft."
         },
-        "max_xwind_kts": null,
+        "max_xwind_kts": {
+          "value": 17,
+          "kind": "published",
+          "sources": [
+            "a2a-manual"
+          ],
+          "note": "A2A's Accu-Sim Comanche 250 manual (MSFS 2020; native MSFS 2024 version of the same manual) lists 'Maximum Demonstrated Crosswind Velocity 17 kts' beside the airspeeds for the PA-24-250 at gross weight, sea level. The Owner's Handbook cited for the entry gives no crosswind figure."
+        },
         "cruise_alt_ft": {
           "value": 7000,
           "kind": "published",
@@ -17228,7 +18009,12 @@
           "calculation": "Base type's figure (B722): Boeing's specification table for the Advanced 727-200 gives cruising speed 570 to 605 mph; the low end, 570 mph / 1.150779 = 495.3 -> 495 kt (miles per hour to knots). The Super 27 is the same 727-200 airframe with its outboard JT8D engines replaced (Flight International, 4 Sep 1996), so it takes the base type's published cruise speed.",
           "note": "Base type's figure (B722). Applied by the re-engined-sister rule; no accepted source gives the Super 27's own cruise Mach or speed (the only speed claim found, 'speed increased by 50 mph', is on a forum/listing site). The base figure is a headline speed in mph, not a Mach number (see the B722 entry's note)."
         },
-        "min_runway_ft": null,
+        "min_runway_ft": {
+          "value": 7600,
+          "kind": "estimated",
+          "from": "B722",
+          "note": "No source gives it; the B727-200's 7600 as it stands: a version of the same family by the same maker (the Super 27 is a re-engined 727-200)."
+        },
         "ceiling_ft": null,
         "max_xwind_kts": null,
         "cruise_alt_ft": {
@@ -17767,7 +18553,12 @@
       },
       "values": {
         "cruise_kts": null,
-        "min_runway_ft": null,
+        "min_runway_ft": {
+          "value": 3813,
+          "kind": "estimated",
+          "from": "B190",
+          "note": "No source gives it; the B1900D's 3813 as it stands: same class and engine kind, the closest maximum takeoff weight (1900D, 17,120 lb against Short 330, 22,900 lb); the Short is a STOL design, so the runway is likely overstated."
+        },
         "ceiling_ft": {
           "value": 20000,
           "kind": "published",
@@ -17830,7 +18621,12 @@
       },
       "values": {
         "cruise_kts": null,
-        "min_runway_ft": null,
+        "min_runway_ft": {
+          "value": 4300,
+          "kind": "estimated",
+          "from": "SF34",
+          "note": "No source gives it; the Saab 340B's 4300 as it stands: same class and engine kind, the closest maximum takeoff weight (Saab 340B, 29,000 lb against Short 360, 27,100 lb)."
+        },
         "ceiling_ft": {
           "value": 20000,
           "kind": "published",
@@ -18173,8 +18969,18 @@
         "note": "FAA report on the SA226/SA227 airframes: the fuselage 'can be pressurized to 7 psi'. The TCDS carries no pressurisation line. The report covers the SA226 and SA227 series, the SA227-AC included."
       },
       "values": {
-        "cruise_kts": null,
-        "min_runway_ft": null,
+        "cruise_kts": {
+          "value": 284,
+          "kind": "estimated",
+          "from": "B190",
+          "note": "No source gives it; the B1900D's 284 as it stands: same class and engine kind, the closest maximum takeoff weight (1900D, 17,120 lb against Metro III, 16,000 lb)."
+        },
+        "min_runway_ft": {
+          "value": 3813,
+          "kind": "estimated",
+          "from": "B190",
+          "note": "No source gives it; the B1900D's 3813 as it stands: same class and engine kind, the closest maximum takeoff weight (1900D, 17,120 lb against Metro III, 16,000 lb)."
+        },
         "ceiling_ft": {
           "value": 31000,
           "kind": "published",
@@ -18193,7 +18999,11 @@
           "value": 1500,
           "kind": "preset"
         },
-        "climb_kts": null,
+        "climb_kts": {
+          "value": 170,
+          "kind": "preset",
+          "note": "Turboprop class preset: 60% of the 284 kt estimated cruise speed = 170.4 -> 170 kt."
+        },
         "descent_fpm": {
           "value": 1500,
           "kind": "preset"
@@ -18235,7 +19045,12 @@
           "calculation": "Section 2, Ch. 2, 6. Level Flight (p. 244): 'The cruising speed of the aircraft is 780-870 kilometers per hour'; ranges are quoted for cruising speeds of 850 and 770 km/h. 850 km/h / 1.852 = 458.96 -> 459 kt (km/h to knots only).",
           "note": "Published as a range 780-870 km/h (421-470 kt) with no stated Mach number or TAS/IAS; the same passage quotes range for cruising speeds of 850 and 770 km/h. 850 km/h is taken as the typical (faster) planning speed, not the midpoint of the range (midpoint 825 km/h = 445 kt); 850 km/h at 11,000 m is about M0.80, in line with the manual's descent Mach 0.80-0.82, so it reads as TAS. Variant is the 44 t Tu-134 with D-30, not the A-3 (rule 5 fallback)."
         },
-        "min_runway_ft": null,
+        "min_runway_ft": {
+          "value": 5900,
+          "kind": "estimated",
+          "from": "F100",
+          "note": "No source gives it; the Fokker 100's 5900 as it stands: same class and engine kind, the closest maximum takeoff weight (Fokker 100, 101,000 lb against Tu-134, 97,000 lb)."
+        },
         "ceiling_ft": {
           "value": 39370,
           "kind": "derived",
@@ -18311,7 +19126,12 @@
           "calculation": "Russian Ministry of Defence's published cruise speed for the Tu-154B-2, 950 km/h / 1.852 = 513.0 -> 513 kt (kilometres per hour to knots).",
           "note": "Headline cruise speed; the page names neither a Mach number nor an altitude or power setting. Other sources found (reference sites and encyclopedias, not accepted) give 850-950 km/h, so the figure may be a maximum-cruise figure."
         },
-        "min_runway_ft": null,
+        "min_runway_ft": {
+          "value": 7600,
+          "kind": "estimated",
+          "from": "B722",
+          "note": "No source gives it; the B727-200's 7600 as it stands: same class and engine kind, the closest maximum takeoff weight (727-200, 209,500 lb against Tu-154B-2, 216,000 lb), a trijet of the same layout."
+        },
         "ceiling_ft": null,
         "max_xwind_kts": null,
         "cruise_alt_ft": {
@@ -18549,6 +19369,81 @@
           "value": 1500,
           "kind": "preset",
           "note": "Turboprop class preset. The PIM's descent table (Fig. 5.12.1, p. 5.12.1) lists constant-rate descents at 1500, 2000 and 2500 ft/min at 230 KCAS without naming one as the normal rate, so no published normal descent rate was found."
+        }
+      }
+    },
+    {
+      "type": "YS11",
+      "name": "Namc YS-11",
+      "variant": "NAMC YS-11, two Rolls-Royce Dart Mk 542-10 turboprops, pressurised, maximum takeoff weight 54,010 lb (24,500 kg) / maximum landing weight 52,910 lb (24,000 kg), as the iniBuilds MSFS add-on's manual specifies it",
+      "preset": "Turboprop",
+      "icon": "turboprop",
+      "researched": "2026-10-26",
+      "checked": "2026-10-26",
+      "sources": [
+        {
+          "id": "ini",
+          "title": "NAMC YS-11 Manual for Microsoft Flight Simulator, v1.0.7 (14 September 2025), iniBuilds",
+          "publisher": "iniBuilds (hosted on Microsoft's Aircraft Manuals page)",
+          "page": "About the NAMC YS-11 (printed p. 3: pressurized cabin, service ceiling); NAMC YS-11 Specifications (printed p. 16: Cruise Speed 253 KTAS at 15,000 ft, weights, engines)",
+          "url": "https://flightsimulator.azureedge.net/wp-content/uploads/2025/10/YS11_MSFS_Manual-v1.0.7.pdf",
+          "simManual": true
+        }
+      ],
+      "pressurised": {
+        "value": true,
+        "kind": "published",
+        "sources": [
+          "ini"
+        ],
+        "note": "iniBuilds manual, About the NAMC YS-11 (printed p. 3): 'the aircraft incorporates a low-mounted main wing, a pressurized cabin, and retractable tricycle landing gear.' The Simplified Procedures (printed p. 47) also list PRESSURIZATION ON."
+      },
+      "values": {
+        "cruise_kts": {
+          "value": 253,
+          "kind": "published",
+          "sources": [
+            "ini"
+          ],
+          "note": "iniBuilds manual, NAMC YS-11 Specifications (printed p. 16): 'Cruise Speed: 253 KTAS at 15,000 ft'. The same manual's Fuel Planning table (printed p. 43) shows 250 KTAS at 15,000 ft (190 KIAS, 14,200 rpm); the specification figure is used. The About page's 'cruising speed of 294 mph' is not used."
+        },
+        "min_runway_ft": {
+          "value": 4278,
+          "kind": "estimated",
+          "from": "AT76",
+          "note": "No source gives it; the ATR-72-600's 4278 as it stands: same class and engine kind, the closest maximum takeoff weight (ATR 72-600, 50,700 lb against YS-11, 54,010 lb)."
+        },
+        "ceiling_ft": {
+          "value": 23000,
+          "kind": "published",
+          "sources": [
+            "ini"
+          ],
+          "note": "iniBuilds manual, About the NAMC YS-11 (printed p. 3): 'a service ceiling of 23,000 feet above sea level'. A service ceiling in the manual's background text, not a certified maximum operating altitude."
+        },
+        "max_xwind_kts": null,
+        "cruise_alt_ft": {
+          "value": 15000,
+          "kind": "published",
+          "sources": [
+            "ini"
+          ],
+          "note": "The altitude at which the manual quotes the 253 KTAS cruise speed (printed p. 16)."
+        },
+        "climb_fpm": {
+          "value": 1500,
+          "kind": "preset",
+          "note": "Turboprop class preset; the manual's climb figures (about 1,000 fpm at 150 KIAS, maximum 1,220 fpm) are not a manual source for this field."
+        },
+        "climb_kts": {
+          "value": 150,
+          "kind": "preset",
+          "note": "Turboprop class preset: 0.6 x 253 kt = 151.8 -> 150 kt (nearest 5 kt)."
+        },
+        "descent_fpm": {
+          "value": 1500,
+          "kind": "preset",
+          "note": "Turboprop class preset."
         }
       }
     }

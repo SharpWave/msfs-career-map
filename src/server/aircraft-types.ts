@@ -39,12 +39,16 @@ export interface Source {
   publisher: string;
   page: string;
   url: string;
+  /** An MSFS add-on's manual, which only some values may cite (FLEET-TYPE-019). */
+  simManual?: true;
 }
 
 export type Provenance<T> =
   | { value: T; kind: "published"; sources: string[]; note?: string }
   | { value: T; kind: "derived"; sources: string[]; calculation: string; note?: string }
-  | { value: T; kind: "preset"; note?: string };
+  | { value: T; kind: "preset"; note?: string }
+  /** Another type's sourced number, for a cruise speed or runway no source gives (FLEET-TYPE-020). */
+  | { value: T; kind: "estimated"; from: string; note: string };
 
 export interface TypeEntry {
   type: string;

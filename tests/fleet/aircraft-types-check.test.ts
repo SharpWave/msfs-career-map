@@ -1,9 +1,9 @@
 /**
  * The performance table's record (src/server/aircraft-types-check.ts): `checkTable` names one problem per
- * broken rule of FLEET-TYPE-001 to 008 — what an entry holds, each value's provenance, the sources,
- * the hosts no source may be on, the numbers' ranges, the class presets' figures, the research and
- * check dates, and the designators with the snapshot's coverage (only when asked for `complete`) —
- * and `missingTypes` lists SimBrief's designators the table neither holds nor leaves out (TYPE-018).
+ * broken rule of FLEET-TYPE-001 to 008, 019 and 020 — what an entry holds, each value's provenance, the
+ * sources, the hosts no source may be on, the numbers' ranges, the class presets' figures, the research
+ * and check dates, the designators with the snapshot's coverage (only when asked for `complete`), and
+ * the values an MSFS add-on's manual may give, and each estimate's similar type — and `missingTypes` lists SimBrief's designators the table neither holds nor leaves out (TYPE-018).
  * Small fixture tables throughout; the shipped table is checked last, as it stands.
  */
 import { describe, expect, it } from "vitest";
@@ -217,7 +217,7 @@ describe("the sources", () => {
 
 describe("the hosts no source may be on", () => {
   // @spec FLEET-TYPE-004
-  it("lists wikis, forums, sim sites and the databases that forbid republishing", () => {
+  it("lists wikis, forums, sim community sites and file libraries, and the databases that forbid republishing", () => {
     for (const host of [
       "wikipedia.org",
       "wikimedia.org",
@@ -248,6 +248,90 @@ describe("the hosts no source may be on", () => {
       "eurocontrol",
     );
     expect(problemsAfter((t) => (entry(t, "B738").sources[0].url = "https://notwikipedia.org.example.com/acap.pdf"))).toEqual([]);
+  });
+
+  // @spec FLEET-TYPE-004
+  it("refuses an add-on's manual on a sim file library, and not on its developer's own site", () => {
+    expectProblem(problemsAfter((t) => (entry(t, "B738").sources[0].url = "https://flightsim.to/file/12345/b738-manual")), "B738", "flightsim.to");
+    expect(problemsAfter((t) => (entry(t, "B738").sources[0].url = "https://pmdg.com/manuals/737/introduction.pdf"))).toEqual([]);
+  });
+});
+
+describe("an MSFS add-on's manual", () => {
+  /** A table whose 737-800 also lists an add-on's manual, marked, that `cite` makes some values cite. */
+  function withManual(cite: (e: TypeEntry) => void): string[] {
+    return problemsAfter((t) => {
+      const e = entry(t, "B738");
+      e.sources.push({
+        id: "addon",
+        title: "737-800 Introduction manual, rev. 2",
+        publisher: "Example Simulations",
+        page: "Performance, p. 42",
+        url: "https://example-sims.com/docs/737-introduction.pdf",
+        simManual: true,
+      });
+      cite(e);
+    });
+  }
+
+  // @spec FLEET-TYPE-019
+  it("may give the cruise speed, runway, ceiling, crosswind and pressurisation", () => {
+    expect(
+      withManual((e) => {
+        e.values.max_xwind_kts = { value: 33, kind: "published", sources: ["addon"] };
+        e.values.ceiling_ft = { value: 41000, kind: "published", sources: ["tcds", "addon"] };
+        e.values.min_runway_ft = { value: 7600, kind: "derived", sources: ["acap", "addon"], calculation: "chart read at 72,689 kg" };
+        e.pressurised = { value: true, kind: "published", sources: ["addon"] };
+      }),
+    ).toEqual([]);
+    expect(
+      withManual((e) => {
+        e.values.cruise_kts = { value: 455, kind: "published", sources: ["addon"] };
+        e.values.cruise_alt_ft = { value: 35000, kind: "published", sources: ["addon"] };
+      }),
+    ).toEqual([]);
+  });
+
+  // @spec FLEET-TYPE-019
+  it("may give the cruise altitude only where the cruise speed cites the same manual", () => {
+    expectProblem(
+      withManual((e) => {
+        e.values.max_xwind_kts = { value: 33, kind: "published", sources: ["addon"] };
+        e.values.cruise_alt_ft = { value: 35000, kind: "published", sources: ["addon"] };
+      }),
+      "B738",
+      "cruise_alt_ft",
+    );
+  });
+
+  // @spec FLEET-TYPE-019
+  it("may not give the climb rate, climb speed or descent rate", () => {
+    const climbOrDescent: [keyof TypeEntry["values"], number][] = [
+      ["climb_fpm", 2200],
+      ["climb_kts", 410],
+      ["descent_fpm", 2400],
+    ];
+    for (const [field, value] of climbOrDescent) {
+      expectProblem(
+        withManual((e) => {
+          e.values.max_xwind_kts = { value: 33, kind: "published", sources: ["addon"] };
+          e.values.cruise_kts = { value: 455, kind: "published", sources: ["addon"] };
+          e.values[field] = { value, kind: "published", sources: ["acap", "addon"] };
+        }),
+        "B738",
+        field,
+      );
+    }
+  });
+
+  // @spec FLEET-TYPE-019
+  it("holds only a source marked as a manual to those values", () => {
+    expect(
+      problemsAfter((t) => {
+        const e = entry(t, "B738");
+        e.values.climb_fpm = { value: 2200, kind: "derived", sources: ["acap"], calculation: "35,000 ft / 16 min" };
+      }),
+    ).toEqual([]);
   });
 });
 
@@ -404,6 +488,88 @@ describe("the designators and the snapshot", () => {
   });
 });
 
+describe("an estimated value", () => {
+  /** The Caravan's runway estimated from the 172's published one. */
+  const estimate = (t: Table, from = "C172", value = 1630) => {
+    entry(t, "C208").values.min_runway_ft = { value, kind: "estimated", from, note: "nearest piston single by weight" };
+  };
+
+  // @spec FLEET-TYPE-002, FLEET-TYPE-020
+  it("may give a cruise speed or runway equal to a sourced value of another type it names", () => {
+    expect(problemsAfter((t) => estimate(t))).toEqual([]);
+    // A preset climb speed is worked from an estimated cruise speed like any other: 0.6 × 124 = 74.4 → 75.
+    expect(
+      problemsAfter((t) => {
+        const e = entry(t, "C208");
+        e.values.cruise_kts = { value: 124, kind: "estimated", from: "C172", note: "same maker, nearest by weight" };
+        e.values.climb_kts = { value: 75, kind: "preset" };
+      }),
+    ).toEqual([]);
+  });
+
+  // @spec FLEET-TYPE-002
+  it("is refused on any other number and on pressurised", () => {
+    expectProblem(
+      problemsAfter((t) => (entry(t, "C208").values.ceiling_ft = { value: 14000, kind: "estimated", from: "C172", note: "x" })),
+      "C208",
+      "ceiling_ft",
+    );
+    expectProblem(
+      problemsAfter((t) => (entry(t, "C208").values.climb_fpm = { value: 600, kind: "estimated", from: "C172", note: "x" })),
+      "C208",
+      "climb_fpm",
+    );
+    expectProblem(
+      problemsAfter(
+        (t) => (entry(t, "C208").pressurised = { value: false, kind: "estimated", from: "C172", note: "x" } as unknown as TypeEntry["pressurised"]),
+      ),
+      "C208",
+      "pressurised",
+    );
+  });
+
+  // @spec FLEET-TYPE-020
+  it("needs the type it names to be another type the table holds, its value equal and sourced", () => {
+    expectProblem(problemsAfter((t) => estimate(t, "ZZ99")), "C208", "min_runway_ft");
+    expectProblem(problemsAfter((t) => estimate(t, "C208", 2500)), "C208", "min_runway_ft");
+    expectProblem(problemsAfter((t) => estimate(t, "C172", 1700)), "C208", "min_runway_ft");
+    // The 737-800's runway is derived: fine. Its climb rate is preset, its crosswind blank: never a base.
+    expect(problemsAfter((t) => estimate(t, "B738", 7600))).toEqual([]);
+    expectProblem(
+      problemsAfter((t) => {
+        entry(t, "C172").values.min_runway_ft = { value: 7600, kind: "estimated", from: "B738", note: "x" };
+        estimate(t, "C172", 7600);
+      }),
+      "C208",
+      "min_runway_ft",
+    );
+  });
+
+  // @spec FLEET-TYPE-020
+  it("needs a note saying why that type was chosen", () => {
+    expectProblem(
+      problemsAfter((t) => (entry(t, "C208").values.min_runway_ft = { value: 1630, kind: "estimated", from: "C172", note: " " })),
+      "C208",
+      "min_runway_ft",
+    );
+  });
+
+  // @spec FLEET-TYPE-007
+  it("never makes an entry on its own: an entry needs one number published or derived", () => {
+    expectProblem(
+      problemsAfter((t) => {
+        const e = entry(t, "C208");
+        for (const f of NUMBER_FIELDS) e.values[f] = null;
+        e.values.min_runway_ft = { value: 1630, kind: "estimated", from: "C172", note: "nearest piston single by weight" };
+        e.values.climb_fpm = { value: 1500, kind: "preset" };
+        e.sources = [];
+        e.pressurised = null;
+      }),
+      "C208",
+    );
+  });
+});
+
 describe("the types missing from the table", () => {
   // @spec FLEET-TYPE-018
   it("lists SimBrief's designators the table neither holds nor leaves out, sorted and upper-cased", () => {
@@ -413,7 +579,7 @@ describe("the types missing from the table", () => {
 });
 
 describe("the shipped table", () => {
-  // @spec FLEET-TYPE-001, FLEET-TYPE-002, FLEET-TYPE-003, FLEET-TYPE-004, FLEET-TYPE-005, FLEET-TYPE-006, FLEET-TYPE-007, FLEET-TYPE-008
+  // @spec FLEET-TYPE-001, FLEET-TYPE-002, FLEET-TYPE-003, FLEET-TYPE-004, FLEET-TYPE-005, FLEET-TYPE-006, FLEET-TYPE-007, FLEET-TYPE-008, FLEET-TYPE-019, FLEET-TYPE-020
   it("has no problems as it stands (its coverage is the release's check)", () => {
     expect(checkTable(TABLE, PERF_PRESETS, { complete: false })).toEqual([]);
   });

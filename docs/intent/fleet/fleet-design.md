@@ -213,7 +213,7 @@ is recorded in the table):
 - **variant** — what the numbers describe, in words: the model, and the engines where the type has
   more than one choice (for "737-800": "737-800 with winglets, CFM56-7B26"). SimBrief's name decides
   the variant; where it covers several, the variant most built, and where no record settles which
-  was built most, the one MSFS add-ons model (which chooses the variant only, never a number), and where no
+  was built most, the one MSFS add-ons model (which chooses the variant, not a number), and where no
   accepted source gives the chosen variant's numbers, the variant of the same type whose numbers are
   published, noted; where the variant
   is certified at several weights, the heaviest the manufacturer's planning documents give (its maximum
@@ -242,16 +242,31 @@ Each of the eight numbers, and pressurised, is either blank or a value with its 
   entry's cruise speed, rounded to 5 kt (blank when the entry has no cruise speed); a cruise
   altitude is the preset's, lowered to the type's ceiling where that is lower and to 12,000 ft for
   an unpressurised type.
+- **estimated** — for a cruise speed or minimum runway that no accepted source gives: the same
+  number of the nearest similar type in the table, taken as it stands and naming that type, said as
+  such wherever the value is shown ("estimated from 737-300"). The similar type's number must be
+  published or derived, so an estimate never rests on another estimate; a preset climb speed is
+  worked from an estimated cruise speed like any other.
 
-A number no accepted source gives that is not a block-time input stays blank: a blank runway,
-ceiling or crosswind means "no limit" to the planner (FLEET-REC-006), which is better than a
-guessed limit. Every entry records when it was researched and when its values were checked (below),
+The nearest similar type is, in order: a version of the same family by the same maker (the 737-300
+for the 737-200, the Dash 8-400 for the -100), whatever its size; else a type of the same class
+preset and engine kind whose maximum takeoff weight is closest, a type by the same maker winning
+when its weight is within a fifth of the type's. Outside the family, the similar type's maximum
+takeoff weight must lie between two-thirds and one and a half times the type's own, and it must not
+plainly fly differently for that number (a fast commuter's cruise speed for a slow STOL design);
+where no type qualifies, the value stays blank. The value's note names the similar type and why it
+was chosen.
+
+A ceiling or crosswind no accepted source gives stays blank: a blank one means "no limit" to the
+planner (FLEET-REC-006), which is better than a guessed limit. Every entry records when it was researched and when its values were checked (below),
 as dates (`YYYY-MM-DD`). The table ships only checked entries, and an entry with all eight numbers
 blank is left out; each type of the snapshot that is left out is listed in the table with the reason,
 which is always that no accepted source gives any of its numbers — never that it is not researched
 yet, so a release carries the whole snapshot (distribution, DESK-DIST-REL-012).
 
-An entry's sources are listed once, each with an id the values cite; a value's calculation (derived)
+An entry's sources are listed once, each with an id the values cite, an MSFS add-on's manual marked
+as one so the table's checks can hold it to the values it may give (Sources shows it like any
+other); a value's calculation (derived)
 and a note — a lower-ranked source that disagreed, the published figure's own conditions — are
 text on the value.
 
@@ -318,16 +333,31 @@ In order of preference:
    three above give nothing — Jane's All the World's Aircraft, Flight International (FlightGlobal),
    Aviation Week and Business & Commercial Aviation, Aircraft Commerce, and the flight tests and pilot
    reports of AOPA and Flying, among them — cited by publication, issue or edition, and page.
+5. The manual of an MSFS 2020 or 2024 add-on that models the entry's variant, for the cruise speed,
+   minimum runway, service ceiling, maximum crosswind or pressurisation where the four above give
+   nothing under the rules on this page — the sister version's cruise Mach and the published-variant
+   fallback included — and for a type they leave out altogether; with a cruise speed it supplies, the
+   altitude the manual quotes that speed at, as the typical cruise altitude. Never for any other
+   block-time input (climb rate, climb speed, descent rate, or a cruise altitude on its own), which
+   keeps its class preset. Where several
+   add-ons model the variant: the manual with the most performance detail (tables or charts that
+   reproduce the real flight manual's, ahead of the developer's own guidance for flying it in the
+   sim), the add-on's MSFS 2024 version ahead of its 2020 one. Only a manual the developer publishes
+   where anyone can read it without buying the add-on (on its own site — its own forum included,
+   where the developer's staff post it — or a store's documentation page, or an archived copy of
+   either), cited by add-on, developer, manual version or date, and page;
+   its figures mean what the table above says, converted as for any other source.
 
 An encyclopedia's figure counts only through the source it cites: the researcher follows its
 reference and cites that source, if the method accepts it.
 
-Not accepted as a source: encyclopedias and wikis (Wikipedia included), forums, flight-simulation
-add-ons and their manuals, airline and enthusiast sites, and databases whose terms forbid
-republishing their figures without permission — EUROCONTROL's Aircraft Performance Database and the
-SKYbrary pages drawn from it among them. These may still point the researcher to a primary source or
-flag a value that disagrees with them, but no value cites them. A source the checker cannot open
-does not count.
+Not accepted as a source: encyclopedias and wikis (Wikipedia included), forums, airline and
+enthusiast sites, flight-simulation community sites and file libraries (an add-on's manual there
+counts only through the developer's own copy), add-ons' store descriptions and the files installed
+with them, and databases whose terms forbid republishing their figures without permission —
+EUROCONTROL's Aircraft Performance Database and the SKYbrary pages drawn from it among them. These
+may still point the researcher to a primary source or flag a value that disagrees with them, but no
+value cites them. A source the checker cannot open does not count.
 
 ### Researching and checking
 
@@ -340,6 +370,16 @@ The table is built in two passes, each type by one reader, then checked by anoth
    each published value is there as cited, reworks each derivation, and confirms the variant. A
    value that does not hold is corrected from the source, or blanked; the entry records the check's
    date.
+
+Estimates come last, once every tier has been tried: the similar type is chosen by the rule above,
+the choice is reviewed with the pilot, and the table's checks hold each estimate to the similar
+type's current number, so a later correction to that type shows up as a problem until the estimate
+follows it. A type left out keeps its place among the left out: an estimate fills a gap in an entry,
+never makes one.
+
+The fifth tier is brought to entries already checked by one pass over the types with a value it may
+fill, and one reader: it adds only those values, leaving the rest as checked, and its reader reads each
+figure back from the manual before recording it; the entry's dates become that pass's.
 
 The table is built for the types in the pilot's own fleet first, compared with the values the pilot
 already uses, then for the rest. A new SimBrief type is added by the same two passes; a script lists
@@ -356,8 +396,9 @@ could not be loaded, neither is offered and the form works as before.
 **Fill from table** fetches the entry and fills the form, saving nothing:
 
 - each of the eight numbers the entry gives as published or derived replaces the field's value; one
-  it gives as preset fills the field only while it is blank, so a figure the pilot typed is never
-  replaced by a class figure; a number the entry leaves blank leaves the field as it is;
+  it gives as preset or estimated fills the field only while it is blank, so a figure the pilot typed
+  is never replaced by a class figure or another type's; a number the entry leaves blank leaves the
+  field as it is;
 - taxi + approach minutes from the entry's preset, while that field is blank;
 - **Pressurised / has oxygen** is ticked when the type is pressurised, and never unticked (an
   unpressurised aircraft may carry oxygen);
@@ -374,7 +415,8 @@ speed included (it is not reworked when cruise speed changes).
 
 **Sources** shows the entry without filling anything: its variant, research and check dates, and for
 each value its provenance — the source's title, publisher and page with a link to it, the
-calculation of a derived value, its note, or "class preset". It is there for any type the table
+calculation of a derived value, its note, "class preset", or "estimated from" the similar type's
+name. It is there for any type the table
 holds, so a saved aircraft's form shows where its type's numbers come from, though nothing records
 which of its values came from the table: what is saved is the values alone.
 
@@ -480,15 +522,17 @@ Handlers: [routes.ts:231-311](../../../src/server/routes.ts#L231-L311).
 | Sim binding fields | Stored on the fleet row; set by Bind or typed | A separate binding table | [inferred] One sim aircraft maps to one fleet row; the row is the natural home. A blank sim livery binds every livery of the title. |
 | Delete | Deletes the aircraft and its whole tour, after a confirmation naming both | Refuse while hops exist; a "retired" state that keeps the hops | Removing an aircraft removes its tour; hiding it (visibility) covers keeping a tour off the map. |
 | A performance table for SimBrief's types | Researched once by the written method, shipped in the program, served by the server, offered by the form's **Fill from table** | Pilots type every number; class presets only; a lookup at run time | One method gives every pilot the same numbers with the same meaning, each traceable to its source. No free, keyless service publishes these numbers for every type, and the table needs no network. SimBrief's list is the natural scope: it is the designator field's own list, and the planner hands off to SimBrief. Cost: the table is as current as the program. |
-| Which sources count | Authority type certificate data sheets, then the manufacturer's own publications, then government and military publications, each readable at a cited address; never wikis, forums, sim add-ons or databases whose terms forbid republishing | Any well-known reference; EUROCONTROL's Aircraft Performance Database, which covers nearly every type | The table is public with the app, so each number must stand on a source that would not embarrass it. EUROCONTROL's database requires its permission to reuse its figures, which the project does not hold. A source the checker cannot open cannot be checked. |
-| A number no accepted source gives | Blank for a limit (runway, ceiling, crosswind) and for cruise speed; the class preset, marked as such, for a block-time input (cruise altitude, climb rate, climb speed, descent rate) | Blank for all; an estimate | A blank limit is "no limit" to the planner, safer than a guessed one, and a blank cruise speed leaves the pilot to give it. A blank block-time input would fall back to the light-piston default, wrong for anything bigger, while the class preset is the form's own one-click answer; marked "class preset", it claims nothing. |
+| Which sources count | Authority type certificate data sheets, then the manufacturer's own publications, then government and military publications, then trade journals, then MSFS add-ons' manuals, each readable at a cited address; never wikis, forums, community sites or databases whose terms forbid republishing | Any well-known reference; EUROCONTROL's Aircraft Performance Database, which covers nearly every type | The table is public with the app, so each number must stand on a source that would not embarrass it. EUROCONTROL's database requires its permission to reuse its figures, which the project does not hold. A source the checker cannot open cannot be checked. |
+| A number no accepted source gives | Cruise speed and runway: the nearest similar type's, marked "estimated from" it; ceiling and crosswind: blank; a block-time input (cruise altitude, climb rate, climb speed, descent rate): the class preset, marked as such | Blank for all; an estimate for all | A blank ceiling or crosswind is "no limit" to the planner, safer than a guessed one. Cruise speed and runway are the numbers the planner leans on most: without a cruise speed it has no block time, and a blank runway admits every airport, so a named estimate serves the pilot better than a blank. A blank block-time input would fall back to the light-piston default, wrong for anything bigger, while the class preset is the form's own one-click answer; marked "class preset", it claims nothing. |
+| How an estimate is made | The nearest similar type's number as it stands — a version of the same family first, else the same class and engine kind closest in maximum takeoff weight — its own number published or derived; filled into the form only while the field is blank | Scaling the similar type's number by weight and power; a class average over similar weights; a chain of estimates; filling like a sourced number | A number taken as it stands can be checked against the type it names; a scaling formula would claim a precision it does not have, and an average hides which aircraft the number came from. An estimate built on an estimate drifts from any source. Filling only blank fields keeps the pilot's own figure ahead of another type's. |
 | Scans of a manufacturer's handbook | Accepted when complete and legible, for the right model, the checker confirming it is the whole original | Only copies on the manufacturer's site or an archive of it | For older light aircraft the handbook is the real source and its maker no longer publishes it; a whole scan carries its own title page and part number, so its figures are as checkable as the original's, where an excerpt or retyped copy is not. |
 | Trade press and references | A fourth tier, after authority, manufacturer and government documents: reputable references and trade journals with editors who answer for them (Jane's, Flight International, Aviation Week, Aircraft Commerce, AOPA's and Flying's flight tests among them) | Wikipedia as a last resort; the first three tiers only | Many older and light types have no manufacturer publication online, and these titles measure or report the figures under editors who answer for them; an encyclopedia repeats such figures, often without saying where from, so it is followed to its source instead of cited. |
+| MSFS add-ons' manuals | A fifth tier, after every real-world source: the most detailed publicly readable manual of an MSFS 2020 or 2024 add-on of the variant, for a cruise speed, runway, ceiling, crosswind or pressurisation the real-world sources leave blank, and for a type they leave out, a cruise speed it supplies bringing the altitude the manual quotes it at; cited like any other source | Real-world sources only, leaving their gaps blank; add-on manuals for the block-time inputs as well; a manual's cruise speed beside the class preset's cruise altitude; marking add-on figures apart from the others in Sources; any add-on's manual, or the default aircraft's first | The table serves a flight sim: where no real-world document gives a number, the add-on the pilot flies gives the figure that add-on flies, and the detailed manuals reproduce the real flight manual's tables. Coming last, an add-on's figure never displaces a real-world one. The block-time inputs keep their class presets, which the form fills only into blank fields, so the pass stays on the limits and cruise speed where a blank costs most; the one exception is the altitude a manual's cruise speed is quoted at, since a cruise speed means the true airspeed at the typical cruise altitude and is flown there. The manual's title already says what it is, so Sources needs no second marking. The manual with the most performance detail is the likeliest to carry the real figures, and an MSFS 2024 version the likeliest to be maintained; a manual readable only after buying cannot be checked. Cost: an add-on's figure may follow its flight model rather than the aircraft. |
 | A re-engined version without its own cruise figure | The base type's published cruise Mach, derived and noted as such, cruise speed only | Blank; the class preset | Airlines fly a re-engined airframe at the cruise Mach its predecessor flew, and its maker often publishes only the shared limit; the base type's own figure is a better number than none, while engine-dependent numbers stay the version's own. |
 | A jet with only a maximum cruise published | Its headline (maximum or high-speed) cruise, noted as such | Blank; the class preset | The planner needs a cruise speed to work at all, and the manufacturer's own headline figure is more rigorous than any estimate; block times come out a little short, which a reach that reads a little optimistic already allows for. |
 | Numbers by meaning, not as published | Each number converted to what the planner uses — true airspeeds, averages over the climb and descent, field length at a typical load — the conversion written out as a derivation | Copy the published figure whatever it measures | A published indicated climb speed or initial climb rate fed to the planner's averages gives wrong block times; written out, a conversion can be checked. |
 | Typical load for the runway | Airliners and business jets: takeoff midway between maximum landing and maximum takeoff weight, landing at maximum landing weight; pistons and turboprops: maximum gross weight | Maximum takeoff weight for all; a weight per typical sector | Maximum weight overstates what a typical flight needs, most for long-haul types, and rules out airports the type uses every day; the midpoint is a concrete weight anyone can rework from published weights and charts. Light aircraft fly near maximum gross weight and their manuals give that. |
-| Two readers per type | A researcher, then a checker who opens every cited source | One pass | A misread chart or a number from the wrong variant is the likeliest error, and only re-reading the source catches it. |
+| Two readers per type | A researcher, then a checker who opens every cited source; the fifth tier's values by one reader, who reads each back from the manual | One pass for every tier; a checker for the fifth tier too | A misread chart or a number from the wrong variant is the likeliest error, and only re-reading the source catches it. An add-on manual's figure fills a value that would otherwise be blank and is the lowest-ranked in the table, so its pass is kept to one reader; the table's checks still hold it to the values a manual may give. Cost: a misread figure there goes unchecked. |
 | Filling the form | Only on the pilot's **Fill from table**: published and derived numbers replace the fields, preset numbers fill only blank ones, pressurised only ticked, only a built-in icon changed; nothing saved until Save | Fill as soon as a type is chosen; fill only blank fields; update saved aircraft when the table changes; record on the aircraft which values came from the table | Choosing a type for SimBrief links must not overwrite numbers the pilot set; one click with the values shown and editable keeps the pilot in charge. A researched number is worth replacing the pilot's guess with when asked; a class figure is not. Pilots who fly a type differently keep their numbers across releases. Recording each value's origin on the aircraft would add columns for a note the Sources view already gives for the type. |
 | New from sim | Prefill name from the sim title and livery from the ATC ID, falling back to the livery name | Leave blank | [inferred] The ATC ID is usually the registration, which is what the livery field holds. |
 

@@ -139,8 +139,10 @@ reloads itself.
 - **Aircraft numbers**: in the aircraft form, type the SimBrief type (e.g. `B738`) and click **Fill
   from table** to fill cruise speed, runway, ceiling, crosswind and the block-time model from the
   app's performance table, researched for every type in SimBrief's list from manufacturers',
-  aviation authorities' and reputable trade journals' publications (a few types no such source
-  covers are left out). **Sources** shows where each number comes from; a number no
+  aviation authorities' and reputable trade journals' publications, and where none gives a number,
+  from the manual of an MSFS add-on of the type (a few types no such source covers are left out).
+  A cruise speed or runway no source gives is estimated from the nearest similar type, said so in
+  **Sources**, and fills a field only while it is blank. **Sources** shows where each number comes from; a number no
   such source gives is left blank, or for climb and descent filled from the class preset and marked
   as such. Nothing is saved until you save, and you can change any value first.
 - **Edit**: in Fleet, expand an aircraft card (the chevron with its hop count) to see its hops.

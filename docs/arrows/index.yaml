@@ -26,7 +26,7 @@ arrows:
     blocks: [logbook, tour-map, planner, live-tracking, flight-panel, simbrief]
     blockedBy: []
     detail: fleet.md
-    next: "Cite FLEET-LOOK-006 in the upload API test (tests/app-shell/api.test.ts) and add its removal of every file named for the id, since app-shell's backups and import rely on it (APP-BAK-003, APP-IMP-003); close the 5 gaps test-first (the icon address rule and icon files removed on delete first, then unique name + livery, the hops' SimBrief plans removed on delete, visibility-toggle errors); then tests for the other implemented FLEET specs (3 of 38 tested; the performance table's 18 are)"
+    next: "Cite FLEET-LOOK-006 in the upload API test (tests/app-shell/api.test.ts) and add its removal of every file named for the id, since app-shell's backups and import rely on it (APP-BAK-003, APP-IMP-003); close the 5 gaps test-first (the icon address rule and icon files removed on delete first, then unique name + livery, the hops' SimBrief plans removed on delete, visibility-toggle errors); then tests for the other implemented FLEET specs (3 of 38 tested; the performance table's 20 are)"
     drift: "HLD revised 2026-10-23 for the desktop app: uploaded icons travel with the logbook (APP-BAK-003, APP-BAK-011 and APP-IMP-003 rely on FLEET-LOOK-006); the code does not yet remove icon files on delete (FLEET-REC-017) or refuse icon addresses on this PC (FLEET-REC-018)"
 
   airports:

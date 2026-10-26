@@ -88,7 +88,30 @@ const C208 = {
   },
 };
 
-const ENTRIES: Record<string, unknown> = { B738, C208 };
+/** A type whose cruise speed and runway are estimated from the 737-800 and from a type the list lacks. */
+const XB70 = {
+  type: "XB70",
+  name: "Table-only type",
+  variant: "XB-70A",
+  preset: "Airliner",
+  icon: "airliner",
+  researched: "2026-10-26",
+  checked: "2026-10-26",
+  sources: [{ id: "tcds", title: "Type Certificate Data Sheet X1", publisher: "FAA", page: "Ceiling", url: "https://drs.faa.gov/X1.pdf" }],
+  pressurised: { value: true, kind: "published", sources: ["tcds"] },
+  values: {
+    cruise_kts: { value: 455, kind: "estimated", from: "B738", note: "same class, nearest by weight" },
+    min_runway_ft: { value: 9000, kind: "estimated", from: "ZZ99", note: "a type the list lacks" },
+    ceiling_ft: { value: 41000, kind: "published", sources: ["tcds"] },
+    max_xwind_kts: null,
+    cruise_alt_ft: { value: 35000, kind: "preset" },
+    climb_fpm: { value: 2000, kind: "preset" },
+    climb_kts: { value: 410, kind: "preset" },
+    descent_fpm: { value: 2000, kind: "preset" },
+  },
+};
+
+const ENTRIES: Record<string, unknown> = { B738, C208, XB70 };
 
 /** Answers SimBrief's list, the table's list and its entries; `table` and `entry` replace the defaults. */
 function answerServer(o: { table?: () => Reply; entry?: (type: string) => Reply } = {}): void {
@@ -286,6 +309,18 @@ describe("filling from the table", () => {
       overhead: "25",
     });
     expect(screen.getByText("Filled 7 values from 737-800")).toBeTruthy();
+  });
+
+  // @spec FLEET-TYPE-013
+  it("fills an estimated cruise speed or runway only into a blank field", async () => {
+    answerServer();
+    await renderForm();
+    type("runway", "8000");
+    await chooseTableType("XB70");
+    await fill();
+    expect(value("cruise")).toBe("455");
+    expect(value("runway")).toBe("8000");
+    expect(value("ceiling")).toBe("41000");
   });
 
   // @spec FLEET-TYPE-013, FLEET-TYPE-014
@@ -487,6 +522,19 @@ describe("the Sources panel", () => {
 
     fireEvent.click(sourcesButton()!);
     await waitFor(() => expect(screen.queryByRole("region", { name: "Sources for 737-800" })).toBeNull());
+  });
+
+  // @spec FLEET-TYPE-017
+  it("says an estimate is estimated from the similar type, by its name where the list has it", async () => {
+    answerServer();
+    await renderForm();
+    await chooseTableType("XB70");
+    fireEvent.click(sourcesButton()!);
+    const panel = await screen.findByRole("region", { name: "Sources for Table-only type" });
+    const text = panel.textContent ?? "";
+    expect(text).toContain("estimated from 737-800");
+    expect(text).toContain("estimated from ZZ99");
+    expect(text).toContain("same class, nearest by weight");
   });
 
   // @spec FLEET-TYPE-017

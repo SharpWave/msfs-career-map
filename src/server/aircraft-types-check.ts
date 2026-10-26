@@ -2,7 +2,7 @@ import { BUILTIN_KEYS } from "../client/icon-keys.ts";
 import { BLOCK_TIME_FIELDS, NUMBER_FIELDS, type NumberField, type Provenance, type Table, type TypeEntry } from "./aircraft-types.ts";
 
 /**
- * The rules the performance table must meet (FLEET-TYPE-001 to 008), as one problem per broken rule, each
+ * The rules the performance table must meet (FLEET-TYPE-001 to 008, 019, 020), as one problem per broken rule, each
  * naming the type and the field or source it is about. The tests run it on the shipped table as it
  * stands; `npm run aircraft-types:check` runs it asking for the table complete, as a release needs it.
  * Pure: no files, no network.
@@ -19,7 +19,7 @@ export const FORBIDDEN_HOSTS = [
   "skybrary.aero",
   "learningzone.eurocontrol.int",
   "contentzone.eurocontrol.int",
-  // Forums, flight-simulation and enthusiast sites.
+  // Forums, flight-simulation community sites and file libraries, and enthusiast sites.
   "pprune.org",
   "reddit.com",
   "flightsim.to",
@@ -76,6 +76,9 @@ function httpUrl(url: unknown): boolean {
   }
 }
 
+/** The numbers an estimate may give (FLEET-TYPE-002). */
+const ESTIMATED_FIELDS: string[] = ["cruise_kts", "min_runway_ft"];
+
 /** Problems with one value's provenance; `field` names it in each. */
 function provenanceProblems(type: string, field: string, p: Provenance<unknown>, presetAllowed: boolean, cited: Set<string>): string[] {
   const out: string[] = [];
@@ -86,8 +89,27 @@ function provenanceProblems(type: string, field: string, p: Provenance<unknown>,
     if (p.kind === "derived" && blank(p.calculation)) out.push(`${at}: a derived value has no calculation`);
   } else if (p.kind === "preset") {
     if (!presetAllowed) out.push(`${at}: only cruise altitude, climb rate, climb speed and descent rate may be preset`);
+  } else if (p.kind === "estimated") {
+    if (!ESTIMATED_FIELDS.includes(field)) out.push(`${at}: only cruise speed and minimum runway may be estimated`);
   } else {
-    out.push(`${at}: provenance "${String((p as { kind: unknown }).kind)}" is none of published, derived, preset`);
+    out.push(`${at}: provenance "${String((p as { kind: unknown }).kind)}" is none of published, derived, preset, estimated`);
+  }
+  return out;
+}
+
+/** Problems with an estimated value: its similar type, that type's number and the note (FLEET-TYPE-020). */
+function estimateProblems(e: TypeEntry, field: NumberField, p: Provenance<unknown>, byType: Map<string, TypeEntry>): string[] {
+  if (p.kind !== "estimated" || !ESTIMATED_FIELDS.includes(field)) return [];
+  const at = `${e.type} ${field}`;
+  const out: string[] = [];
+  if (blank(p.note)) out.push(`${at}: an estimate has no note saying why its similar type was chosen`);
+  const similar = p.from === e.type ? undefined : byType.get(p.from);
+  if (!similar) return [...out, `${at}: estimated from ${String(p.from)}, which is not another type the table holds`];
+  const base = similar.values?.[field];
+  if (!base || (base.kind !== "published" && base.kind !== "derived")) {
+    out.push(`${at}: estimated from ${similar.type}, whose ${field} is not published or derived`);
+  } else if (base.value !== p.value) {
+    out.push(`${at}: estimated ${String(p.value)} is not ${similar.type}'s ${field} ${base.value}`);
   }
   return out;
 }
@@ -115,7 +137,7 @@ function presetFigure(e: TypeEntry, field: NumberField, preset: PresetFigures): 
   }
 }
 
-function entryProblems(e: TypeEntry, presets: readonly PresetFigures[]): string[] {
+function entryProblems(e: TypeEntry, presets: readonly PresetFigures[], byType: Map<string, TypeEntry>): string[] {
   const out: string[] = [];
   const t = e.type;
   // What an entry holds (FLEET-TYPE-001).
@@ -131,7 +153,7 @@ function entryProblems(e: TypeEntry, presets: readonly PresetFigures[]): string[
   if (e.pressurised) out.push(...provenanceProblems(t, "pressurised", e.pressurised, false, cited));
   for (const f of NUMBER_FIELDS) {
     const p = values[f];
-    if (p) out.push(...provenanceProblems(t, f, p, BLOCK_TIME_FIELDS.includes(f), cited));
+    if (p) out.push(...provenanceProblems(t, f, p, BLOCK_TIME_FIELDS.includes(f), cited), ...estimateProblems(e, f, p, byType));
   }
 
   // Sources (FLEET-TYPE-003, 004).
@@ -149,6 +171,19 @@ function entryProblems(e: TypeEntry, presets: readonly PresetFigures[]): string[
   }
   for (const id of cited) if (!listed.has(id)) out.push(`${t}: cites source ${id}, which the entry does not list`);
   for (const id of listed) if (!cited.has(id)) out.push(`${t} source ${id}: listed but cited by no value`);
+
+  // An MSFS add-on's manual: the limits, cruise speed and pressurisation, and the cruise altitude
+  // only beside a cruise speed citing it (FLEET-TYPE-019).
+  const manuals = new Set((e.sources ?? []).filter((s) => s.simManual === true).map((s) => s.id));
+  const citesOf = (p: Provenance<unknown> | null | undefined) =>
+    p && (p.kind === "published" || p.kind === "derived") && Array.isArray(p.sources) ? p.sources.filter((id) => manuals.has(id)) : [];
+  const cruiseManuals = citesOf(values.cruise_kts);
+  for (const f of ["climb_fpm", "climb_kts", "descent_fpm"] as const) {
+    for (const id of citesOf(values[f])) out.push(`${t} ${f}: cites ${id}, an MSFS add-on's manual, which may not give it`);
+  }
+  for (const id of citesOf(values.cruise_alt_ft)) {
+    if (!cruiseManuals.includes(id)) out.push(`${t} cruise_alt_ft: cites ${id}, an MSFS add-on's manual, which the cruise speed does not cite`);
+  }
 
   // The numbers (FLEET-TYPE-005).
   for (const f of NUMBER_FIELDS) {
@@ -185,15 +220,16 @@ function entryProblems(e: TypeEntry, presets: readonly PresetFigures[]): string[
   if (!DATE.test(e.researched ?? "")) out.push(`${t} researched: "${e.researched}" is not YYYY-MM-DD`);
   if (!DATE.test(e.checked ?? "")) out.push(`${t} checked: "${e.checked}" is not YYYY-MM-DD`);
   else if (DATE.test(e.researched ?? "") && e.checked < e.researched) out.push(`${t} checked: ${e.checked} is before the research ${e.researched}`);
-  if (NUMBER_FIELDS.every((f) => !values[f])) out.push(`${t}: gives none of the eight numbers`);
+  const sourced = (f: NumberField) => values[f]?.kind === "published" || values[f]?.kind === "derived";
+  if (!NUMBER_FIELDS.some(sourced)) out.push(`${t}: gives none of the eight numbers as published or derived`);
   return out;
 }
 
 /**
- * The table's problems: [] when it meets FLEET-TYPE-001 to 008. `complete` also asks for every type of
+ * The table's problems: [] when it meets FLEET-TYPE-001 to 008, 019 and 020. `complete` also asks for every type of
  * the snapshot to be an entry or left out, as a release needs (DESK-DIST-REL-012).
  */
-// @spec FLEET-TYPE-001, FLEET-TYPE-002, FLEET-TYPE-003, FLEET-TYPE-004, FLEET-TYPE-005, FLEET-TYPE-006, FLEET-TYPE-007, FLEET-TYPE-008
+// @spec FLEET-TYPE-001, FLEET-TYPE-002, FLEET-TYPE-003, FLEET-TYPE-004, FLEET-TYPE-005, FLEET-TYPE-006, FLEET-TYPE-007, FLEET-TYPE-008, FLEET-TYPE-019, FLEET-TYPE-020
 export function checkTable(table: Table, presets: readonly PresetFigures[], o: { complete: boolean }): string[] {
   const out: string[] = [];
   const snapshot = new Set(table.snapshot?.types ?? []);
@@ -201,6 +237,7 @@ export function checkTable(table: Table, presets: readonly PresetFigures[], o: {
   if (snapshot.size === 0) out.push("snapshot: holds no designators");
 
   const seen = new Set<string>();
+  const byType = new Map(table.entries.map((e) => [e.type, e]));
   const designator = (type: string) => {
     if (!DESIGNATOR.test(type)) out.push(`${type}: not a designator of 2–6 capital letters or digits`);
     if (seen.has(type)) out.push(`${type}: held more than once`);
@@ -209,7 +246,7 @@ export function checkTable(table: Table, presets: readonly PresetFigures[], o: {
   };
   for (const e of table.entries) {
     designator(e.type);
-    out.push(...entryProblems(e, presets));
+    out.push(...entryProblems(e, presets, byType));
   }
   for (const left of table.omitted) {
     designator(left.type);

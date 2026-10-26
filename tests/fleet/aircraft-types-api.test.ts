@@ -71,6 +71,13 @@ describe("one entry", () => {
   });
 
   // @spec FLEET-TYPE-011
+  it("keeps an estimate's similar type and note", () => {
+    const t: Table = structuredClone(FIXTURE);
+    t.entries[0].values.min_runway_ft = { value: 1630, kind: "estimated", from: "C172", note: "nearest piston single by weight" };
+    expect(typeEntry(t, "PA24")?.values.min_runway_ft).toEqual({ value: 1630, kind: "estimated", from: "C172", note: "nearest piston single by weight" });
+  });
+
+  // @spec FLEET-TYPE-011
   it("is null for a type the table does not hold, a left-out or malformed one included", () => {
     expect(typeEntry(FIXTURE, "B738")).toBeNull();
     expect(typeEntry(FIXTURE, "XX01")).toBeNull();
