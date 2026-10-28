@@ -4,14 +4,14 @@ Design: [simbrief-design.md](simbrief-design.md). Prefix `SB`; facets `LINK` (di
 `TYPE` (aircraft type list), `USER` (alias setting), `OFP` (fetching and parsing a plan), `PICK`
 (preview and confirm), `CUR` (current plan for the flight being flown), `HOP` (plans on hops),
 `CTRL` (SimBrief controls in the live card), `CARD` (SimBrief card in the flight panel, the OFP text
-and links from a plan included), `ROUTE` (planned route on the map). The desktop app's first release
+and links from a plan included), `ROUTE` (planned route and its airports on the map). The desktop app's first release
 waits for the OFP text shown as SB-CARD-006 and SB-CARD-009 to 011 say (DESK-DIST-REL-012).
 
 `[x]` implemented · `[ ]` intended, not yet implemented · `[D]` deferred
 
 ## Dispatch Link
 
-- [x] **SB-LINK-001**: When building a SimBrief dispatch link for a leg, the system shall link to `https://dispatch.simbrief.com/options/custom` with `orig` and `dest` set to each airport's ICAO code when it has one and its OurAirports ident otherwise, `type` set to the aircraft's SimBrief type when set, and no cruise level.
+- [x] **SB-LINK-001**: When building a SimBrief dispatch link for a leg, the system shall link to `https://dispatch.simbrief.com/options/custom` with `orig` and `dest` set to each airport's ICAO code when it has one and its OurAirports ident otherwise, `type` set to the aircraft's SimBrief type when set, `airline` set to the aircraft's ICAO airline designator when set, and no cruise level.
 - [ ] **SB-LINK-002**: When building a SimBrief dispatch link, the system shall pass the aircraft's livery, upper-cased, as `reg` only when it is one or two letters or digits, an optional hyphen, then two to five letters or digits, and contains a digit or a hyphen.
 - [x] **SB-LINK-003**: The SimBrief link in a planner candidate's popup shall have the hover text "Start a SimBrief plan ORIG → DEST as TYPE", or "Start a SimBrief plan ORIG → DEST (set a SimBrief type on the aircraft to pre-fill it)" when the aircraft has no SimBrief type.
 
@@ -30,7 +30,7 @@ waits for the OFP text shown as SB-CARD-006 and SB-CARD-009 to 011 say (DESK-DIS
 
 - [x] **SB-OFP-001**: When fetching the latest SimBrief plan, the system shall call SimBrief's `xml.fetcher.php` with `userid` for an all-digit alias and `username` otherwise, asking for `json=v2`, with a 20 s timeout.
 - [x] **SB-OFP-002**: If a SimBrief plan is requested with no alias set, then the system shall refuse with HTTP 400 "set your SimBrief alias or pilot ID first"; if SimBrief reports an error or does not answer with JSON, then it shall answer HTTP 502 "SimBrief: " followed by SimBrief's message.
-- [x] **SB-OFP-003**: When a SimBrief plan is fetched, the system shall reduce it to a summary — OFP and static ids, generation time, airline, flight number, callsign, aircraft type, name and registration, origin and destination with planned runways, the first alternate, route, route distance (else great-circle distance), initial cruise altitude, time en route in minutes, fuel (units, ramp, takeoff, landing, burn), weights (passengers, cargo, payload, ZFW, TOW, LDW), PDF link and navlog fixes — accepting both the `v2` and the older all-strings shape and treating missing or non-numeric values as unknown.
+- [x] **SB-OFP-003**: When a SimBrief plan is fetched, the system shall reduce it to a summary — OFP and static ids, generation time, airline, flight number, callsign, aircraft type, name and registration, origin and destination with planned runways and positions (latitude and longitude), the first alternate, route, route distance (else great-circle distance), initial cruise altitude, time en route in minutes, fuel (units, ramp, takeoff, landing, burn), weights (passengers, cargo, payload, ZFW, TOW, LDW), PDF link and navlog fixes — accepting both the `v2` and the older all-strings shape and treating missing or non-numeric values as unknown.
 - [x] **SB-OFP-004**: When `GET /api/simbrief/latest` is called, the system shall return the latest plan's summary and whether it has OFP text, without storing it, for the `username` given or else the stored alias.
 
 ## Preview and Confirm
@@ -81,3 +81,5 @@ waits for the OFP text shown as SB-CARD-006 and SB-CARD-009 to 011 say (DESK-DIS
 - [x] **SB-ROUTE-002**: The system shall draw a SimBrief route as a thin dashed line over a soft dark casing through the navlog fixes, with a dot at each fix (larger for airports) whose tooltip shows the ident, the name when different, "via AIRWAY" unless direct, and the planned altitude, else the fix type.
 - [x] **SB-ROUTE-003**: The system shall draw a SimBrief route on every world copy in view (MAP-GEO-014), placed fix to fix (MAP-GEO-015), so a route across the antimeridian is continuous on both sides of it.
 - [x] **SB-ROUTE-004**: If a SimBrief route fails to draw, then the system shall leave it out without affecting the rest of the map.
+- [x] **SB-ROUTE-005**: While the tracker holds a current SimBrief plan (from its import, on the ground or in the air, until the leg it goes with is logged or kept as pending, or the plan is removed), the system shall mark the plan's origin and destination each with a circle at the position the plan gives for that airport, of a 16 px radius at every zoom, with a dashed outline in the bound aircraft's color (white when unbound) over a faint fill of the same color, drawn on every world copy in view, beneath that plan's route line and fix dots, and taking no pointer events; it shall draw no circle for an airport the plan gives no position for, one circle where origin and destination share a position, and no circles for a plan that is not the tracker's current plan.
+- [x] **SB-ROUTE-006**: While the plan's airport circles (SB-ROUTE-005) are drawn, the system shall turn their dashes round each circle, one turn about every 12 s, and hold them still while reduced motion is asked for (the browser's `prefers-reduced-motion`, which the installed app's window reports from Windows' animation effects).

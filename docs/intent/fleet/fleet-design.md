@@ -55,6 +55,7 @@ place at [db.ts:163-176](../../../src/server/db.ts#L163-L176)). Server validatio
 | `ifr_capable` | 0 = VFR only | Boolean; defaults 1 |
 | `cruise_alt_ft`, `climb_fpm`, `climb_kts`, `descent_fpm`, `overhead_min` | Block-time model inputs | Optional, rounded; 0 or blank → null; ranges 500–60000 ft, 50–10000 fpm, 20–600 kt, 50–10000 fpm, 1–120 min |
 | `simbrief_type` | ICAO type designator for SimBrief links | Optional; upper-cased; must match `^[A-Z0-9]{2,6}$` |
+| `airline` | ICAO airline designator for SimBrief links, e.g. `JBU` | Optional; trimmed and upper-cased; must be three letters (`^[A-Z]{3}$`), 400 otherwise; blank → null |
 | `sim_title`, `sim_livery` | The sim aircraft this row is bound to | Optional; a blank `sim_livery` means any livery of that title |
 
 **Null means "not set".** For every optional number, blank and zero are stored as null, and null
@@ -449,6 +450,11 @@ SimBrief's type list and a hint naming the type or saying "Not in SimBrief's lis
 accept it)" ([AircraftForm.tsx:333-356](../../../src/client/components/AircraftForm.tsx#L333-L356)).
 The list and the links it feeds belong to simbrief.
 
+**Airline.** An optional three-letter ICAO airline designator (`JBU`, `BAW`), beside the SimBrief
+type and upper-cased as typed, for the airline an aircraft flies for in the career. It fills the
+airline box of SimBrief's dispatch page in the links simbrief builds for the aircraft; nothing else
+reads it. An aircraft flown for no airline leaves it blank.
+
 ## The Aircraft Form
 
 One form creates and edits ([AircraftForm.tsx](../../../src/client/components/AircraftForm.tsx));
@@ -456,9 +462,9 @@ only one aircraft form is open at a time ([Fleet.tsx:13](../../../src/client/com
 
 - **Validation, in order** ([127-147](../../../src/client/components/AircraftForm.tsx#L127-L147)):
   name present; cruise speed > 0 if given; min runway ≥ 0; SimBrief type a 2–6 character
-  designator if given; ceiling ≥ 0; crosswind ≥ 0; each block-time field a number ≥ 0. Blank
+  designator if given; airline three letters if given; ceiling ≥ 0; crosswind ≥ 0; each block-time field a number ≥ 0. Blank
   numbers are sent as null. The server applies its own ranges on top.
-- **Save** trims text, sends blank sim fields and SimBrief type as null, creates or updates, then
+- **Save** trims text, sends blank sim fields, SimBrief type and airline as null, creates or updates, then
   uploads a pending image if there is one ([148-175](../../../src/client/components/AircraftForm.tsx#L148-L175)).
   Errors show inline. Unsaved values, a picked image among them, live only in the page: closing the
   window or anything that reloads the page — the pilot, or the window after a lost renderer

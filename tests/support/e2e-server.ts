@@ -9,11 +9,16 @@
  * through. The folder is left for a later run to delete, since this process may still hold it at
  * the end.
  */
+import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { makeDataFolder, makeRunFolder, removeLeftovers } from "./run-folder.ts";
-import { installFetchGuard } from "./fetch-guard.ts";
+import { E2E_SIMBRIEF_FETCHER } from "./e2e-simbrief.ts";
+import { answerFetch, installFetchGuard } from "./fetch-guard.ts";
 import { guardDatabases } from "./server-guard.ts";
 import { E2E_API_PORT } from "./ports.ts";
+
+const FIXTURES = fileURLToPath(new URL("../fixtures/", import.meta.url));
 
 /** Exactly these, each given as written: a later `--port=...` would win over `--port=3180`. */
 const REQUIRED = [`--port=${E2E_API_PORT}`, "--sim=fake", "--airport-downloads=off"];
@@ -44,8 +49,12 @@ const { dir } = makeDataFolder(makeRunFolder("e2e-"));
 console.log(`[e2e] data folder ${dir}`);
 
 // @spec APP-RUN-018
-// Outside services the browser tests rely on get canned answers here (answerFetch); none do yet.
+// Outside services the browser tests rely on get canned answers here (answerFetch); everything else is
+// refused. SimBrief answers one alias, the browser tests' own, with a fixed plan.
 installFetchGuard({ onRefused: (url) => console.log(`[e2e] refused outside request: ${url}`) });
+answerFetch(E2E_SIMBRIEF_FETCHER, () =>
+  Response.json(JSON.parse(fs.readFileSync(path.join(FIXTURES, "simbrief-e2e-ofp.json"), "utf8"))),
+);
 
 // @spec APP-RUN-021
 // Behind the arguments, for a server whose code is wrong: a canary CAREER_DB beside the data folder,

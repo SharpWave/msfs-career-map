@@ -17,6 +17,7 @@ export function aircraft(over: Partial<Aircraft> = {}): Aircraft {
     cruise_kts: 160,
     min_runway_ft: null,
     simbrief_type: null,
+    airline: null,
     ceiling_ft: 12000,
     oxygen: 0,
     max_xwind_kts: null,

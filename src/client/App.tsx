@@ -4,6 +4,7 @@ import type { LatLng } from "./geo";
 import { buildRenderData, focusPoints, planZoomPoints } from "./paths";
 import { METAR_REUSE_MS, metarStation, type MetarMap } from "./metar";
 import { assessCandidate, type Flag } from "./constraints";
+import { planAirports } from "./simbrief";
 import { useTracker } from "./tracker";
 import { fmtDuration } from "./format";
 import { clearInsets, columnReducer, initialColumn, type DrawerKey } from "./layout";
@@ -423,6 +424,14 @@ export function App() {
     }
     return out;
   }, [live.status?.briefing, live.status?.aircraft_id, panelBriefing, panelHop?.aircraft_id, state?.aircraft]);
+  // The current plan's airports, circled while the tracker holds it, in the bound aircraft's color.
+  // @spec SB-ROUTE-005
+  const planAirportMarks = useMemo(() => {
+    const airports = planAirports(live.status?.briefing);
+    if (airports.length === 0) return undefined;
+    const color = state?.aircraft.find((a) => a.id === live.status?.aircraft_id)?.color ?? "#ffffff";
+    return { airports, color };
+  }, [live.status?.briefing, live.status?.aircraft_id, state?.aircraft]);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 8000);
@@ -751,6 +760,7 @@ export function App() {
             live={live}
             onOpenHop={openHop}
             routes={routes}
+            planAirports={planAirportMarks}
             clear={clear}
           />
         ) : (

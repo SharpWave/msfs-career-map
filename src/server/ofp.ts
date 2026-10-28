@@ -30,8 +30,8 @@ export interface BriefingSummary {
   flight_number: string | null;
   callsign: string | null;
   aircraft: { icao: string | null; name: string | null; reg: string | null };
-  origin: { icao: string | null; name: string | null; rwy: string | null };
-  dest: { icao: string | null; name: string | null; rwy: string | null };
+  origin: { icao: string | null; name: string | null; rwy: string | null; lat: number | null; lon: number | null };
+  dest: { icao: string | null; name: string | null; rwy: string | null; lat: number | null; lon: number | null };
   alternate: { icao: string | null; name: string | null } | null;
   route: string | null;
   distance_nm: number | null;
@@ -84,6 +84,7 @@ export async function fetchLatestOfp(user: string): Promise<FetchedOfp> {
   return parseOfp(data);
 }
 
+// @spec SB-OFP-003
 export function parseOfp(raw: unknown): FetchedOfp {
   const o = obj(raw);
   const params = obj(o.params);
@@ -130,8 +131,8 @@ export function parseOfp(raw: unknown): FetchedOfp {
       flight_number: str(general.flight_number),
       callsign: str(atc.callsign),
       aircraft: { icao: str(aircraft.icaocode) ?? str(aircraft.icao_code), name: str(aircraft.name), reg: str(aircraft.reg) },
-      origin: { icao: str(origin.icao_code), name: str(origin.name), rwy: str(origin.plan_rwy) },
-      dest: { icao: str(dest.icao_code), name: str(dest.name), rwy: str(dest.plan_rwy) },
+      origin: { icao: str(origin.icao_code), name: str(origin.name), rwy: str(origin.plan_rwy), lat: num(origin.pos_lat), lon: num(origin.pos_long) },
+      dest: { icao: str(dest.icao_code), name: str(dest.name), rwy: str(dest.plan_rwy), lat: num(dest.pos_lat), lon: num(dest.pos_long) },
       alternate: str(alternate.icao_code) ? { icao: str(alternate.icao_code), name: str(alternate.name) } : null,
       route: str(general.route),
       distance_nm: num(general.route_distance) ?? num(general.gc_distance),

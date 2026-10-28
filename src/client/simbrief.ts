@@ -1,4 +1,4 @@
-import type { Aircraft, Airport } from "./types";
+import type { Aircraft, Airport, BriefingSummary } from "./types";
 
 /**
  * SimBrief's dispatch page pre-fills from URL parameters (see the "Dispatch Redirect Guide" on
@@ -22,12 +22,15 @@ export interface SimbriefLeg {
   dest: string;
   type: string | null;
   reg: string | null;
+  airline: string | null;
 }
 
+// @spec SB-LINK-001
 export function simbriefUrl(leg: SimbriefLeg): string {
   const p = new URLSearchParams({ orig: leg.orig, dest: leg.dest });
   if (leg.type) p.set("type", leg.type);
   if (leg.reg) p.set("reg", leg.reg);
+  if (leg.airline) p.set("airline", leg.airline);
   // No `fl`: left blank, SimBrief picks the cruise altitude itself ("auto").
   return `${SIMBRIEF_DISPATCH}?${p.toString()}`;
 }
@@ -38,7 +41,30 @@ export function legFor(origin: Airport, dest: Airport, aircraft: Aircraft | unde
     dest: simbriefAirportCode(dest),
     type: aircraft?.simbrief_type ?? null,
     reg: aircraft ? registrationFrom(aircraft.livery) : null,
+    airline: aircraft?.airline ?? null,
   };
+}
+
+/** A plan's airport the map marks with a circle. */
+export interface PlanAirport {
+  icao: string | null;
+  lat: number;
+  lon: number;
+}
+
+/**
+ * The airports of a plan the map marks: its origin and destination at the positions the plan gives,
+ * leaving out one without a position, and one circle where both share a position.
+ */
+// @spec SB-ROUTE-005
+export function planAirports(plan: Pick<BriefingSummary, "origin" | "dest"> | null | undefined): PlanAirport[] {
+  const out: PlanAirport[] = [];
+  for (const a of plan ? [plan.origin, plan.dest] : []) {
+    if (a?.lat == null || a.lon == null) continue;
+    if (out.some((o) => o.lat === a.lat && o.lon === a.lon)) continue;
+    out.push({ icao: a.icao, lat: a.lat, lon: a.lon });
+  }
+  return out;
 }
 
 /**

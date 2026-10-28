@@ -640,6 +640,14 @@ form {
   gap: 10px;
 }
 
+/* the SimBrief type with the airline's three letters beside it */
+.type-airline {
+  display: grid;
+  grid-template-columns: 1fr 7.5em;
+  gap: 10px;
+  align-items: start;
+}
+
 .actions {
   display: flex;
   gap: 8px;
@@ -1844,6 +1852,18 @@ fieldset.perf legend em {
   100% {
     transform: scale(1.5);
     opacity: 0;
+  }
+}
+
+/* the current SimBrief plan's airports: the dashes go once round each 16 px circle every 12 s
+   (SB-ROUTE-006); reduced motion stops them with every other animation (below) */
+.plan-airport {
+  animation: plan-airport-turn 12s linear infinite;
+}
+
+@keyframes plan-airport-turn {
+  to {
+    stroke-dashoffset: -100.531px;
   }
 }
 

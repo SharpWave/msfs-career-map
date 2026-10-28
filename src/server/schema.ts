@@ -182,6 +182,7 @@ export const ADDED_COLUMNS: readonly [string, string, string][] = [
   ["runways", "le_heading", "REAL"],
   ["runways", "he_heading", "REAL"],
   ["airport_rwy", "headings", "TEXT"],
+  ["aircraft", "airline", "TEXT"],
 ];
 
 const columnsOf = (db: DatabaseSync, table: string): string[] =>

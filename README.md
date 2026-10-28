@@ -196,7 +196,9 @@ reloads itself.
 - **SimBrief plans**: enter your SimBrief alias or pilot ID once in the live card, then
   **Import SimBrief plan** fetches your most recent OFP, shows origin, destination, aircraft,
   passengers and when it was generated for you to confirm, and attaches it to the flight (before
-  or during the leg). The planned route is drawn as a dashed line with its fixes, and when the
+  or during the leg). The planned route is drawn as a dashed line with its fixes, the departure
+  and arrival airports each circled in the aircraft's color (the dashes turning slowly) until the
+  flight is logged or the plan removed, and when the
   hop is logged the whole OFP is archived with it: the summary (callsign, runways, route, cruise,
   distance, ETE, fuel plan, passengers, cargo, weights), the OFP text, a link to SimBrief's PDF,
   and the raw JSON. The flight panel shows it all and can also attach your latest plan to an
@@ -258,10 +260,11 @@ reloads itself.
   puts in its briefing, with base/top altitudes and validity on hover; refreshed every ten
   minutes. G-AIRMETs show the forecast snapshot nearest to now.
 - **SimBrief links**: give an aircraft its ICAO type designator (the aircraft form offers
-  SimBrief's own list of about 200 profiles, searchable by code or name, refreshed daily) and
-  every planner candidate gets a SimBrief link, in the popup and as the **SB** button in the
-  list, that opens SimBrief's dispatch page with origin, destination, aircraft type and
-  registration already filled in.
+  SimBrief's own list of about 200 profiles, searchable by code or name, refreshed daily) and,
+  if it flies for an airline, that airline's three-letter ICAO code (`JBU`, `BAW`) in **Airline**
+  beside it, and every planner candidate gets a SimBrief link, in the popup and as the **SB**
+  button in the list, that opens SimBrief's dispatch page with origin, destination, aircraft type,
+  airline and registration already filled in.
 - **Airport details**: click any airport dot (visited or planner candidate) for a popup with its
   Wikipedia lead image and blurb, the live METAR with flight category (via aviationweather.gov),
   runways, and links to Wikipedia, the official site, SkyVector and the decoded METAR/TAF page.

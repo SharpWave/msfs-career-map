@@ -131,6 +131,8 @@ export interface AircraftRow {
   min_runway_ft: number | null;
   /** ICAO type designator SimBrief knows, e.g. "AEST", "TBM8", "C172". */
   simbrief_type: string | null;
+  /** ICAO airline designator for SimBrief links, e.g. "JBU". */
+  airline: string | null;
   /** Service ceiling, feet. */
   ceiling_ft: number | null;
   /** 1 when pressurised or carrying oxygen (may cruise above 12,000 ft). */
@@ -182,6 +184,14 @@ function minRunwayFt(v: unknown): number | null {
 function simbriefType(v: unknown): string | null {
   const s = optStr(v)?.toUpperCase() ?? null;
   if (s !== null && !/^[A-Z0-9]{2,6}$/.test(s)) throw new HttpError(400, "SimBrief type must be an ICAO designator like C172 or TBM8");
+  return s;
+}
+
+/** An ICAO airline designator: three letters, trimmed and upper-cased; blank is null. */
+// @spec FLEET-REC-019
+function airlineCode(v: unknown): string | null {
+  const s = optStr(v)?.toUpperCase() ?? null;
+  if (s !== null && !/^[A-Z]{3}$/.test(s)) throw new HttpError(400, "airline must be a three-letter ICAO airline code");
   return s;
 }
 
@@ -244,6 +254,7 @@ api.get("/aircraft-types/:type", wrap((req, res) => {
   res.json(entry);
 }));
 
+// @spec FLEET-REC-001
 api.post("/aircraft", wrap((req, res) => {
   const b = req.body ?? {};
   const name = optStr(b.name);
@@ -253,14 +264,14 @@ api.post("/aircraft", wrap((req, res) => {
   const r = db
     .prepare(`INSERT INTO aircraft
       (name, livery, color, icon, notes, cruise_kts, min_runway_ft, simbrief_type, ceiling_ft, oxygen, max_xwind_kts, ifr_capable,
-       cruise_alt_ft, climb_fpm, climb_kts, descent_fpm, overhead_min, sim_title, sim_livery)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+       cruise_alt_ft, climb_fpm, climb_kts, descent_fpm, overhead_min, sim_title, sim_livery, airline)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(
       name, optStr(b.livery) ?? "", color, optStr(b.icon) ?? "builtin:twin-piston", optStr(b.notes) ?? "",
       cruiseKts(b.cruise_kts), minRunwayFt(b.min_runway_ft), simbriefType(b.simbrief_type),
       ceilingFt(b.ceiling_ft), bool(b.oxygen, 0), maxXwind(b.max_xwind_kts), bool(b.ifr_capable, 1),
       ...PERF_FIELDS.map(([k, label, lo, hi]) => perfInt(b[k], label, lo, hi)),
-      optStr(b.sim_title), optStr(b.sim_livery),
+      optStr(b.sim_title), optStr(b.sim_livery), airlineCode(b.airline),
     );
   res.status(201).json(requireAircraft(Number(r.lastInsertRowid)));
 }));
@@ -275,7 +286,7 @@ api.put("/aircraft/:id", wrap((req, res) => {
   if (!COLOR_RE.test(color)) throw new HttpError(400, "color must be #rrggbb");
   db.prepare(`UPDATE aircraft SET name=?, livery=?, color=?, icon=?, notes=?, visible=?, cruise_kts=?, min_runway_ft=?, simbrief_type=?,
                 ceiling_ft=?, oxygen=?, max_xwind_kts=?, ifr_capable=?,
-                cruise_alt_ft=?, climb_fpm=?, climb_kts=?, descent_fpm=?, overhead_min=?, sim_title=?, sim_livery=? WHERE id=?`).run(
+                cruise_alt_ft=?, climb_fpm=?, climb_kts=?, descent_fpm=?, overhead_min=?, sim_title=?, sim_livery=?, airline=? WHERE id=?`).run(
     name,
     b.livery === undefined ? cur.livery : optStr(b.livery) ?? "",
     color,
@@ -292,6 +303,7 @@ api.put("/aircraft/:id", wrap((req, res) => {
     ...PERF_FIELDS.map(([k, label, lo, hi]) => (b[k] === undefined ? cur[k] : perfInt(b[k], label, lo, hi))),
     b.sim_title === undefined ? cur.sim_title : optStr(b.sim_title),
     b.sim_livery === undefined ? cur.sim_livery : optStr(b.sim_livery),
+    b.airline === undefined ? cur.airline : airlineCode(b.airline),
     id,
   );
   res.json(requireAircraft(id));

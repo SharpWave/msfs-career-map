@@ -54,6 +54,8 @@ A link to `https://dispatch.simbrief.com/options/custom` with the leg pre-filled
 
 - `orig` and `dest`: each airport's ICAO code when it has one, else its OurAirports ident;
 - `type`: the aircraft's SimBrief type, when set;
+- `airline`: the aircraft's airline designator (fleet), when set, which fills the dispatch page's
+  airline box;
 - `reg`: the aircraft's livery when it looks like a registration;
 - no cruise level, so SimBrief chooses one itself.
 
@@ -95,7 +97,7 @@ an old one with no contact ([ofp.ts:72](../../../src/server/ofp.ts#L72),
 
 **Parsing** ([ofp.ts:86-160](../../../src/server/ofp.ts#L86-L160)) reduces the OFP to a summary:
 OFP and static ids, generation time, airline, flight number, callsign; aircraft type, name and
-registration; origin and destination with planned runways; the first alternate; the route string;
+registration; origin and destination with planned runways and positions; the first alternate; the route string;
 route distance (or great-circle distance); initial cruise altitude; time en route in minutes; fuel
 (units, ramp, takeoff, landing, burn); weights (passengers, cargo, payload, ZFW, TOW, LDW); the PDF
 link; and the navlog fixes with position, altitude, airway and SID/STAR flag. It accepts both the
@@ -276,6 +278,17 @@ and the desktop app's first release waits for all of it (DESK-DIST-REL-012).
 - Where: on every world copy in view (MAP-GEO-014), placed fix to fix (MAP-GEO-015), so it lies
   along its flight on every copy and a route across the antimeridian is continuous on both sides
   ([BriefingLayer.tsx](../../../src/client/components/BriefingLayer.tsx)).
+- The plan's airports: while the tracker holds a current plan — from its import, on the ground or in
+  the air, until the leg it goes with is logged or kept as pending, or **Remove** clears it — its origin
+  and destination are each marked with a circle at the position the plan gives for that airport. Each
+  circle keeps a 16 px radius at every zoom, with a dashed outline in the bound aircraft's color (white
+  when unbound) over a faint fill of the same color; the dashes turn slowly round it, one turn about
+  every 12 s, and stand still while the browser or the installed app's window asks for reduced motion.
+  The circles are drawn on every world copy in view, under the route's line and dots, and take no
+  pointer events, so the airport dot and the route's tooltips stay reachable. A plan that gives no
+  position for an airport, such as one stored before plans carried positions, gets no circle there.
+  Only the flight being flown is marked: a plan open in the panel for another flight draws its route
+  alone.
 
 ## Decisions & Alternatives
 
@@ -291,6 +304,8 @@ and the desktop app's first release waits for all of it (DESK-DIST-REL-012).
 | One current plan | The tracker holds one and the next leg takes it | Match plans to legs by airports | Simple, and a plan whose airports differ from what was flown is still the plan that was briefed. |
 | Unused plans | Deleted when replaced, removed or discarded before any hop uses them | Keep every import | Plans no hop points to cannot be seen anywhere in the app. |
 | Type list | SimBrief's own list, cached a day, with a built-in fallback | A hand-kept list | Covers every type SimBrief knows; still works offline. |
+| Airline in links | The aircraft's ICAO airline designator, a field of its own | Taken from the livery or registration; asked for at each dispatch | An airline is what an aircraft flies for, kept with the aircraft like its type; a livery names a paint scheme or a registration, and neither tells the airline's code reliably. |
+| Marking the plan's airports | A dashed circle of fixed screen size at the plan's origin and destination, in the aircraft's color, turning slowly, while the plan is current | A ground radius (such as 10 nm); fixed colors for departure and arrival; only once airborne; no mark beyond the route's airport dots | A fixed screen size stays visible zoomed out across a long flight, where a ground radius shrinks to nothing; the aircraft's color ties the circles to its route; showing them from import lets the pilot see the planned airports before takeoff. The slow turn draws the eye without the flicker of a pulse, and stops under reduced motion like the panels' animations. |
 | Showing the OFP text | SimBrief's HTML through an allowlist (DOMPurify), each time the card shows it | Inserting it as it comes; removing only scripts and event handlers; a cleaner of the card's own; a sandboxed frame; the browsers' own Sanitizer API; cleaning once at import and storing the result | The plan is shown on the page's own origin, where anything active acts as the page. An allowlist holds when SimBrief's markup changes, where a list of what to remove misses what it did not foresee (`<base>`, a `<meta>` refresh, a form). DOMPurify is maintained, widely used and made for this job, and behaves alike in a browser tab and in the installed app's window; a cleaner of the card's own would have to keep up with every way HTML can act. A sandboxed frame needs a document, styles and sizing of its own, and its links need popups let out of the sandbox; the Sanitizer API is not in every browser yet. Cleaning as shown applies the same rules to every stored plan, and the archive keeps the plan whole. |
 | Links inside a plan | Links resolved against the page's own address and kept, in that resolved form, only when they reach an http or https address on another origin, opening in a new window; any other shown as text | Keeping links as they are, leaving the installed app's window to send them out; judging each address on its own and keeping it as written; removing every link | A relative link replaces the page with whatever its own origin answers, and a fragment-only one changes the fragment the page reads to open a hop or pending leg. The installed app's window sends only addresses off the page's origin to the default browser and loads its own origin in place, so it stops neither, and a browser tab has no such guard. An address judged on its own can name another host where the page resolves it to its own origin, so it is judged as the page resolves it and written back in that form. Links out are SimBrief's own and worth following, and a new window takes them out of the app. |
 | Style sheets and loads in a plan | `<style>` and `<link>` removed; images, media and attributes naming an address removed; an inline style naming an address or holding a CSS escape removed whole; other inline styles kept without `!important`, inside a box that clips them | Scoping the plan's style sheets to its box; keeping https images; cutting only the offending declaration out of an inline style; removing colour, background and font declarations from inline styles | A style sheet applies to the whole page, and scoping one needs a CSS parser the card would own; so does cutting one declaration out of a style, where escapes and comments make the text hard to judge. SimBrief's OFP layouts are preformatted text with plain inline styles, and its PDF carries the charts. With nothing loaded, opening a plan contacts no one. Taking `!important` off every kept declaration lets the box's own rules win over any style without a list of properties to keep up with. |

@@ -33,7 +33,7 @@ DOMPurify as the card shows it, `outsideLink` judges the PDF and links, and the 
 - docs/intent/simbrief/simbrief-design.md
 
 ### EARS
-- docs/intent/simbrief/simbrief-specs.md (43 specs)
+- docs/intent/simbrief/simbrief-specs.md (45 specs)
 
 ### Tests
 - tests/tour-map/copies.test.ts — SB-ROUTE-003 (the route placed fix to fix; drawn on every copy by the map's shared copies)
@@ -42,6 +42,8 @@ DOMPurify as the card shows it, `outsideLink` judges the PDF and links, and the 
 - tests/simbrief/ofp-html.test.tsx — SB-CARD-006, 009, 010, 011 (the cleaner and the link rule)
 - tests/simbrief/briefing-card.test.tsx — SB-CARD-004, 005, 006, 007, 009, 010, 011 (the card: OFP text, PDF, Flight)
 - tests/e2e/ofp.spec.ts — SB-CARD-006, 009, 010, 011 (a hostile plan in Chromium: nothing runs, loads or navigates; styles lose to the box; clipped)
+- tests/simbrief/dispatch-and-plan.test.ts — SB-LINK-001 (the airline in the link), SB-OFP-003 (the plan's positions), SB-ROUTE-005 (which airports are circled)
+- tests/e2e/plan-airports.spec.ts — SB-ROUTE-005, 006 (a plan imported through the live card, answered by the browser-test server's canned SimBrief plan: the circles' look, size, order, motion, reduced motion, removal)
 
 ### Code
 - src/client/simbrief.ts
@@ -52,9 +54,9 @@ DOMPurify as the card shows it, `outsideLink` judges the PDF and links, and the 
 - src/server/db.ts — `briefings`, `settings`, `kv_cache`
 - src/client/components/LivePanel.tsx — `SimbriefControls`
 - src/client/components/FlightPanel.tsx — `BriefingCard`
-- src/client/components/BriefingLayer.tsx
-- src/client/App.tsx — panel plan loading, routes to draw
-- src/client/styles.css — `.ofp-html` (the OFP box)
+- src/client/components/BriefingLayer.tsx — `BriefingLayer`, `PlanAirportsLayer`
+- src/client/App.tsx — panel plan loading, routes to draw, the current plan's airports
+- src/client/styles.css — `.ofp-html` (the OFP box), `.plan-airport` (the circles' turning dashes)
 
 ## Architecture
 
@@ -88,9 +90,9 @@ shell edge.
 | Plans on hops | SB-HOP-001 to 005 | 2 | 0 | 3 |
 | Live card controls | SB-CTRL-001 to 004 | 4 | 0 | 0 |
 | Flight panel card | SB-CARD-001 to 011 | 9 | 0 | 2 |
-| Route on the map | SB-ROUTE-001 to 004 | 4 | 0 | 0 |
+| Route on the map | SB-ROUTE-001 to 006 | 6 | 0 | 0 |
 
-**Summary:** 35 of 43 specs implemented; 8 gaps; none deferred. 13 specs have tests.
+**Summary:** 37 of 45 specs implemented; 8 gaps; none deferred. 17 specs have tests.
 
 ## Key Findings
 

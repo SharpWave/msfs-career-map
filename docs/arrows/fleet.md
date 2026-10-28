@@ -33,13 +33,15 @@ table** and **Sources** in the form, and the scripts — is built and tested; it
 - docs/intent/fleet/fleet-design.md
 
 ### EARS
-- docs/intent/fleet/fleet-specs.md (63 specs)
+- docs/intent/fleet/fleet-specs.md (65 specs)
 
 ### Tests
 - tests/fleet/fleet-list.test.tsx — FLEET-CARD-002, FLEET-LOOK-010
 - tests/fleet/aircraft-types-check.test.ts, aircraft-types-api.test.ts, aircraft-types-script.test.ts,
   aircraft-form-table.test.tsx — FLEET-TYPE-001 to 020, FLEET-SIM-004
 - tests/app-shell/page.test.tsx — FLEET-SIM-003
+- tests/fleet/aircraft-airline-api.test.ts — FLEET-REC-001, FLEET-REC-019, FLEET-REC-014 (the airline)
+- tests/fleet/aircraft-form-airline.test.tsx — FLEET-SIM-005 (the form's Airline field)
 - tests/app-shell/api.test.ts — cites APP-SRV-002 and APP-DATA-002 only, but its upload test checks
   FLEET-LOOK-006's file name `aircraft-<id>.png` and address `/images/aircraft-<id>.png?v=<ms>`
 
@@ -86,15 +88,15 @@ page's icon addresses are relative to its origin (FLEET-LOOK-006), so the window
 
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
-| Aircraft record | FLEET-REC-001 to 018 | 14 | 0 | 4 |
+| Aircraft record | FLEET-REC-001 to 019 | 15 | 0 | 4 |
 | Color, icon, visibility | FLEET-LOOK-001 to 011 | 10 | 0 | 1 |
 | Performance and limit fields | FLEET-PERF-001 to 003 | 3 | 0 | 0 |
-| Sim binding and SimBrief type | FLEET-SIM-001 to 004 | 4 | 0 | 0 |
+| Sim binding, SimBrief type and airline | FLEET-SIM-001 to 005 | 5 | 0 | 0 |
 | Performance table | FLEET-TYPE-001 to 020 | 20 | 0 | 0 |
 | Aircraft form | FLEET-FORM-001 to 005 | 5 | 0 | 0 |
 | Card header | FLEET-CARD-001 to 002 | 2 | 0 | 0 |
 
-**Summary:** 58 of 63 specs implemented; 5 gaps; none deferred. The performance table is complete
+**Summary:** 60 of 65 specs implemented; 5 gaps; none deferred. The performance table is complete
 and tested (FLEET-TYPE-001 to 020, FLEET-SIM-004): every type of the 2026-10-25 snapshot is an entry
 or left out for want of any accepted source (FLEET-TYPE-008, which `npm run aircraft-types:check`
 reports), each entry researched and checked by fleet-design's method, the fifth tier, MSFS add-ons'

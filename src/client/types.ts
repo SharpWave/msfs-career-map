@@ -57,6 +57,8 @@ export interface Aircraft {
   min_runway_ft: number | null;
   /** ICAO type designator SimBrief knows, e.g. "AEST", "TBM8", "C172". */
   simbrief_type: string | null;
+  /** ICAO airline designator for SimBrief links, e.g. "JBU". */
+  airline: string | null;
   /** Service ceiling, feet. */
   ceiling_ft: number | null;
   /** 1 when pressurised or carrying oxygen. */
@@ -164,6 +166,7 @@ export interface AircraftInput {
   cruise_kts: number | null;
   min_runway_ft: number | null;
   simbrief_type: string | null;
+  airline: string | null;
   ceiling_ft: number | null;
   oxygen: boolean;
   max_xwind_kts: number | null;
@@ -236,8 +239,9 @@ export interface BriefingSummary {
   flight_number: string | null;
   callsign: string | null;
   aircraft: { icao: string | null; name: string | null; reg: string | null };
-  origin: { icao: string | null; name: string | null; rwy: string | null };
-  dest: { icao: string | null; name: string | null; rwy: string | null };
+  /** The plan's positions for each, unknown in plans stored before plans carried them. */
+  origin: { icao: string | null; name: string | null; rwy: string | null; lat?: number | null; lon?: number | null };
+  dest: { icao: string | null; name: string | null; rwy: string | null; lat?: number | null; lon?: number | null };
   alternate: { icao: string | null; name: string | null } | null;
   route: string | null;
   distance_nm: number | null;

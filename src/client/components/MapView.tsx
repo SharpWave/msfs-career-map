@@ -4,12 +4,12 @@ import { Circle, CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer,
 import { bearing, type LatLng } from "../geo";
 import { aircraftLabel, airportTypeLabel, airportWhere, fmtDateTime, fmtDuration, fmtFt, fmtNm, hopDurationMin, runwaySummary } from "../format";
 import { CATEGORY_COLORS, categoryFor, isFresh, metarBrief, metarStation, type FlightCategory, type MetarMap } from "../metar";
-import { legFor } from "../simbrief";
+import { legFor, type PlanAirport } from "../simbrief";
 import { isBlocked, type Flag } from "../constraints";
 import { NightLayer } from "./NightLayer";
 import { HazardLayer } from "./HazardLayer";
 import { LiveLayer } from "./LiveLayer";
-import { BriefingLayer } from "./BriefingLayer";
+import { BriefingLayer, PlanAirportsLayer } from "./BriefingLayer";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { LandingBadge } from "./LandingBadge";
 import { hopTouchdown } from "../landing";
@@ -124,6 +124,8 @@ interface Props {
   onOpenHop?: (hop: Hop) => void;
   /** SimBrief routes to draw under the paths. */
   routes?: { fixes: OfpFix[]; color: string }[];
+  /** The current SimBrief plan's airports, circled under the routes. */
+  planAirports?: { airports: PlanAirport[]; color: string };
   /** The part of the map the page's panels leave clear now; popups open inside it. */
   clear: Insets;
 }
@@ -185,6 +187,7 @@ function Layers({
   live,
   onOpenHop,
   routes,
+  planAirports,
 }: Props) {
   const { hops, nodes, heads } = data;
   const { copies } = useWorldCopies();
@@ -261,8 +264,11 @@ function Layers({
         </Popup>
       )}
 
-      {/* 0b. SimBrief planned routes, dashed, under the flown paths */}
-      <ErrorBoundary label="Planned route" className="map-notice">{routes?.map((r, i) => <BriefingLayer key={`route-${i}`} fixes={r.fixes} color={r.color} />)}</ErrorBoundary>
+      {/* 0b. SimBrief planned routes, dashed, under the flown paths; the current plan's airports under them */}
+      <ErrorBoundary label="Planned route" className="map-notice">
+        {planAirports && <PlanAirportsLayer airports={planAirports.airports} color={planAirports.color} />}
+        {routes?.map((r, i) => <BriefingLayer key={`route-${i}`} fixes={r.fixes} color={r.color} />)}
+      </ErrorBoundary>
 
       {/* 1. dark casing under every path so colors pop on any basemap */}
       {hops.map((r) =>

@@ -2,14 +2,14 @@
 
 Design: [fleet-design.md](fleet-design.md). Prefix `FLEET`; facets `REC` (the aircraft record),
 `LOOK` (color, icon, visibility), `PERF` (performance and limit fields in the form), `SIM` (sim
-binding fields and SimBrief type), `TYPE` (the performance table of SimBrief's types and filling the
+binding fields, SimBrief type and airline), `TYPE` (the performance table of SimBrief's types and filling the
 form from it), `FORM` (the aircraft form), `CARD` (the aircraft card header).
 
 `[x]` implemented · `[ ]` intended, not yet implemented · `[D]` deferred
 
 ## The Aircraft Record
 
-- [x] **FLEET-REC-001**: The system shall store each fleet aircraft with a name, a livery or registration, a path color, an icon, notes, a map-visibility flag, optional performance and limit fields, an optional SimBrief type designator, and an optional sim title and sim livery.
+- [x] **FLEET-REC-001**: The system shall store each fleet aircraft with a name, a livery or registration, a path color, an icon, notes, a map-visibility flag, optional performance and limit fields, an optional SimBrief type designator, an optional ICAO airline designator, and an optional sim title and sim livery.
 - [x] **FLEET-REC-002**: If a fleet aircraft is created or updated with a blank name, then the system shall reject it with HTTP 400 "name is required".
 - [ ] **FLEET-REC-003**: If a fleet aircraft is created or updated with the same name and livery as another fleet aircraft, compared trimmed and case-insensitively, then the system shall reject it with HTTP 409 naming the existing aircraft.
 - [x] **FLEET-REC-004**: If a fleet aircraft is created or updated with a path color that is not of the form `#rrggbb`, then the system shall reject it with HTTP 400.
@@ -19,6 +19,7 @@ form from it), `FORM` (the aircraft form), `CARD` (the aircraft card header).
 - [x] **FLEET-REC-008**: When a fleet aircraft is created or updated with a block-time input (cruise altitude, climb rate, climb speed, descent rate, taxi + approach minutes), the system shall round it to a whole number and store zero or blank as null (use the planner's default).
 - [x] **FLEET-REC-009**: If a fleet aircraft is created or updated with a non-zero block-time input outside its range (cruise altitude 500–60,000 ft, climb rate 50–10,000 fpm, climb speed 20–600 kt, descent rate 50–10,000 fpm, taxi + approach 1–120 min), then the system shall reject it with HTTP 400 naming the field and its range.
 - [x] **FLEET-REC-010**: When a fleet aircraft is created or updated with a SimBrief type, the system shall upper-case it and reject it with HTTP 400 unless it is 2–6 letters or digits.
+- [x] **FLEET-REC-019**: When a fleet aircraft is created or updated with an airline, the system shall trim and upper-case it, store a blank one as null, and reject with HTTP 400 "airline must be a three-letter ICAO airline code" any other value that is not three letters A–Z.
 - [x] **FLEET-REC-011**: When a fleet aircraft is created without oxygen or IFR-capability values, the system shall store it as having no oxygen or pressurisation and as IFR capable.
 - [x] **FLEET-REC-012**: When a fleet aircraft is created, the system shall make it visible on the map.
 - [x] **FLEET-REC-013**: When a fleet aircraft is created or updated with a blank icon, the system shall use the built-in twin-piston icon.
@@ -77,6 +78,7 @@ form from it), `FORM` (the aircraft form), `CARD` (the aircraft card header).
 - [x] **FLEET-SIM-002**: The aircraft form shall let the user view and edit the sim title and sim livery.
 - [x] **FLEET-SIM-003**: When the user asks to create a fleet aircraft from the sim aircraft (**+ New** in the live card), the system shall open the new-aircraft form prefilled with the sim title as name, the sim's ATC ID (else its livery name) as livery, and the sim title and livery as the binding, in the Fleet drawer scrolled to that form.
 - [x] **FLEET-SIM-004**: When the user types a SimBrief type in the aircraft form, the system shall upper-case it, suggest designators from SimBrief's type list, and show the matching type's name, or, when none matches, the performance table's name for it where the table holds it (FLEET-TYPE-012), else "Not in SimBrief's list (it may still accept it)".
+- [x] **FLEET-SIM-005**: The aircraft form shall offer an optional **Airline** field beside the SimBrief type, upper-casing it as the user types, refusing to save it with the message "Airline must be a three-letter ICAO airline code" unless it is blank or three letters A–Z, and sending a blank one as null.
 
 ## The Aircraft Form
 

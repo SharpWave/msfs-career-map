@@ -98,7 +98,7 @@ arrows:
     blocks: [planner, shell, distribution]
     blockedBy: [fleet, live-tracking, tour-map]
     detail: simbrief.md
-    next: "Add tests for the 22 implemented SB specs that have none, then close the 8 gaps (preview-and-confirm everywhere, hop plan replace/delete, pending-leg plan, registration test); the OFP-text gate the first release waits for is closed (SB-CARD-006, SB-CARD-009 to 011)"
+    next: "Add tests for the 20 implemented SB specs that have none, then close the 8 gaps (preview-and-confirm everywhere, hop plan replace/delete, pending-leg plan, registration test); the OFP-text gate the first release waits for is closed (SB-CARD-006, SB-CARD-009 to 011)"
     drift: null
 
   # Grouping node (sub-HLD): owns no EARS and no arrow doc; dependencies are recorded on its leaves.

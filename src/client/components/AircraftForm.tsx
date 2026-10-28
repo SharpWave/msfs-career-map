@@ -84,6 +84,7 @@ export function AircraftForm({ initial, prefill, usedColors, onSaved, onCancel, 
   const [cruise, setCruise] = useState(initial?.cruise_kts?.toString() ?? "");
   const [minRunway, setMinRunway] = useState(initial?.min_runway_ft?.toString() ?? "");
   const [simbriefType, setSimbriefType] = useState(initial?.simbrief_type ?? "");
+  const [airline, setAirline] = useState(initial?.airline ?? "");
   const [ceiling, setCeiling] = useState(initial?.ceiling_ft?.toString() ?? "");
   const [maxXwind, setMaxXwind] = useState(initial?.max_xwind_kts?.toString() ?? "");
   const [oxygen, setOxygen] = useState(!!initial?.oxygen);
@@ -223,6 +224,8 @@ export function AircraftForm({ initial, prefill, usedColors, onSaved, onCancel, 
     if (minRunwayFt !== null && (!Number.isFinite(minRunwayFt) || minRunwayFt < 0)) return setError("Minimum runway must be a number of feet.");
     const sbType = simbriefType.trim().toUpperCase();
     if (sbType && !/^[A-Z0-9]{2,6}$/.test(sbType)) return setError("SimBrief type should be an ICAO designator like C172 or TBM8.");
+    const airlineCode = airline.trim().toUpperCase();
+    if (airlineCode && !/^[A-Z]{3}$/.test(airlineCode)) return setError("Airline must be a three-letter ICAO airline code");
     const ceilingFt = ceiling.trim() === "" ? null : Number(ceiling);
     if (ceilingFt !== null && (!Number.isFinite(ceilingFt) || ceilingFt < 0)) return setError("Service ceiling must be a number of feet.");
     const maxXwindKts = maxXwind.trim() === "" ? null : Number(maxXwind);
@@ -245,6 +248,7 @@ export function AircraftForm({ initial, prefill, usedColors, onSaved, onCancel, 
         cruise_kts: cruiseKts,
         min_runway_ft: minRunwayFt,
         simbrief_type: sbType || null,
+        airline: airlineCode || null,
         ceiling_ft: ceilingFt,
         oxygen,
         max_xwind_kts: maxXwindKts,
@@ -419,30 +423,46 @@ export function AircraftForm({ initial, prefill, usedColors, onSaved, onCancel, 
         </label>
       </div>
 
-      <label>
-        <span>
-          SimBrief aircraft type <em>(ICAO designator, pre-fills SimBrief links)</em>
-        </span>
-        <input
-          className="code"
-          list="simbrief-types"
-          value={simbriefType}
-          onChange={(e) => setSimbriefType(e.target.value.toUpperCase())}
-          placeholder="e.g. AEST, PA24, TBM8"
-          maxLength={6}
-          spellCheck={false}
-        />
-        <datalist id="simbrief-types">
-          {typeList.map(([code, label]) => (
-            <option key={code} value={code}>
-              {label}
-            </option>
-          ))}
-        </datalist>
-        <div className={`hint${simbriefType && !typeName ? " bad" : ""}`}>
-          {typeName ?? (simbriefType ? "Not in SimBrief's list (it may still accept it)" : `${typeList.length} types; type a code or name to search`)}
-        </div>
-      </label>
+      {/* @spec FLEET-SIM-005 */}
+      <div className="type-airline">
+        <label>
+          <span>
+            SimBrief aircraft type <em>(ICAO designator, pre-fills SimBrief links)</em>
+          </span>
+          <input
+            className="code"
+            list="simbrief-types"
+            value={simbriefType}
+            onChange={(e) => setSimbriefType(e.target.value.toUpperCase())}
+            placeholder="e.g. AEST, PA24, TBM8"
+            maxLength={6}
+            spellCheck={false}
+          />
+          <datalist id="simbrief-types">
+            {typeList.map(([code, label]) => (
+              <option key={code} value={code}>
+                {label}
+              </option>
+            ))}
+          </datalist>
+          <div className={`hint${simbriefType && !typeName ? " bad" : ""}`}>
+            {typeName ?? (simbriefType ? "Not in SimBrief's list (it may still accept it)" : `${typeList.length} types; type a code or name to search`)}
+          </div>
+        </label>
+        <label>
+          <span>
+            Airline <em>(ICAO code)</em>
+          </span>
+          <input
+            className="code"
+            value={airline}
+            onChange={(e) => setAirline(e.target.value.toUpperCase())}
+            placeholder="e.g. JBU"
+            maxLength={3}
+            spellCheck={false}
+          />
+        </label>
+      </div>
 
       {/* @spec FLEET-SIM-004, FLEET-TYPE-012 */}
       {(inTable || fillNote || entryError) && (

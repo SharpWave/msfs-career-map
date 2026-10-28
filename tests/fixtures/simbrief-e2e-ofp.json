@@ -1,0 +1,21 @@
+{
+  "params": { "request_id": "1793000000_E2E", "static_id": null, "time_generated": "1793000000" },
+  "general": { "icao_airline": "JBU", "flight_number": "1234", "route": "DCT PVD", "route_distance": "41", "initial_altitude": "5000" },
+  "atc": { "callsign": "JBU1234" },
+  "aircraft": { "icaocode": "A320", "name": "A320-200", "reg": "N123JB" },
+  "origin": { "icao_code": "KBOS", "name": "General Edward Lawrence Logan International Airport", "plan_rwy": "04R", "pos_lat": "42.364300", "pos_long": "-71.005200" },
+  "destination": { "icao_code": "KPVD", "name": "Rhode Island T. F. Green International Airport", "plan_rwy": "05", "pos_lat": "41.723200", "pos_long": "-71.428200" },
+  "alternate": [],
+  "times": { "est_time_enroute": "1320" },
+  "fuel": { "plan_ramp": "9000", "plan_takeoff": "8800", "plan_landing": "7600", "est_burn": "1200" },
+  "weights": { "pax_count": "120", "cargo": "2000", "payload": "26000", "est_zfw": "120000", "est_tow": "128800", "est_ldw": "127600" },
+  "files": { "directory": "https://www.simbrief.com/ofp/flightplans/", "pdf": { "link": "KBOSKPVD_PDF_1793000000.pdf" } },
+  "text": { "plan_html": "<pre>KBOS-KPVD JBU1234</pre>" },
+  "navlog": {
+    "fix": [
+      { "ident": "KBOS", "name": "Logan", "type": "apt", "pos_lat": "42.364300", "pos_long": "-71.005200", "altitude_feet": "20", "via_airway": "DCT", "is_sid_star": "0" },
+      { "ident": "PVD", "name": "Providence", "type": "vor", "pos_lat": "41.724000", "pos_long": "-71.429700", "altitude_feet": "5000", "via_airway": "DCT", "is_sid_star": "0" },
+      { "ident": "KPVD", "name": "T. F. Green", "type": "apt", "pos_lat": "41.723200", "pos_long": "-71.428200", "altitude_feet": "55", "via_airway": "DCT", "is_sid_star": "0" }
+    ]
+  }
+}
