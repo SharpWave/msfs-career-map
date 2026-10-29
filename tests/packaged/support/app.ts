@@ -180,19 +180,42 @@ export async function windowShowing(app: ElectronApplication, accept: (url: stri
 export async function screenShowing(app: ElectronApplication, text: string, timeoutMs = 90_000): Promise<Page> {
   const deadline = Date.now() + timeoutMs;
   let seen = "";
+  let readError = "";
   for (;;) {
     for (const w of app.windows()) {
       if (w.isClosed() || !w.url().startsWith("data:")) continue;
       const body = await w
         .locator("body")
         .innerText({ timeout: 1_000 })
-        .catch(() => "");
+        .catch((e: Error) => {
+          readError = e.message.split("\n")[0];
+          return "";
+        });
       seen = body;
       if (body.includes(text)) return w;
     }
     if (Date.now() > deadline) {
       const urls = app.windows().map((w) => (w.isClosed() ? "(closed)" : w.url().slice(0, 80)));
-      throw new Error(`no screen showing "${text}" within ${timeoutMs / 1000} s; last screen text: ${seen || "none"}; windows: ${urls.join(" | ") || "none"}`);
+      const shell = await app
+        .evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows().map((b) => ({
+            id: b.id,
+            visible: b.isVisible(),
+            destroyed: b.isDestroyed(),
+            loading: b.isDestroyed() ? null : b.webContents.isLoading(),
+            crashed: b.isDestroyed() ? null : b.webContents.isCrashed(),
+            url: b.isDestroyed() ? null : b.webContents.getURL().slice(0, 60),
+          })),
+        )
+        .catch((e: Error) => e.message.split("\n")[0]);
+      const page = await Promise.race([
+        app.windows().find((w) => !w.isClosed() && w.url().startsWith("data:"))?.evaluate(() => ({ state: document.readyState, title: document.title, text: document.body?.innerText.length ?? null })),
+        sleep(3_000).then(() => "evaluate gave no answer in 3 s"),
+      ]).catch((e: Error) => e.message.split("\n")[0]);
+      throw new Error(
+        `no screen showing "${text}" within ${timeoutMs / 1000} s; last screen text: ${seen || "none"}; last read error: ${readError || "none"}; ` +
+          `windows: ${urls.join(" | ") || "none"}; shell windows: ${JSON.stringify(shell)}; page: ${JSON.stringify(page)}`,
+      );
     }
     await sleep(250);
   }
