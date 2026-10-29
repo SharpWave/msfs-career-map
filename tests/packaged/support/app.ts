@@ -190,7 +190,10 @@ export async function screenShowing(app: ElectronApplication, text: string, time
       seen = body;
       if (body.includes(text)) return w;
     }
-    if (Date.now() > deadline) throw new Error(`no screen showing "${text}" within ${timeoutMs / 1000} s; last screen text: ${seen || "none"}`);
+    if (Date.now() > deadline) {
+      const urls = app.windows().map((w) => (w.isClosed() ? "(closed)" : w.url().slice(0, 80)));
+      throw new Error(`no screen showing "${text}" within ${timeoutMs / 1000} s; last screen text: ${seen || "none"}; windows: ${urls.join(" | ") || "none"}`);
+    }
     await sleep(250);
   }
 }

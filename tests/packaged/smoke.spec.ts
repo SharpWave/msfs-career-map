@@ -298,7 +298,10 @@ test.describe("the packaged app in test mode", () => {
     const folderB = await newFolder();
     const { app: other } = await start(folderB);
     try {
-      await screenShowing(other, "MSFS Career Map could not start its server", 60_000);
+      await screenShowing(other, "MSFS Career Map could not start its server", 60_000).catch((e: Error) => {
+        // What the second copy did, for a failure seen only on the release workflow's runner.
+        throw new Error(`${e.message}\nsecond copy's desktop.log (last 4000 characters):\n${desktopLog(folderB).slice(-4000)}`);
+      });
       const screen = await screenShowing(other, "Port 3280 is in use by MSFS Career Map in another Windows account, a test copy or a copy run from source", 5_000);
       await expect(screen).toHaveTitle("MSFS Career Map");
       // At once: no retry was counted.
