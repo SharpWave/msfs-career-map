@@ -184,13 +184,16 @@ export async function screenShowing(app: ElectronApplication, text: string, time
   for (;;) {
     for (const w of app.windows()) {
       if (w.isClosed() || !w.url().startsWith("data:")) continue;
-      const body = await w
-        .locator("body")
-        .innerText({ timeout: 1_000 })
-        .catch((e: Error) => {
-          readError = e.message.split("\n")[0];
-          return "";
-        });
+      // Read in the page's own world: on the release workflow's runner a screen loaded straight after
+      // another (the starting screen, then the failure screen) leaves Playwright's locators timing out on
+      // a page that has finished loading, while evaluating in it answers.
+      const body = await Promise.race([
+        w.evaluate(() => document.body?.innerText ?? ""),
+        sleep(1_000).then(() => Promise.reject(new Error("no answer from the page in 1 s"))),
+      ]).catch((e: Error) => {
+        readError = e.message.split("\n")[0];
+        return "";
+      });
       seen = body;
       if (body.includes(text)) return w;
     }

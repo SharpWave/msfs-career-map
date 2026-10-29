@@ -299,11 +299,12 @@ test.describe("the packaged app in test mode", () => {
     const { app: other } = await start(folderB);
     try {
       await screenShowing(other, "MSFS Career Map could not start its server", 60_000).catch((e: Error) => {
-        // What the second copy did, for a failure seen only on the release workflow's runner.
+        // What the second copy did, should its screen not be found.
         throw new Error(`${e.message}\nsecond copy's desktop.log (last 4000 characters):\n${desktopLog(folderB).slice(-4000)}`);
       });
       const screen = await screenShowing(other, "Port 3280 is in use by MSFS Career Map in another Windows account, a test copy or a copy run from source", 5_000);
-      await expect(screen).toHaveTitle("MSFS Career Map");
+      // Read in the page's own world, as screenShowing reads it.
+      expect(await screen.evaluate(() => document.title)).toBe("MSFS Career Map");
       // At once: no retry was counted.
       expect(desktopLog(folderB)).not.toContain("failure at start");
       // The first copy goes on as it was.
