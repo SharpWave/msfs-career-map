@@ -42,6 +42,7 @@ ended by `taskkill /F` took its server's utility process and every child with it
   active gaps, 1 deferred
 
 ### Tests
+- tests/desktop/shell/msfs-handoff.test.ts — DESK-SHELL-CLI-023 to 025, CLI-005, CLI-013 (a start by MSFS handed to Windows' shell; its fallbacks); windows-facts.test.ts — the parent's program by tasklist
 - tests/desktop/shell/ — Vitest unit tests of the desktop shell's logic in the `desktop` project, on
   `FakeClock` and the stand-ins of tests/desktop/support/fakes.ts: the supervisor
   (supervisor-start, -failures, -health, -ports, -shutdown), shell-start and shell-quit, backups and
@@ -126,7 +127,7 @@ the sim is in use — while the page stays the same web page the browser tests c
 | Settings | DESK-SHELL-SET-001 to 006 | 6 | 0 | 0 |
 | Window | DESK-SHELL-WIN-001 to 032 | 31 | 0 | 1 |
 | Tray | DESK-SHELL-TRAY-001 to 027 | 27 | 0 | 0 |
-| One running copy and command line | DESK-SHELL-CLI-001 to 022 | 22 | 0 | 0 |
+| One running copy and command line | DESK-SHELL-CLI-001 to 025 | 25 | 0 | 0 |
 | Staying out of the way | DESK-SHELL-AWAY-001 to 005 | 5 | 0 | 0 |
 | Windows sign-out and shutdown | DESK-SHELL-OS-001 to 003 | 3 | 0 | 0 |
 | First run | DESK-SHELL-FIRST-001 to 005 | 5 | 0 | 0 |
@@ -134,7 +135,7 @@ the sim is in use — while the page stays the same web page the browser tests c
 | Updates | DESK-SHELL-UPD-001 to 032 | 30 | 1 | 1 |
 | Unit-test harness | DESK-SHELL-TEST-001 | 1 | 0 | 0 |
 
-**Summary:** 219 of 226 specs implemented; 6 gaps; 1 deferred (DESK-SHELL-UPD-021, a prerelease
+**Summary:** 222 of 229 specs implemented; 6 gaps; 1 deferred (DESK-SHELL-UPD-021, a prerelease
 channel). Built, waiting to be seen: UPD-001 (electron-updater taking an update from the project's
 GitHub Releases, unit-tested on a stand-in for its autoUpdater; seen only once a published release is
 newer than an installed copy), NOTE-014 and NOTE-015 (a click after the notification's object is gone,
@@ -189,8 +190,10 @@ start during an install left in the install-under-way mark) is built with distri
    asks for); notification clicks with no window, the registry keys
    notifications write and the switch Electron 45's notification activation adds to a start; session end
    on a hidden window; Windows 11 hiding a new program's tray icon and the Settings path the one-time
-   notice quotes; and a start by the Store edition of MSFS (an open question in the desktop design,
-   checked by hand before the first release). Seen: a main process ended outright, by `taskkill /F` or
+   notice quotes; and Explorer's own copy after a start by MSFS is handed to Windows' shell
+   (DESK-SHELL-CLI-023). Seen on the Store edition (2026-11-01): a copy MSFS started runs outside its
+   package with the real folders and lock and outlives it, which kept MSFS from starting again until such
+   a start was handed to Windows' shell. Seen: a main process ended outright, by `taskkill /F` or
    `process.kill`, takes its server's utility process with it within a second. A real `Tray` makes
    Explorer record an entry for the program under `HKCU\Control Panel\NotifyIconSettings` (`electron.exe`
    when unpackaged), so `npm run desktop` and the smoke test leave one; the unit tests make no `Tray`.

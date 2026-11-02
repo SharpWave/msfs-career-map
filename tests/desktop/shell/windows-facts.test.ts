@@ -19,7 +19,9 @@ import {
   parseProcessIds,
   processPathArgs,
   processesInArgs,
+  programNameIn,
   tasklistArgs,
+  tasklistByPidArgs,
   tasklistHas,
   windowsFacts,
   windowsUser,
@@ -204,5 +206,25 @@ describe("Documents as the registry names it", () => {
         { USERPROFILE: "C:\\Users\\pilot" },
       ),
     ).toBeNull();
+  });
+});
+
+describe("a process's program, by its id", () => {
+  // @spec DESK-SHELL-CLI-023, DESK-SHELL-CLI-024
+  it("asks tasklist for that process id alone, as CSV without a header", () => {
+    expect(tasklistByPidArgs(33924)).toEqual(["/FI", "PID eq 33924", "/FO", "CSV", "/NH"]);
+  });
+
+  // @spec DESK-SHELL-CLI-023
+  it("is the first CSV field of tasklist's line for it", () => {
+    expect(programNameIn('"FlightSimulator2024.exe","33924","Console","1","9,812,344 K"\r\n')).toBe("FlightSimulator2024.exe");
+    expect(programNameIn('"explorer.exe","10860","Console","1","212,004 K"\n')).toBe("explorer.exe");
+  });
+
+  // @spec DESK-SHELL-CLI-024
+  it("is unknown when tasklist names no process, in any language", () => {
+    expect(programNameIn("INFO: No tasks are running which match the specified criteria.\r\n")).toBeNull();
+    expect(programNameIn("INFORMATION: Es werden keine Aufgaben mit den angegebenen Kriterien ausgeführt.\r\n")).toBeNull();
+    expect(programNameIn("")).toBeNull();
   });
 });

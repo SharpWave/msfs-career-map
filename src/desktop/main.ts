@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { StringDecoder } from "node:string_decoder";
@@ -24,6 +25,7 @@ import { autoUpdater, CancellationToken } from "electron-updater";
 import { checkInstallUnderWay, downloadsFolder, leftInMarkLogLine, nodeMarkFiles } from "./install-mark.ts";
 import { localHttp } from "./local-http.ts";
 import { LogFile } from "./logs.ts";
+import { backgroundStart } from "./msfs-handoff.ts";
 import { nodeEditorFs } from "./msfs-start.ts";
 import { registrations, type ShortcutLinks } from "./registrations.ts";
 import type {
@@ -55,7 +57,7 @@ import {
   windowUserAgent,
 } from "./window-options.ts";
 import { initialPlace, minContentSize } from "./window-place.ts";
-import { knownFolders, windowsFacts } from "./windows-facts.ts";
+import { knownFolders, programNameOf, windowsFacts } from "./windows-facts.ts";
 
 /**
  * The Electron glue, the desktop bundle's entry: the start decided before Electron writes anything,
@@ -113,8 +115,52 @@ function main(): void {
         app.exit(0);
         return;
       }
-      takeLock(plan, command);
+      if (sw === "background") startInTray(plan, command);
+      else takeLock(plan, command);
     });
+}
+
+/**
+ * An installed `--background` start: an ordinary one, or one by MSFS, which has Windows' shell start the
+ * app instead of becoming the running copy (msfs-handoff.ts).
+ */
+// @spec DESK-SHELL-CLI-023, DESK-SHELL-CLI-024, DESK-SHELL-CLI-025
+function startInTray(plan: RunPlan, command: CommandLine): void {
+  void backgroundStart({
+    parentPid: process.ppid,
+    electronFolder: plan.electronFolder,
+    localAppData: process.env.LOCALAPPDATA ?? "",
+    ports: {
+      programNameOf,
+      takeLock: () => app.requestSingleInstanceLock({ commandLine: command }),
+      releaseLock: () => app.releaseSingleInstanceLock(),
+      writeShortcut(file, target, args) {
+        fs.mkdirSync(path.win32.dirname(file), { recursive: true });
+        if (!electronShell.writeShortcutLink(file, "create", { target, args })) throw new Error("Windows did not write the shortcut");
+      },
+      openInExplorer,
+      log: (line) => new LogFile({ folder: path.win32.join(plan.electronFolder, "logs"), name: "desktop", clock: realClock() }).write(line),
+    },
+  })
+    .then((outcome) => (outcome === "run" ? runningCopy(plan, command) : app.exit(0)))
+    .catch(() => takeLock(plan, command));
+}
+
+/** `explorer.exe` on a file, so the pilot's Windows shell opens it; resolves once it has started, or with why it could not. */
+function openInExplorer(file: string): Promise<{ ok: true } | { ok: false; reason: string }> {
+  return new Promise((resolve) => {
+    try {
+      const explorer = path.win32.join(process.env.SystemRoot ?? "C:\\Windows", "explorer.exe");
+      const child = spawn(explorer, [file], { detached: true, stdio: "ignore" });
+      child.once("spawn", () => {
+        child.unref();
+        resolve({ ok: true });
+      });
+      child.once("error", (e) => resolve({ ok: false, reason: e.message }));
+    } catch (e) {
+      resolve({ ok: false, reason: e instanceof Error ? e.message : String(e) });
+    }
+  });
 }
 
 /** The single-instance lock: held, this copy runs; otherwise its command line was handed over. */

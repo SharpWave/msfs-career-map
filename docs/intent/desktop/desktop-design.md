@@ -82,7 +82,7 @@ each of these is specified in the part that carries it out.
 
 | Process | What runs there | Started by |
 |---|---|---|
-| Desktop shell | Electron's main process: tray, windows, single running copy, start lists, notifications, updates, keeping the server running | The Start menu, a shortcut, MSFS, Windows sign-in, a notification click, the installer or the uninstaller |
+| Desktop shell | Electron's main process: tray, windows, single running copy, start lists, notifications, updates, keeping the server running | The Start menu, a shortcut, Windows' shell on MSFS's behalf ([Started by MSFS](#started-by-msfs)), Windows sign-in, a notification click, the installer or the uninstaller |
 | Server | The bundled server — Express API, tracker, sim link, `node:sqlite` — in an Electron utility process | The desktop shell |
 | Window | Chromium's renderer showing the page from the server | The desktop shell, when the window opens |
 | Session watcher | A hidden window with no page, alive for the whole run, never shown ([Shell › Windows Sign-out and Shutdown](shell/shell-design.md#windows-sign-out-and-shutdown)) | The desktop shell, at start |
@@ -138,6 +138,26 @@ It governs the rules for staying out of the pilot's way
 ([Shell › Staying Out of the Way](shell/shell-design.md#staying-out-of-the-way)) and the update steps
 ([Shell › Updates](shell/shell-design.md#updates)); the tray's status line and dot follow the tracker's
 own report instead ([Shell › The Tray](shell/shell-design.md#the-tray)).
+
+### Started by MSFS
+
+MSFS starts the programs listed in its `EXE.xml` as its own child processes, and what runs MSFS —
+Gaming Services for the Store edition, Steam for the Steam edition — counts the game as running while any
+process it started is still alive. A copy of the app that MSFS started and that outlived MSFS, as the
+app does, would keep the finished session counted as running, and the next start of MSFS would be
+refused without a word: no MSFS process, no splash screen. So a start whose parent process is MSFS 2024
+(`FlightSimulator2024.exe`) or MSFS 2020 (`FlightSimulator.exe`) never becomes the running copy itself.
+When another copy already holds the single-instance lock, it hands its command line over, as any start
+does. Otherwise it has Windows' shell start the program again — `explorer.exe` opening a shortcut the
+app keeps for this, which starts `MSFS Career Map.exe --background` — and exits. The copy Explorer
+starts belongs to the pilot's Windows session, not to MSFS: it takes the lock, keeps running when MSFS
+quits, and never holds MSFS's session open. The pilot sees no difference: the app is in the tray a
+moment after MSFS starts, as with any `--background` start
+([Shell › One Running Copy](shell/shell-design.md#one-running-copy)).
+
+Started by the Store edition, the program runs outside MSFS's package — a program a packaged app starts
+breaks away from the package by default — so it writes to the real `%LOCALAPPDATA%` and `%APPDATA%` and
+takes the same single-instance lock as any other start; Explorer's copy inherits nothing of MSFS either.
 
 ### Names and folders
 
@@ -304,6 +324,7 @@ Relies On lists the rest, and each segment's own design and specs say how.
 | Bridge into the page | None | A preload giving the page desktop features (settings, folders, notifications) | The page stays a web page that the browser tests cover. SimBrief's plan markup runs on the page's origin, and a bridge would hand it desktop powers. |
 | Names and paths | Fixed for good; an unavoidable change ships a release that also recognises the earlier program path | Recording every entry written in the settings, to find it again | The lock, the settings, the page's remembered choices, the update chain and the start-list entries are all found by these names; a name that never changes needs no record. |
 | When the sim is in use | This copy's sim link connected, another copy holding the PC-wide sim-link claim, or MSFS 2024 or MSFS 2020 running for this Windows account whatever this copy's server is doing; the tray follows only the tracker's report | This copy's link alone; MSFS's process counted only while this copy's server is starting, restarting or given up on; MSFS 2024's process alone | MSFS loads and streams scenery for minutes before its SimConnect answers, a broken setup may never let the link connect, and while the server restarts or is given up on, or another copy holds the link, this copy reports no link — yet the pilot may be flying, and an update download, a notification's sound or a window taking focus then would interrupt the flight. MSFS 2020 is tracked too (HLD Non-Goals), so its process counts as well. The tray shows what the tracker reports, so its words always match the live card. |
+| A start by MSFS | Handed over to a running copy, or else a fresh copy started by Windows' shell (`explorer.exe` opening the app's own shortcut with `--background`) and this start ended, for a start whose parent is MSFS 2024 or MSFS 2020, Store or Steam alike | The copy MSFS started running on; quitting along with MSFS; not offering Start with MSFS 2024 for the Store edition; starting the fresh copy through WMI (`Win32_Process.Create`) or a scheduled task; telling an MSFS start by a switch of its own in `EXE.xml` | Gaming Services and Steam count a game as running while any process it started lives, so a copy MSFS started that outlives it makes the next start of MSFS do nothing at all. Quitting with MSFS would take away the tray, its notifications and a window left open after the flight, and a window kept open would still hold the session; leaving Start with MSFS 2024 out for the Store edition removes the feature. Explorer is the pilot's own shell, so its copy is no child of MSFS, and a shortcut carries the `--background` switch Explorer cannot pass itself; WMI's process creation is a pattern security tools watch, and a scheduled task is a lasting entry the pilot did not ask for. Judging by the parent process needs no change to the `EXE.xml` entry the app has already written, which a switch of its own would. |
 | The desktop shell's own files | Electron's folder | The data folder | The server does everything that touches the data folder, so nothing the desktop shell writes can be taken for part of a logbook, brought in or backed up with it. |
 | Chromium's caches and the page's storage | Electron's folder in roaming `%APPDATA%` | A local folder for the caches | All of it can be rebuilt or lost without harm, and keeping every desktop-shell file in one folder leaves the data folder to the server; a roaming profile, which would carry the caches around, is rare on a home PC. |
 | Test mode | One switch choosing folder, port, instance and fake feed, with no start lists, updates, logbook offer, notification registrations or airport downloads; only the installed program runs outside it | Environment variables, as for a source run; holding only an unpackaged build to test mode | It cannot be half applied, and a build in test mode never reaches the real logbook, start lists, updater or the installed app's notification registration, nor replaces the airport lists it was seeded with. A build started from anywhere but the install folder — the smoke test's unpacked build, a local package — would otherwise take the installed app's lock, open the real logbook and upgrade it with unreleased code, and point the notification registration at a folder the next build empties. |
@@ -326,17 +347,7 @@ The desktop parts answer for these of the HLD's success metrics
 
 ### Open
 
-1. **Started by the Store edition of MSFS**, the app is expected to run outside MSFS's package, since a
-   program a packaged app starts breaks away from it by default: it writes to the real `%LOCALAPPDATA%`
-   and `%APPDATA%`, takes the same single-instance lock as any other start, and keeps running when MSFS
-   quits. If it inherited MSFS's package identity or job instead, a redirected data folder would hide the
-   logbook, a redirected Electron folder would give a second lock — an empty logbook and a clash on the
-   port — or quitting MSFS would end the app. The smoke test
-   ([Distribution › Tests](distribution/distribution-design.md#tests)) cannot cover this, so it is a
-   check by hand on a real Store install before the first release. Should it be needed, the remedy to
-   weigh then is detecting package identity at start and starting the installed program again outside it
-   through `explorer.exe`.
-2. **Size** — the installer's size, and the app's memory with the map page loaded, are not yet
+1. **Size** — the installer's size, and the app's memory with the map page loaded, are not yet
    measured.
 
 ## References

@@ -111,8 +111,10 @@ programs share only by the app's one entry, only when asked, and only after a ba
    Segment Owns); no EARS spec carries the README.
 4. **Platform behaviour not yet seen working** — both items and `--unregister` on the real files and keys;
    the Steam edition's `EXE.xml` folder and process name
-   (from community sources only), and a start by the Store edition of MSFS (the folders, the lock,
-   outliving MSFS; an open question in the desktop design, checked by hand before the first release).
+   (from community sources only). A start by the Store edition of MSFS was seen on 2026-11-01: outside
+   MSFS's package, with the real folders and lock, outliving MSFS — which kept MSFS from starting again
+   until the desktop shell hands such a start to Windows' shell (DESK-SHELL-CLI-023); the entry the app
+   writes is unchanged.
 
 ## Work Required
 

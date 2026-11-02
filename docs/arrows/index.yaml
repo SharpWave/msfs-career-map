@@ -124,7 +124,7 @@ arrows:
     blocks: [start-lists, distribution]
     blockedBy: [live-tracking, airports, simbrief]
     detail: desktop/shell.md
-    next: "219 of 226 DESK-SHELL specs implemented (6 gaps, 1 deferred): notifications (5a) and updates (5b) built. Next: see on the installed app NOTE-014 and NOTE-015, and an update going through once a published release is newer than it (UPD-001); the packaged smoke test to cite SRV-003, SRV-040 and WIN-031"
+    next: "222 of 229 DESK-SHELL specs implemented (6 gaps, 1 deferred). Next: see on the installed app the hand-off of a start by MSFS to Windows' shell (DESK-SHELL-CLI-023: MSFS starts again after quitting with the app left running), NOTE-014 and NOTE-015; the update from 0.8.0 to 0.8.1 went through on the installed app (UPD-001 still to be marked)"
     drift: "Tour-map's open basemap question (its LLD Open Questions 1) may change what the window loads (DESK-SHELL-WIN-011, DESK-SHELL-WIN-012)"
 
   start-lists:

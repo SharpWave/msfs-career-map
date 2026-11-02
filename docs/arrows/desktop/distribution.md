@@ -236,8 +236,8 @@ README's Releasing).
 
 ### Should Fix
 3. The start lists' `--unregister` and the desktop shell's updates and notifications (the shell's mark
-   before it hands over); a start by the Store edition of MSFS checked by hand; an update from 0.8.0 to
-   the next release watched end to end.
+   before it hands over); the hand-off of a start by MSFS to Windows' shell (DESK-SHELL-CLI-023) seen on
+   the installed app.
 
 ### Nice to Have
 4. Settle code signing.

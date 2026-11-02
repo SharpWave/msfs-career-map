@@ -543,7 +543,7 @@ line to the running copy and exits, except with `--unregister` (below).
 | Command line | Started by | With no copy running | With a copy running |
 |---|---|---|---|
 | (none) | The Start menu, a shortcut, the installer's Launch | Starts with the window open | The running copy opens its window and brings it forward |
-| `--background` | MSFS, through `EXE.xml`; Windows sign-in; the installer, relaunching the app after an update installed at a quiet moment | Starts in the tray, the window closed | Nothing happens |
+| `--background` | MSFS, through `EXE.xml`; Windows sign-in; the installer, relaunching the app after an update installed at a quiet moment; Windows' shell, on MSFS's behalf | Starts in the tray, the window closed; a start by MSFS has Windows' shell start the app instead (A start by MSFS, below) | Nothing happens |
 | `--updated` | The installer, relaunching the app after **Restart to update** | Starts with the window open, unless MSFS — `FlightSimulator2024.exe` or `FlightSimulator.exe` — is running for this Windows account, when it starts in the tray | As with no switch, unless MSFS is running, when nothing happens |
 | The switch Electron's notification activation adds | A notification clicked after the app has exited, or after its notification object is gone (Notifications) | Starts with the window open, the clicked hop or pending leg held for the first load of the page | The running copy acts on the click, its hop or pending leg carried with it (Notifications) |
 | `--quit` | The installer and uninstaller | Exits at once, starting nothing | The running copy takes a backup (bounded as Backups says), shuts the server down and exits, asking nothing and never installing a ready update; it exits whether or not the backup succeeded, since the installer goes ahead either way and the new version backs the logbook up before upgrading it (app-shell) |
@@ -557,7 +557,8 @@ says, for that folder's copy; `--unregister` beside it reaches nothing past test
 (Notifications, [Start lists › Test Mode](../start-lists/start-lists-design.md#test-mode)).
 
 A start that hands its command line over writes nothing: no log, settings, shortcut, tray icon or
-window. A start with `--unregister` does its work before asking for the single-instance lock. A start
+window. A start by MSFS that hands the start to Windows' shell writes only its own shortcut and a line
+in `desktop.log` (A start by MSFS, below). A start with `--unregister` does its work before asking for the single-instance lock. A start
 with `--quit` asks for the lock only to hand its command line over, and exits at once when it gets the
 lock instead. Neither of these two ever does what the copy holding the lock does, even with no copy
 running: each does only its own job, shows no tray icon or window, starts no server, runs none of the
@@ -568,7 +569,8 @@ just before removing it, so a later install never reads its own clean-up, finish
 entry removed by another program, and changes nothing else in the settings. What `--unregister` writes to `desktop.log`, how long it may take and how
 it exits are in [Start lists › Unregistering](../start-lists/start-lists-design.md#unregistering).
 
-The start-up chores run only in the copy that holds the lock: writing the notification registrations and
+The start-up chores run only in the copy that holds the lock and runs on — never in a start by MSFS
+that holds it only to hand the start to Windows' shell (below): writing the notification registrations and
 the ToastActivatorCLSID on the Start-menu shortcut (Notifications), looking for a copy run from source
 (First Run) and the update timers, none of which a copy in test mode does
 ([Desktop › Test mode](../desktop-design.md#test-mode)), and the daily-backup check. A command line
@@ -595,6 +597,36 @@ distribution's
 ([Distribution › Installer and Uninstaller](../distribution/distribution-design.md#installer-and-uninstaller));
 the desktop shell writes the mark just before it hands over (Updates), and the installer at the start
 of an install the pilot runs. A start with `--quit` or `--unregister` does its own job as usual.
+
+**A start by MSFS.** A start outside test mode with `--background` whose parent process is MSFS 2024
+(`FlightSimulator2024.exe`) or MSFS 2020 (`FlightSimulator.exe`) — the start MSFS makes from its
+`EXE.xml` — never becomes the running copy, since a copy MSFS started keeps the finished session counted
+as running and MSFS will not start again ([Desktop › Started by MSFS](../desktop-design.md#started-by-msfs)).
+It looks up its parent's program by the parent's process id (`tasklist`, filtered by that id), after the
+check for an install under way and before anything else. When another copy holds the single-instance
+lock, it hands its command line over as any start does, and nothing more happens. When it gets the lock
+instead, it:
+
+1. writes the shortcut the app keeps for this, `Start in the tray.lnk` in Electron's own folder, starting
+   the installed program with `--background` and nothing else, written afresh at each such start so it
+   always names the program in the install folder;
+2. writes to `desktop.log` that it was started by MSFS and hands the start to Windows' shell — while it
+   still holds the lock, so no other copy writes the log at the same moment;
+3. lets go of the single-instance lock, so the copy about to start can take it;
+4. runs `explorer.exe` with that shortcut, which has the pilot's own Windows shell start the program, as a
+   child of the shell rather than of MSFS, and exits.
+
+The copy Explorer starts is an ordinary `--background` start, its parent Explorer: it takes the lock and
+runs. Should the parent's program not be found (the look fails or the parent has gone), the start goes on
+as usual. Should the shortcut not be written, it writes the reason to `desktop.log` and goes on as the running copy
+itself, never having let go of the lock. Should `explorer.exe` not start, it asks for the lock again and
+goes on as the running copy when it gets it, writing the reason to `desktop.log`, or hands its command
+line over to the copy that has meanwhile taken it — either way the app runs, and only the next start of
+MSFS that session is refused, as before. A start by MSFS during an install is left in the
+install-under-way mark like any other (above); the installer, not MSFS, starts the app afterwards. The
+shortcut is the only file such a start writes beside `desktop.log`; it is left in Electron's folder when
+the app is uninstalled, as that folder is (distribution).
+
 
 **Only the installed program runs outside test mode.** The desktop shell runs outside test mode only when
 its own program path, fully resolved and compared without regard to case, is `MSFS Career Map.exe` in
@@ -1125,6 +1157,7 @@ What the desktop parts share from other segments is in
 
 | Decision | Chosen | Alternatives Considered | Rationale |
 |----------|--------|------------------------|-----------|
+| How a start by MSFS hands over to Windows' shell | Its parent's program looked up by process id for a `--background` start; the shortcut written afresh in Electron's folder, the lock let go, then `explorer.exe` run on the shortcut; going on as the running copy if either fails | Looking at the parent for every start; keeping the shortcut beside the Start-menu entry, or writing it once at install; starting the fresh copy before letting go of the lock; waiting to see the fresh copy take the lock | MSFS writes only `--background` from `EXE.xml`, so the look, a `tasklist` by process id, is spent on no other start. Electron's folder holds the desktop shell's own files, and a shortcut there never shows in the Start menu or its search; written at each such start it always names the program in the install folder, after an update or a repair. The fresh copy must find the lock free or it would hand over to a start about to exit, leaving no copy running. Waiting to see it start would keep MSFS's child alive longer for a case Explorer does not fail in a signed-in session, while going on as the running copy when the shortcut or Explorer fails keeps the app running at the cost only of the next MSFS start. |
 | The server's inputs | Explicit start-up arguments, with the source-run variables removed from its environment | Inheriting the environment (`CAREER_DB`, `PORT`, `TRACKER_FAKE`) as a source run does | A setting left in the pilot's or developer's environment can never point the installed app at another logbook, port or the fake feed; one place says what the installed server runs on. |
 | When backups are taken | Daily, before an update and when the installer or uninstaller closes the app, asked for by the desktop shell and each bounded by 60 s without progress; before a schema upgrade and on **Back up now**, by the server; pruned by the server, per logbook | Only before updates and upgrades; a daily timer in the server; a fixed 60 s from the request | The HLD gives the desktop shell the when and where. A daily copy bounds what a damaged or deleted logbook can lose to a day. Kept out of the server, the daily copy is made only by the desktop app, so a copy run from source, and the server under the Vitest and browser tests, never pile them up. Bounding by progress rather than by a fixed time never cuts short a large logbook still being copied on a slow disk, yet still ends a backup that has stalled. |
 | A failing daily backup | Asked for again at the next hourly check, then once a day; from the third failure in a row, a line in the tray menu and one notification | Retrying every hour for good; saying nothing until the pilot looks in the log | A cause that lasts — Controlled folder access refusing an unsigned program, a full drive — fails every try, and Windows may announce each refusal, mid-flight included. A pilot told that backups exist would otherwise go on trusting copies that are not being made. |

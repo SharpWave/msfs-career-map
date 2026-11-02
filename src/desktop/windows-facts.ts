@@ -41,6 +41,26 @@ export function tasklistHas(stdout: string, exe: string): boolean {
   });
 }
 
+/** tasklist for one process id: fast, unlike a filter by account. */
+export function tasklistByPidArgs(pid: number): string[] {
+  return ["/FI", `PID eq ${pid}`, "/FO", "CSV", "/NH"];
+}
+
+/** The program named by the first CSV field of tasklist's line; null for its INFO line or nothing. */
+export function programNameIn(stdout: string): string | null {
+  const line = stdout.split(/\r?\n/).find((l) => l.startsWith('"'));
+  if (!line) return null;
+  const name = line.slice(1, line.indexOf('"', 1));
+  return name === "" ? null : name;
+}
+
+/** The program a process runs (`FlightSimulator2024.exe`), by tasklist; null when the look fails or the process is gone. Never rejects. */
+// @spec DESK-SHELL-CLI-023, DESK-SHELL-CLI-024
+export async function programNameOf(pid: number): Promise<string | null> {
+  const r = await run("tasklist.exe", tasklistByPidArgs(pid));
+  return r.ok ? programNameIn(r.stdout) : null;
+}
+
 export function processPathArgs(pid: number): string[] {
   return ["-NoProfile", "-NonInteractive", "-Command", `(Get-Process -Id ${pid} -ErrorAction SilentlyContinue).Path`];
 }
