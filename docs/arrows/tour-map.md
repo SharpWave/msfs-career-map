@@ -23,7 +23,7 @@ providers' terms for a distributed app, an open question. Four new gaps; the cod
 - docs/intent/tour-map/tour-map-design.md
 
 ### EARS
-- docs/intent/tour-map/tour-map-specs.md (67 specs)
+- docs/intent/tour-map/tour-map-specs.md (68 specs)
 
 ### Context
 Downstream of this segment (desktop relies on tour-map through live-tracking), read for detail only;
@@ -38,6 +38,7 @@ the facts the map's intent rests on are the HLD's System Design.
 - tests/tour-map/paths.test.ts — MAP-GEO-002 to 009, MAP-GEO-011, MAP-GEO-015, MAP-GEO-016
 - tests/tour-map/copies.test.ts — MAP-GEO-013 to 017, MAP-GEO-020, MAP-GEO-021, MAP-HAZ-010, MAP-NIGHT-001
 - tests/tour-map/fit.test.ts — MAP-GEO-018, MAP-ZOOM-007 to 011
+- tests/tour-map/ring-outline.test.ts — MAP-GEO-021, MAP-GEO-022 (the planner's ring placed as its outline, the zoom box fitted to it)
 - tests/tour-map/map-toolbar.test.tsx — MAP-VIEW-006, MAP-VIEW-007, MAP-HAZ-005, MAP-HAZ-008, MAP-HL-002
 - tests/tour-map/hop-tip.test.tsx — MAP-PATH-003
 - tests/e2e/layout.spec.ts — MAP-VIEW-005, MAP-ZOOM-007
@@ -75,7 +76,7 @@ parked and when airports were visited, and overlay daylight and weather hazards.
 
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
-| Map geometry | MAP-GEO-001 to 021 (no 010) | 19 | 0 | 1 |
+| Map geometry | MAP-GEO-001 to 022 (no 010) | 20 | 0 | 1 |
 | Hop paths and layers | MAP-PATH-001 to 006 | 6 | 0 | 0 |
 | Visited-airport dots | MAP-DOT-001 to 003 | 3 | 0 | 0 |
 | Parked markers | MAP-PARK-001 to 002 | 2 | 0 | 0 |
@@ -85,7 +86,7 @@ parked and when airports were visited, and overlay daylight and weather hazards.
 | Night shading | MAP-NIGHT-001 to 002 | 2 | 0 | 0 |
 | Weather hazards | MAP-HAZ-001 to 012 | 8 | 0 | 4 |
 
-**Summary:** 61 of 67 specs implemented; 6 gaps; none deferred. 34 specs have tests, all of them
+**Summary:** 62 of 68 specs implemented; 6 gaps; none deferred. 35 specs have tests, all of them
 implemented; 27 implemented specs have none.
 
 ## Key Findings

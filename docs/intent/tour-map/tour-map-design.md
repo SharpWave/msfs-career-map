@@ -62,7 +62,10 @@ the meridian therefore runs on past ±180° instead of jumping across the map, a
 over completes it on the other side. Hop paths run from the origin to the destination, recorded
 tracks and SimBrief routes sample to sample, hazard areas vertex to vertex. A point that stands
 alone — an airport dot, a parked marker, a planner candidate, the live aircraft — sits at its own
-longitude, and the range ring is centred on the plan's origin at its own longitude. Night shading
+longitude. The range ring is placed as its outline, from the plan's origin at its own longitude:
+a point every 1° of bearing at the ring's radius on that bearing — the planner gives a radius every
+5°, and the radius between two of them is interpolated linearly — each point placed within 180° of
+the one before it like any other shape's. Night shading
 arrives already placed — closed along a pole when it covers one, a full turn wide — and keeps its
 geometry as computed.
 
@@ -109,8 +112,12 @@ Several aircraft parked at the same airport fan out: the first sits on the dot, 
 
 **Planner results.** The ring and the candidates are placed like any other shape and drawn on every
 world copy in view, so a candidate across the 180° meridian from the origin appears beside the
-ring, on whichever side of it the candidate lies. The zoom box for a plan is the ring's bounding
-box, latitudes clamped to ±85° and at most a full turn wide; its zoom points run along the box's
+ring, on whichever side of it the candidate lies. The zoom box for a plan is the bounding box of
+the ring's placed outline, latitudes clamped to ±85°, so a ring the wind has stretched one way is
+fitted as drawn rather than as a circle of its longest radius. A box wider than 320° of longitude —
+a ring reaching round a pole — is held to 320° centred on the origin: the 40° left open opposite
+the origin is then the widest gap between its zoom points, so gathering them cannot centre the
+zoom anywhere else; its zoom points run along the box's
 edges no more than 30° of longitude apart, so a box wider than 180° is gathered whole (see
 Highlighting and Zooming) rather than the other way round the globe.
 
@@ -381,8 +388,8 @@ Shortfalls of the code against the design above, each an active gap in the specs
 4. **Chevron position** is the middle sample of the path, not its middle distance, so on a tracked
    hop it sits wherever half the samples fall ([MapView.tsx:298](../../../src/client/components/MapView.tsx#L298)).
 5. **Shapes around a pole** — a hazard area that encircles a pole is placed vertex to vertex like
-   any other, so its closing edge runs the width of the map; the range ring is Leaflet's circle,
-   which near a pole departs from the true range.
+   any other, so its closing edge runs the width of the map, and so is a range ring that
+   encloses a pole, its outline placed point to point around the origin.
 6. **Dusk uses 0° sun elevation**, not the −0.833° of published sunset, so shading starts a few
    minutes late ([NightLayer.tsx:17](../../../src/client/components/NightLayer.tsx#L17)).
 7. **Hazards past their time** — an earlier set the server serves (under 3 hours old) may hold

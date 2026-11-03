@@ -239,7 +239,11 @@ reloads itself.
   length**, only airports with a runway at least that long are shown. Hover a dot for distance,
   time and runways; click it (or **Use** in the list) to drop it into the hop form as the next
   destination. The planner can start from any airport via the **From** box, and
-  `?plan=<aircraft id>&minutes=90` in the URL runs it on page load. After each search the
+  `?plan=<aircraft id>&minutes=90` in the URL runs it on page load. Legs are timed in the
+  **forecast winds** at the cruise altitude (Open-Meteo, for the current hour): climb, cruise and
+  descent each fly in the wind at their own height along the direct leg, so the range ring reaches
+  farther downwind than upwind. Untick **Time legs with forecast winds** (or add `&wind=0` to the
+  URL) for still air; if the winds can't be fetched the search says so and uses still air. After each search the
   current METARs for the large and medium airports in range are fetched in batches and their
   dot rings turn green/blue/red/magenta for VFR/MVFR/IFR/LIFR as they arrive (only reports under
   90 minutes old count; METARs are reused for five minutes between searches).
@@ -410,7 +414,7 @@ All JSON, under `/api`:
 | GET | `/simbrief/aircraft` | SimBrief's aircraft type list, cached daily |
 | GET | `/hazards` | Current G-AIRMET / SIGMET areas, normalised, cached 10 min |
 | GET | `/terrain?from=lat,lon&to=lat,lon` | Terrain profile along a leg with a suggested minimum altitude |
-| GET | `/plan?aircraft_id=&max_minutes=` | Airports in range of where the aircraft is parked; optional `types=`, `paved=1`, `min_runway_ft=`, `from=`, `cruise_alt_ft=`, `limit=` |
+| GET | `/plan?aircraft_id=&max_minutes=` | Airports in range of where the aircraft is parked, timed in the forecast winds; optional `types=`, `paved=1`, `min_runway_ft=`, `from=`, `cruise_alt_ft=`, `limit=`, `wind=0` (still air) |
 | GET | `/tracker` | Live tracker status: sim mode, connection, sim aircraft, bound fleet row, phase, position, leg, pending legs (each with its id, without its track) |
 | GET | `/tracker/events` | Server-sent events: `status`, `track`, `point`, `path`, `path-point`, `hop` (`{ hop, message }`), `pending` (the leg as the status lists it) |
 | POST | `/tracker/bind` | Bind the sim aircraft being flown to a fleet row: `{ aircraft_id }`; also fills in that aircraft on waiting legs flown in the same sim aircraft and livery |

@@ -577,6 +577,7 @@ export function App() {
 
   // Auto-run the planner from the URL, e.g. ?plan=1&minutes=90 (handy for bookmarks and testing).
   const autoPlanned = useRef(false);
+  // @spec PLAN-RUN-004
   useEffect(() => {
     if (!state || autoPlanned.current) return;
     autoPlanned.current = true;
@@ -589,7 +590,13 @@ export function App() {
     const minutes = Number(q.get("minutes") ?? 90);
     if (!aircraftId || !minutes) return;
     api
-      .plan({ aircraft_id: aircraftId, max_minutes: minutes, types: ["large_airport", "medium_airport", "small_airport"], paved: q.get("paved") === "1" })
+      .plan({
+        aircraft_id: aircraftId,
+        max_minutes: minutes,
+        types: ["large_airport", "medium_airport", "small_airport"],
+        paved: q.get("paved") === "1",
+        wind: q.get("wind") !== "0",
+      })
       .then(onPlan)
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
     // eslint-disable-next-line react-hooks/exhaustive-deps

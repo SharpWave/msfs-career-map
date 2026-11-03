@@ -35,8 +35,16 @@ const TYPE_OPTIONS: [string, string][] = [
 ];
 
 const QUICK_MINUTES = [30, 60, 90, 120, 180, 240];
+
+/** How far the ring reaches: its shortest to longest radius with winds, one figure when they round alike. */
+function reach(plan: PlanResult): string {
+  if (plan.wind.status !== "forecast") return fmtNm(plan.range_nm);
+  const shortest = Math.min(...plan.ring_nm), longest = Math.max(...plan.ring_nm);
+  return Math.round(shortest) === Math.round(longest) ? fmtNm(longest) : `${Math.round(shortest).toLocaleString()}–${fmtNm(longest)}`;
+}
 const LIST_MAX = 80;
 
+// @spec PLAN-FORM-012, PLAN-RUN-005, PLAN-LIST-001, PLAN-LIST-010
 export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged, selectedId, onPlan, onPick, onFocus, onEditAircraft }: Props) {
   const eligible = state.aircraft.filter((a) => a.cruise_kts);
   const [aircraftId, setAircraftId] = useState<number>(() =>
@@ -45,6 +53,7 @@ export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged
   const [minutes, setMinutes] = useState("90");
   const [types, setTypes] = useState<Set<string>>(() => new Set(["large_airport", "medium_airport", "small_airport"]));
   const [paved, setPaved] = useState(false);
+  const [winds, setWinds] = useState(true);
   const [from, setFrom] = useState("");
   const [cruiseAlt, setCruiseAlt] = useState("");
   const [busy, setBusy] = useState(false);
@@ -68,6 +77,7 @@ export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged
     if (!plan) return;
     setMinutes(String(plan.max_minutes));
     setPaved(plan.paved_only);
+    setWinds(plan.wind.status !== "off");
     setTypes(new Set(plan.types));
     setCruiseAlt(String(plan.profile.cruise_alt_ft));
     if (state.aircraft.some((a) => a.id === plan.aircraft_id)) setAircraftId(plan.aircraft_id);
@@ -114,6 +124,7 @@ export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged
         max_minutes: m,
         types: [...types],
         paved,
+        wind: winds,
         from: from.trim() || undefined,
         cruise_alt_ft: alt,
       });
@@ -213,6 +224,10 @@ export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged
             <span>Paved only</span>
           </label>
         </div>
+        <label className="check">
+          <input type="checkbox" checked={winds} onChange={(e) => setWinds(e.target.checked)} />
+          <span>Time legs with forecast winds</span>
+        </label>
 
         <div className="muted small">
           {aircraft?.min_runway_ft
@@ -246,17 +261,27 @@ export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged
       {plan && (
         <div className="plan-results">
           <div className="plan-summary">
-            <b>{plan.total.toLocaleString()}</b> airport{plan.total === 1 ? "" : "s"} within <b>{fmtNm(plan.range_nm)}</b> of{" "}
+            <b>{plan.total.toLocaleString()}</b> airport{plan.total === 1 ? "" : "s"} within <b>{reach(plan)}</b> of{" "}
             <b className="code">{plan.origin.ident}</b>
             <span className="muted">
               {" "}
-              ({fmtDuration(plan.max_minutes)} at {plan.cruise_kts} kts)
+              {plan.wind.status === "forecast"
+                ? `(${fmtDuration(plan.max_minutes)} at ${plan.cruise_kts} kts true airspeed, forecast winds for ${plan.wind.hour?.slice(11, 16)}Z)`
+                : `(${fmtDuration(plan.max_minutes)} at ${plan.cruise_kts} kts)`}
             </span>
             <div className="muted small" title="Block time = taxi/approach overhead + climb at climb speed + cruise + descent">
               Block-time model: {plan.profile.overhead_min} min on the ground and in the pattern, climb {plan.profile.climb_fpm} fpm at{" "}
-              {plan.profile.climb_kts} kts to {plan.profile.cruise_alt_ft.toLocaleString()} ft, descend {plan.profile.descent_fpm} fpm. Naive{" "}
-              speed × time would be {fmtNm(plan.naive_range_nm)}.
+              {plan.profile.climb_kts} kts to {plan.profile.cruise_alt_ft.toLocaleString()} ft, descend {plan.profile.descent_fpm} fpm.
+              {plan.wind.status === "forecast" && " Climb, cruise and descent each fly in the wind at their own height."} Naive speed × time
+              would be {fmtNm(plan.naive_range_nm)}.
             </div>
+            {plan.wind.status === "unavailable" && (
+              <div className="notice small">
+                {plan.wind.reason === "too_wide"
+                  ? "Forecast winds cover at most some 5,000 nm, so times are in still air."
+                  : "Forecast winds unavailable, so times are in still air."}
+              </div>
+            )}
             {plan.truncated && (
               <div className="notice small">
                 Too many to show them all: the nearest {plan.candidates.length.toLocaleString()} are drawn, reaching only{" "}

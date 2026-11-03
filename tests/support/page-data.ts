@@ -177,13 +177,15 @@ export function liveState(status: TrackerStatus | null = null, over: Partial<Liv
   return { status, track: [], path: [], online: true, connection: 1, ...over };
 }
 
-export function planResult(aircraftId: number, candidates: string[]): PlanResult {
+export function planResult(aircraftId: number, candidates: string[], over: Partial<PlanResult> = {}): PlanResult {
   const origin = airport("KPVD");
   return {
     aircraft_id: aircraftId,
     cruise_kts: 160,
     max_minutes: 90,
     range_nm: 200,
+    ring_nm: new Array(72).fill(200),
+    wind: { status: "forecast", reason: null, hour: "2026-10-09T14:00Z", levels_hpa: [900, 850, 800, 700], grid_deg: 0.5 },
     naive_range_nm: 240,
     profile: { cruise_kts: 160, cruise_alt_ft: 6500, climb_fpm: 700, climb_kts: 90, descent_fpm: 500, overhead_min: 12 },
     min_runway_ft: null,
@@ -198,5 +200,6 @@ export function planResult(aircraftId: number, candidates: string[]): PlanResult
     candidates: candidates.map(
       (c): PlanCandidate => ({ ...airport(c), distance_nm: 60, bearing_deg: 120, est_minutes: 35 }),
     ),
+    ...over,
   };
 }

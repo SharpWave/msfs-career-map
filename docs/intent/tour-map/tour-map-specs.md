@@ -33,7 +33,8 @@ source).
 - [x] **MAP-GEO-018**: When a zoom request is carried out, the system shall add the world copies around where it will land before the map moves.
 - [x] **MAP-GEO-019**: While a world copy stays in view, the system shall leave what is drawn on it in place, keeping any popup or tooltip open on it; when a copy leaves the view, the system shall remove what is drawn on it, with anything open there, airport and planner-candidate popups included.
 - [x] **MAP-GEO-020**: The system shall keep each shape's shifted geometry per world copy, so a re-render that changes neither the shape nor the copies in view redraws nothing.
-- [x] **MAP-GEO-021**: When zooming to a plan, the system shall use the range ring's bounding box — latitudes clamped to ±85°, at most 360° of longitude wide — as points along its edges no more than 30° of longitude apart.
+- [x] **MAP-GEO-021**: When zooming to a plan, the system shall use the bounding box of the range ring's placed outline (MAP-GEO-022) — latitudes clamped to ±85°, and a box wider than 320° of longitude held to 320° centred on the plan's origin — as points along its edges no more than 30° of longitude apart.
+- [x] **MAP-GEO-022**: When placing a plan's range ring, the system shall place its outline from the plan's origin at the origin's own longitude as a point every 1° of bearing, at the radius the planner gives for that bearing (PLAN-TIME-007, every 5°) or, between two of its bearings, the radius interpolated linearly between them, each point within 180° of longitude of the one before it, and draw the ring on every copy its span reaches (MAP-GEO-014).
 
 ## Hop Paths and Layers
 

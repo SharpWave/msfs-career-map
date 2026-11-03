@@ -150,6 +150,7 @@ export const api = {
     });
     if (q.from) p.set("from", q.from);
     if (q.cruise_alt_ft) p.set("cruise_alt_ft", String(q.cruise_alt_ft));
+    if (q.wind === false) p.set("wind", "0");
     return req<PlanResult>("GET", `/api/plan?${p.toString()}`);
   },
 };

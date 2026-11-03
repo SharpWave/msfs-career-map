@@ -28,11 +28,12 @@ A local, map-first logbook that the sim fills in by itself.
   of the career, a **casual mode** switched on from the live card turns logging off until the
   pilot switches it off, quits the app or closes MSFS: the path flown is drawn behind the aircraft
   while the server runs, never stored and never tied to a fleet aircraft.
-- **Planning hands off.** The app answers "where can this aircraft go next within N minutes?", with
-  live weather and darkness flagged; SimBrief does the real flight planning, and its plan comes back
-  to be kept with the flight.
+- **Planning hands off.** The app answers "where can this aircraft go next within N minutes?",
+  timing each leg with the forecast winds at the aircraft's cruise altitude, with live weather and
+  darkness flagged; SimBrief does the real flight planning, and its plan comes back to be kept with
+  the flight.
 - **Free, public data.** Airports and runways from OurAirports, weather from aviationweather.gov,
-  terrain from Open-Meteo, photos and blurbs from Wikipedia — no accounts or keys.
+  terrain and forecast winds from Open-Meteo, photos and blurbs from Wikipedia — no accounts or keys.
 - **Aircraft numbers researched once.** For every type in SimBrief's list, the performance an
   aircraft needs — cruise, climb and descent, runway, ceiling, crosswind — is researched up front
   from published, reputable sources and ships with the app, each value with its source, so adding
@@ -69,8 +70,8 @@ and page from source beside an installed copy.
 - **An economy, for now** — no jobs, income or passengers to earn. A realistic running cost per
   tour (fuel and maintenance spent) is a possible later addition, deliberately deferred; hops
   already record the fuel each tracked flight used.
-- **A flight planner** — no routes, winds or fuel planning beyond choosing a destination; SimBrief
-  does that.
+- **A flight planner** — no routes or fuel planning; winds only time the direct leg to each
+  destination the planner offers. SimBrief plans the flight.
 - **More than one user or machine** — no accounts, hosting or sync.
 - **Reaching the app from another device, for now** — it listens only on the pilot's own PC; a
   tablet on the home network is a possible later opt-in.
@@ -96,6 +97,9 @@ In order; when two conflict, the higher one wins.
   exactly that entry, and nothing else, when the pilot turns it off or uninstalls.
 - **Hand off to the specialists.** Where a dedicated tool already does a job well — SimBrief for
   planning, add-ons for wear, the sim for flight data — integrate with it rather than rebuild it.
+- **Estimates for choosing.** The planner's times only need to rank destinations and say which are
+  within reach; prefer a simpler model and fewer outside requests over closer agreement with
+  SimBrief's times.
 - **The page stays a web page.** When a feature could live in the desktop shell or in the server
   and page, it goes in the server and page, so it works the same in a plain browser tab, the
   browser tests cover it, and the window technology stays replaceable. The desktop shell keeps what
@@ -141,7 +145,7 @@ flowchart LR
   MSFS -. "starts it, if the pilot asks" .-> Shell
   API -- airports, runways --> OA["OurAirports"]
   API -- METARs, hazards --> AWC["aviationweather.gov"]
-  API -- terrain --> OM["Open-Meteo"]
+  API -- "terrain, winds aloft" --> OM["Open-Meteo"]
   API -- photos, blurbs --> WP["Wikipedia"]
   API -- latest plan, types --> SB["SimBrief"]
   Page -- "map tiles, photos" --> Tiles["Esri, OpenStreetMap,<br/>Wikimedia"]
@@ -198,7 +202,7 @@ which owns no specs: its segments' folders nest beneath it (`docs/intent/desktop
 | [fleet](intent/fleet/fleet-design.md) | `FLEET` | Aircraft + livery: performance and limits, the performance table by type, color and icon, sim binding fields, the aircraft form |
 | [airports](intent/airports/airports-design.md) | `APT` | OurAirports data and its monthly refresh, code lookup, nearest airport, the airport popup, METARs, Wikipedia |
 | [tour-map](intent/tour-map/tour-map-design.md) | `MAP` | The map: geometry and world copies, tours, airport dots, parked markers, highlight and zoom, night and hazard overlays |
-| [planner](intent/planner/planner-design.md) | `PLAN` | Block-time model, reachable-airport search, weather and darkness flags, terrain check, the planner card and layers |
+| [planner](intent/planner/planner-design.md) | `PLAN` | Block-time model with forecast winds, reachable-airport search, weather and darkness flags, terrain check, the planner card and layers |
 | [live-tracking](intent/live-tracking/live-tracking-design.md) | `LIVE` | Sim link (one per PC), leg detection, airport naming, landings and ratings, logging and pending legs, casual mode, the live card and layer |
 | [flight-panel](intent/flight-panel/flight-panel-design.md) | `PANEL` | One flight under the map: profile chart, landing and flight cards, how ratings look |
 | [simbrief](intent/simbrief/simbrief-design.md) | `SB` | Dispatch links, type list, importing and keeping plans, the SimBrief card and route |
@@ -281,7 +285,7 @@ the desktop box holds its three segments. app-shell sits under everything and is
 | Flying outside the career | A casual mode on the tracker: no legs detected, the path flown kept in server memory only and drawn live | Turn tracking off; a throwaway fleet aircraft; discard each leg by hand; keep the path in the browser; discard each finished leg automatically | One switch, nothing written to the logbook. The switch itself is kept with the tracker's checkpoint, so the app's own server restarts do not end it; it ends when the pilot switches it off, quits the app or closes MSFS, so a new sim session never starts with logging off from the night before. Kept by the server, the path survives a page reload and looks the same in every window or tab; held in the server's memory, it is lost when the server stops. Discarding finished legs would lose the path at every full stop. |
 | Data sources | Free, keyless public sources, cached locally | Commercial or keyed APIs | No sign-ups or keys for a local hobby tool. |
 | Aircraft performance | A table of SimBrief's types researched once, by one written method, from manufacturers' and aviation authorities' publications and reputable trade journals, and, for a number none of those gives, from the publicly readable manual of an MSFS 2020 or 2024 add-on of the type; every value citing its source; a cruise speed or runway no such source gives taken from the nearest similar type in the table and marked as an estimate, any other value no such source gives left blank, or for a climb or descent input taken from the form's class preset and marked as such; shipped in the program and offered by the aircraft form, the pilot free to change any value | Each pilot types the numbers; class presets only; values looked up from an online source as the pilot adds an aircraft; real-world sources only, leaving their gaps blank; every gap left blank, the cruise speed and runway included; an estimate scaled from the similar type, or averaged over its class | Looking up eight numbers per aircraft is the slowest part of starting a career, and pilots fill them unevenly, which skews the planner. Researched once, the numbers are the same for everyone and can be checked; a value no reputable source gives is never passed off as sourced. Cruise speed and runway are the two numbers the planner leans on most — without a cruise speed it has no block time, and a blank runway admits every airport — so where no source gives them, the nearest similar type's figure, named and marked as an estimate, serves the pilot better than a blank; the other limits stay blank. The similar type's figure is taken as it stands, which anyone can check, rather than scaled by a formula that would claim more precision than it has. The table serves a flight sim: where no real-world document gives a number, the manual of an add-on that models the type gives the figure the pilot will fly, and the detailed ones reproduce the real flight manual's tables; real-world sources come first, so an add-on's figure never displaces one. A lookup at run time would depend on a service that publishes these numbers for every type, free and keyless, and no such service is known. Cost: the table is only as current as the program, a type SimBrief adds later is typed in by hand until a release adds it, an add-on manual's figure may follow that add-on's flight model rather than the aircraft, and an estimate is only as close as the similar type. |
-| Planning | Choose the destination here; plan the flight in SimBrief and import the plan | Build route, wind and fuel planning in | SimBrief already does it well. |
+| Planning | Choose the destination here, each leg timed with the forecast winds at the cruise altitude; plan the flight in SimBrief and import the plan | Build route and fuel planning in; time legs in still air | SimBrief already plans routes and fuel well. Wind changes which destinations are in reach by its share of the cruise speed — a 30 kt wind is a fifth of a 150 kt piston's — so a destination chooser that ignores it offers airports the aircraft cannot reach in the time and leaves out ones it can. The forecast along the direct leg is enough to choose by. |
 | Spec IDs | `PREFIX-FACET-NNN`, one prefix per segment; a segment inside a group extends the group's prefix (`DESK-SHELL-TRAY-001`) | Global numbering | IDs say where they belong and survive reordering, and a prefix search gathers a whole group. |
 | Testing | Vitest for the logic (tracker, geometry, block-time model, OFP parsing) and for the API against a temporary database; component tests with Testing Library for UI specs; a few Playwright browser tests for the main flows (log a hop, a `sim-fake` flight, plan → Use); a smoke test of the packaged app for what only the desktop shell does. Tests cite the spec IDs they verify and are written before the code that closes a gap. | Logic only; logic plus component tests, UI checked by hand | Much of the app's value lies in flows that cross the tracker, the server and the page; the synthetic sim feed makes a whole tracked flight testable without the sim. Because the page stays a web page, the browser tests cover it without the desktop shell, and the packaged smoke test covers what is left: the window, the tray, the single running copy and shutting down. The smoke test runs the packaged app on a data folder, port and instance of its own, with no sim link, and never touches the sim's or Windows' start-up lists, so it neither opens the real logbook nor meets a running installed copy. |
 

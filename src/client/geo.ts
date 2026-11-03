@@ -22,6 +22,14 @@ export function bearing(a: LatLng, b: LatLng): number {
   return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
+/** The point `nm` from a on the great circle leaving it on `bearingDeg`, longitude in −180°..180°. */
+export function destination(a: LatLng, bearingDeg: number, nm: number): LatLng {
+  const d = nm / 3440.065, t = toRad(bearingDeg), lat1 = toRad(a[0]);
+  const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(t));
+  const lon2 = toRad(a[1]) + Math.atan2(Math.sin(t) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+  return [toDeg(lat2), ((toDeg(lon2) + 540) % 360) - 180];
+}
+
 /**
  * Points along the great circle from a to b, starting exactly at a as given and ending exactly at b
  * on the world copy the line reaches. Every point after a, b included, is placed within 180° of

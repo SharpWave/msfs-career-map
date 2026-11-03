@@ -135,11 +135,11 @@ test.describe("the map on every world copy", () => {
     await expect(page.locator(".leaflet-popup")).toContainText("PANC");
   });
 
-  // @spec MAP-GEO-013, PLAN-DRAW-005
+  // @spec MAP-GEO-013, PLAN-DRAW-005, PLAN-DRAW-001
   test("planning from Anchorage shows Anadyr west of the ring, and its popup opens where it was clicked", async ({ page, request }) => {
     const { aircraft } = await seedHop(request, "PAOM", "PANC", { cruise_kts: 450 });
     await page.setViewportSize({ width: 1600, height: 1000 });
-    await page.goto(`/?plan=${aircraft.id}&minutes=240`);
+    await page.goto(`/?plan=${aircraft.id}&minutes=240&wind=0`);
     await expect(page.locator(".leaflet-overlay-pane canvas")).toBeVisible({ timeout: 15_000 });
     await page.waitForTimeout(1500);
 
@@ -150,6 +150,21 @@ test.describe("the map on every world copy", () => {
     const sy = (paom.y - panc.y) / (merc(PAOM.lat) - merc(PANC.lat));
     const target = { x: panc.x + (UHMA.lon - 360 - PANC.lon) * sx, y: panc.y + (merc(UHMA.lat) - merc(PANC.lat)) * sy };
     expect(target.x).toBeLessThan(paom.x);
+
+    // The ring: a dashed outline through its radii (a circle in still air) — straight segments,
+    // which Leaflet simplifies at low zoom, not Leaflet's circle, whose path is two arcs. Copies
+    // outside the view are clipped to an empty path.
+    const drawn: string[] = [];
+    for (const ring of await page.locator("path.plan-ring").all()) {
+      expect(await ring.getAttribute("stroke-dasharray")).toBe("8 8");
+      const d = (await ring.getAttribute("d")) ?? "";
+      if (d.length > 10) drawn.push(d);
+    }
+    expect(drawn.length).toBeGreaterThanOrEqual(1);
+    for (const d of drawn) {
+      expect(d).not.toMatch(/a/i);
+      expect(d.match(/L/g)?.length ?? 0).toBeGreaterThanOrEqual(8);
+    }
 
     const before = await paneX(page);
     await page.mouse.click(target.x, target.y);

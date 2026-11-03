@@ -19,7 +19,8 @@ import { simbriefAircraftTypes } from "./simbrief.ts";
 import { TABLE, typeEntry, typeList } from "./aircraft-types.ts";
 import { currentHazards } from "./hazards.ts";
 import { terrainAlong } from "./terrain.ts";
-import { blockMinutes, maxRangeNm, profileFor } from "./performance.ts";
+import { MAX_RING_NM, legMinutes, maxRangeNm, profileFor, ringRadiiNm, type WindSource } from "./performance.ts";
+import { levelsFor, lookupWinds } from "./winds.ts";
 import { CasualRefused, ImportUnderWay, ShuttingDown, TrackerRefused, tracker } from "./tracker.ts";
 import { backupQueue } from "./backup-service.ts";
 import { BackupFailed } from "./backup.ts";
@@ -808,9 +809,11 @@ api.get("/simbrief/aircraft", wrap(async (_req, res) => res.json(await simbriefA
 /**
  * Airports reachable from where an aircraft is parked.
  *   GET /api/plan?aircraft_id=1&max_minutes=120[&types=small_airport,medium_airport][&paved=1]
- *                [&min_runway_ft=2500][&from=KBOS][&limit=1500]
+ *                [&min_runway_ft=2500][&from=KBOS][&limit=1500][&wind=0]
+ * Timed in the forecast winds at the cruise altitude unless `wind=0` asks for still air.
  */
-api.get("/plan", wrap((req, res) => {
+// @spec PLAN-FIND-007, PLAN-FIND-008, PLAN-FIND-011, PLAN-WIND-012, PLAN-WIND-013, PLAN-TIME-007
+api.get("/plan", wrap(async (req, res) => {
   const aircraft = requireAircraft(Number(req.query.aircraft_id));
   if (!aircraft.cruise_kts) throw new HttpError(400, "set a cruise speed on this aircraft to use the planner");
   const maxMinutes = Number(req.query.max_minutes);
@@ -834,10 +837,31 @@ api.get("/plan", wrap((req, res) => {
 
   const minRunway = req.query.min_runway_ft === undefined ? aircraft.min_runway_ft : minRunwayFt(req.query.min_runway_ft);
   const cruiseAlt = perfInt(req.query.cruise_alt_ft, "cruise altitude", 500, 60000);
+  const windParam = req.query.wind;
+  if (windParam !== undefined && windParam !== "0" && windParam !== "1") throw new HttpError(400, "wind must be 0 or 1");
   const profile = profileFor({ ...aircraft, cruise_kts: aircraft.cruise_kts }, cruiseAlt);
   const originElev = origin.elevation_ft ?? 0;
-  // Ring radius for a destination at the origin's elevation; each candidate is then timed with its own.
-  const rangeNm = maxRangeNm(profile, maxMinutes, originElev);
+  const from = { lat: origin.lat, lon: origin.lon, elevation_ft: originElev };
+
+  // The still-air ring sets the area the winds are fetched over: 1.5 × it, room for a tailwind of
+  // half the cruise speed.
+  const stillNm = maxRangeNm(profile, maxMinutes, originElev, Math.min(MAX_RING_NM, (profile.cruise_kts * maxMinutes) / 60));
+  const noWind = { reason: null, hour: null, levels_hpa: [] as number[], grid_deg: null };
+  let wind: { status: string; reason: string | null; hour: string | null; levels_hpa: number[]; grid_deg: number | null };
+  let source: WindSource | null = null;
+  if (windParam === "0") wind = { status: "off", ...noWind };
+  else if (stillNm === 0) wind = { status: "not_needed", ...noWind };
+  else {
+    const found = await lookupWinds({ origin: from, areaRadiusNm: stillNm * 1.5, levels: levelsFor(originElev, profile.cruise_alt_ft) });
+    if (found.status === "forecast") {
+      source = found.field;
+      wind = { status: "forecast", reason: null, hour: found.hour, levels_hpa: found.levels, grid_deg: found.spacingDeg };
+    } else wind = { status: "unavailable", ...noWind, reason: found.reason };
+  }
+
+  // The ring for a destination at the origin's elevation; each candidate is then timed on its own leg.
+  const ringNm = ringRadiiNm(profile, maxMinutes, from, source);
+  const rangeNm = Math.max(...ringNm);
   const limit = Math.min(20000, Math.max(1, Number(req.query.limit ?? 5000) || 5000));
   const elevation = maxFieldElevation(aircraft);
 
@@ -852,7 +876,9 @@ api.get("/plan", wrap((req, res) => {
   });
   void _unused;
   const timed = found
-    .map((c) => ({ ...c, est_minutes: Math.round(blockMinutes(profile, c.distance_nm, originElev, c.elevation_ft ?? 0)) }))
+    .map((c) => ({ ...c, est_minutes: legMinutes(profile, from, c, source) }))
+    .filter((c) => Number.isFinite(c.est_minutes))
+    .map((c) => ({ ...c, est_minutes: Math.round(c.est_minutes) }))
     .filter((c) => c.est_minutes <= maxMinutes);
   const total = timed.length;
   const candidates = timed.slice(0, limit);
@@ -862,12 +888,14 @@ api.get("/plan", wrap((req, res) => {
     cruise_kts: aircraft.cruise_kts,
     max_minutes: maxMinutes,
     range_nm: rangeNm,
+    ring_nm: ringNm,
     naive_range_nm: (aircraft.cruise_kts * maxMinutes) / 60,
     profile,
     min_runway_ft: minRunway,
     paved_only: req.query.paved === "1",
     types,
     ...elevation,
+    wind,
     origin: attachRunways([origin])[0],
     total,
     truncated: total > candidates.length,

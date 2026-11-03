@@ -1,6 +1,7 @@
 # Arrow: planner
 
-Where an aircraft can go next: the block-time model, the candidate search with its hard filters,
+Where an aircraft can go next: the block-time model flown through the forecast winds aloft, the
+candidate search with its hard filters,
 live weather and darkness checks, the terrain check along a leg, the planner card, and the range
 ring and candidate dots on the map.
 
@@ -13,6 +14,10 @@ window for the default browser (DESK-SHELL-WIN-007), a result lives in the page 
 across an event-stream reconnect unless the reload brings a hop logged meanwhile, a page that finds
 the server holding a different logbook reloads itself, a METAR is judged fresh again every minute
 however long the page stays open, and the terrain cache is bounded for a server that runs for weeks.
+Forecast winds (HLD revised 2026-11-02): each leg timed phase by phase in Open-Meteo's winds at the
+cruise altitude, the ring a radius on each of 72 bearings, still air on request or when the winds
+cannot be had — designed, specified, tested and implemented test-first (PLAN-TIME-007 to 013,
+PLAN-WIND-001 to 013), with the ring's outline and zoom box in tour-map (MAP-GEO-021, 022).
 One open question: Open-Meteo's terms for a distributed app (LLD Open 1), whose credit half — a
 credit on the terrain line, which the data's CC BY 4.0 licence requires — awaits the user's approval.
 
@@ -25,17 +30,24 @@ credit on the terrain line, which the data's CC BY 4.0 licence requires — awai
 - docs/intent/planner/planner-design.md
 
 ### EARS
-- docs/intent/planner/planner-specs.md (68 specs)
+- docs/intent/planner/planner-specs.md (90 specs)
 
 ### Tests
 - tests/tour-map/map-toolbar.test.tsx — PLAN-RUN-002
 - tests/app-shell/page.test.tsx — PLAN-FORM-003
 - tests/app-shell/page-server.test.tsx — PLAN-RUN-006, 007 (the result kept or dropped by a reconnect's reload)
-- tests/e2e/world-copies.spec.ts — PLAN-DRAW-005 (a candidate's popup opens beside the dot clicked, across the 180° meridian)
+- tests/e2e/world-copies.spec.ts — PLAN-DRAW-005 (a candidate's popup opens beside the dot clicked, across the 180° meridian), PLAN-DRAW-001 (the ring drawn as a dashed outline)
+- tests/planner/wind-model.test.ts — PLAN-TIME-007 to 013 (groundspeed, phases, branch, cruise steps, the 72 radii)
+- tests/planner/wind-grid.test.ts — PLAN-WIND-002 to 006 (levels, lattice and its budget, interpolation)
+- tests/planner/wind-lookup.test.ts — PLAN-WIND-001, 006 to 011 (request, hour, User-Agent, 15 s, failures and the pause, cache and its bound)
+- tests/planner/plan-api.test.ts — PLAN-FIND-007, 008, 011, PLAN-WIND-004, 008, 009, 012, 013, PLAN-TIME-007, 009, 013
+- tests/planner/planner-card.test.tsx — PLAN-FORM-012, PLAN-RUN-005, PLAN-LIST-001, 010
+- tests/planner/plan-url.test.tsx — PLAN-RUN-004
 
 ### Code
-- src/server/performance.ts
-- src/server/routes.ts — limits (150-153), `maxFieldElevation` (214-229), `/plan` (730-795), `/terrain` (806-822)
+- src/server/performance.ts — block-time model, `legMinutes` (wind by phase), `ringRadiiNm`
+- src/server/winds.ts — levels, lattice, interpolation, Open-Meteo lookup, wind cache
+- src/server/routes.ts — limits (150-160), `maxFieldElevation` (229-244), `/plan` (808-906), `/terrain` (917-933)
 - src/server/airports.ts — `planCandidates`, `distanceNm`, `bearingDeg` (478-551)
 - src/server/terrain.ts — Open-Meteo requests, elevation cache
 - src/client/constraints.ts
@@ -50,7 +62,8 @@ credit on the terrain line, which the data's CC BY 4.0 licence requires — awai
 is parked, and show which of them live weather or darkness rules out.
 
 **Key Components:**
-1. `profileFor` / `blockMinutes` / `maxRangeNm` (`performance.ts`) — block-time model and ring radius
+1. `profileFor` / `blockMinutes` / `legMinutes` / `ringRadiiNm` (`performance.ts`) — block-time model, wind by phase, the ring's 72 radii
+1a. `lookupWinds` / `buildField` (`winds.ts`) — Open-Meteo winds on a lattice, interpolated, cached per hour
 2. `GET /api/plan` + `planCandidates` — origin, hard filters, timing, ordering, cap
 3. `assessCandidate` (`constraints.ts`) + App's METAR batching — IFR, crosswind, darkness flags
 4. `GET /api/terrain` + `terrain.ts` — terrain profile and minimum altitude for a leg
@@ -61,16 +74,17 @@ is parked, and show which of them live weather or darkness rules out.
 
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
-| Block-time model | PLAN-TIME-001 to 007 | 7 | 0 | 0 |
-| Candidate search | PLAN-FIND-001 to 010 | 8 | 0 | 2 |
+| Block-time model | PLAN-TIME-001 to 013 | 13 | 0 | 0 |
+| Winds aloft | PLAN-WIND-001 to 013 | 13 | 0 | 0 |
+| Candidate search | PLAN-FIND-001 to 011 | 9 | 0 | 2 |
 | Live checks | PLAN-FLAG-001 to 010 | 8 | 0 | 2 |
 | Terrain along a leg | PLAN-TERR-001 to 008 | 6 | 0 | 2 |
-| Planner form | PLAN-FORM-001 to 011 | 8 | 0 | 3 |
-| Results in the card | PLAN-LIST-001 to 009 | 8 | 0 | 1 |
+| Planner form | PLAN-FORM-001 to 012 | 9 | 0 | 3 |
+| Results in the card | PLAN-LIST-001 to 010 | 9 | 0 | 1 |
 | Plan lifecycle | PLAN-RUN-001 to 007 | 7 | 0 | 0 |
 | Planner layers on the map | PLAN-DRAW-001 to 006 | 6 | 0 | 0 |
 
-**Summary:** 58 of 68 specs implemented; 10 gaps; none deferred. 5 specs have tests; the other 53
+**Summary:** 80 of 90 specs implemented; 10 gaps; none deferred. 34 specs have tests; the other 46
 implemented specs have none.
 
 ## Key Findings
@@ -92,7 +106,8 @@ implemented specs have none.
 10. **Open-Meteo credit and limits** — the terrain line credits neither Open-Meteo nor the
     Copernicus programme, though the data's CC BY 4.0 licence requires a credit wherever the app
     shows it, and Open-Meteo's free-tier rate limits are applied per caller address and per
-    application (LLD Open 1).
+    application (LLD Open 1). The forecast winds come from Open-Meteo too, a search spending up to 300
+    calls of the caller's daily 10,000, and the card credits neither.
 
 ## Work Required
 
@@ -122,4 +137,5 @@ implemented specs have none.
 10. Look a shown result's METARs up again as they age, failed batches included (LLD Deferred 12).
 11. Settle LLD Open 1: on the user's approval, credit "Elevation: Copernicus DEM GLO-90 via
     Open-Meteo" on the terrain line (a Decisions row and a new PLAN-TERR spec), since the licence
-    requires it; then decide whether Open-Meteo's per-application limit matters at the app's scale.
+    requires it, and "Winds: Open-Meteo" on the card's wind wording; then decide whether Open-Meteo's
+    per-application limit matters at the app's scale.

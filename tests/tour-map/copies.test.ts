@@ -144,7 +144,7 @@ describe("planner results across the antimeridian", () => {
   it("show a candidate across 180° from the origin beside the range ring, on each copy of the ring", () => {
     // Planning from Anchorage with Anadyr in range; the view centred on Anchorage at zoom 4 in a
     // 1600 px window spans about −220° to −80°.
-    const plan = { range_nm: 1000, origin: { ident: "PANC", ...PANC } };
+    const plan = { range_nm: 1000, ring_nm: new Array(72).fill(1000), origin: { ident: "PANC", ...PANC } };
     const copies = copiesInView(-220, -80);
     const ring = planSpan(plan);
     const ringCopies = copyShifts(ring, copies).map((s) => [ring[0] + s, ring[1] + s]);
@@ -159,8 +159,8 @@ describe("planner results across the antimeridian", () => {
 
   // @spec MAP-GEO-021
   it("zoom to the ring's box along its edges, so a box wider than 180° is gathered whole", () => {
-    // 3,000 nm from 61°N: the box is about 208° of longitude wide.
-    const plan = { range_nm: 3000, origin: PANC };
+    // 3,000 nm from 61°N reaches round the North Pole: the box is held to 320° centred on the origin.
+    const plan = { range_nm: 3000, ring_nm: new Array(72).fill(3000), origin: PANC };
     const pts = planZoomPoints(plan);
     for (const [lat] of pts) expect(Math.abs(lat)).toBeLessThanOrEqual(85);
     const byLat = new Map<number, number[]>();
@@ -174,7 +174,7 @@ describe("planner results across the antimeridian", () => {
     expect((w + e) / 2).toBeCloseTo(PANC.lon, 0);
 
     // A ring that would reach round the globe is held to one full turn.
-    const [w2, e2] = lonSpan(planZoomPoints({ range_nm: 20000, origin: PANC }));
+    const [w2, e2] = lonSpan(planZoomPoints({ range_nm: 20000, ring_nm: new Array(72).fill(20000), origin: PANC }));
     expect(e2 - w2).toBeLessThanOrEqual(360);
   });
 });

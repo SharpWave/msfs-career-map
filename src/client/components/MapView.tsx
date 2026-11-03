@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
-import { Circle, CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
+import { Circle, CircleMarker, MapContainer, Marker, Polygon, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { bearing, type LatLng } from "../geo";
 import { aircraftLabel, airportTypeLabel, airportWhere, fmtDateTime, fmtDuration, fmtFt, fmtNm, hopDurationMin, runwaySummary } from "../format";
 import { CATEGORY_COLORS, categoryFor, isFresh, metarBrief, metarStation, type FlightCategory, type MetarMap } from "../metar";
@@ -20,7 +20,7 @@ import { headMarkerHtml, hopStroke } from "../icons";
 import { applyFocus, type FitMap } from "../fit";
 import type { Insets } from "../layout";
 import { prefersReducedMotion } from "../prefs";
-import { copiesInView, copyShifts, lonSpan, planSpan, shiftLine, shiftPoint, type AirportNode, type Copies, type RenderData, type RenderHop } from "../paths";
+import { copiesInView, copyShifts, lonSpan, planSpan, ringOutline, shiftLine, shiftPoint, type AirportNode, type Copies, type RenderData, type RenderHop } from "../paths";
 import type { Aircraft, PlanCandidate, PlanResult } from "../types";
 import { RunwayInfo } from "./RunwayInfo";
 import { AirportPopup } from "./AirportPopup";
@@ -169,7 +169,7 @@ export function MapView(props: Props) {
 }
 
 /** Everything over the basemap, bottom to top, each shape on every world copy in view. */
-// @spec MAP-GEO-013, MAP-GEO-014, MAP-GEO-019, MAP-PATH-005
+// @spec MAP-GEO-013, MAP-GEO-014, MAP-GEO-019, MAP-PATH-005, PLAN-DRAW-001
 function Layers({
   data,
   aircraft,
@@ -194,7 +194,10 @@ function Layers({
   const byId = new Map(aircraft.map((a) => [a.id, a]));
   const planAircraft = plan ? byId.get(plan.aircraft_id) : undefined;
   const spans = useMemo(() => new Map(hops.map((r) => [r.hop.id, lonSpan(r.pts)])), [hops]);
-  const ring = useMemo(() => (plan ? { centre: [plan.origin.lat, plan.origin.lon] as LatLng, span: planSpan(plan) } : null), [plan]);
+  const ring = useMemo(
+    () => (plan ? { centre: [plan.origin.lat, plan.origin.lon] as LatLng, outline: ringOutline(plan), span: planSpan(plan) } : null),
+    [plan],
+  );
   const at = (pos: LatLng) => copyShifts([pos[1], pos[1]], copies);
 
   // The candidate popup opens on the world copy whose dot was clicked.
@@ -219,16 +222,15 @@ function Layers({
       {hazardKinds.size > 0 && <HazardLayer kinds={hazardKinds} now={now} onStatus={onHazardStatus} />}
       {nightOn && <NightLayer now={now} />}
 
-      {/* 0. planner: range ring and reachable airports, under everything else */}
+      {/* 0. planner: range ring (its outline through the 72 radii) and reachable airports, under everything else */}
       {plan &&
         ring &&
         copyShifts(ring.span, copies).map((d) => (
-          <Circle
+          <Polygon
             key={`ring@${d}`}
-            center={shiftPoint(ring.centre, d)}
-            radius={plan.range_nm * 1852}
+            positions={shiftLine(ring.outline, d)}
             interactive={false}
-            pathOptions={{ color: planAircraft?.color ?? "#ffffff", weight: 1.5, dashArray: "8 8", opacity: 0.8, fillColor: planAircraft?.color ?? "#ffffff", fillOpacity: 0.05 }}
+            pathOptions={{ className: "plan-ring", color: planAircraft?.color ?? "#ffffff", weight: 1.5, dashArray: "8 8", opacity: 0.8, fillColor: planAircraft?.color ?? "#ffffff", fillOpacity: 0.05 }}
           />
         ))}
       {plan &&

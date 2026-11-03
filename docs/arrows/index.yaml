@@ -1,5 +1,5 @@
 schema_version: 2
-last_updated: 2026-10-25
+last_updated: 2026-11-02
 
 # Depth-2 mapping with one sub-HLD: every node sits directly under docs/high-level-design.md except
 # shell, start-lists and distribution, the segments under the desktop sub-HLD
@@ -62,7 +62,7 @@ arrows:
     blocks: []
     blockedBy: [logbook, fleet, airports, tour-map, simbrief, live-tracking]
     detail: planner.md
-    next: "Add tests for the 53 implemented PLAN specs that have none, then close the 10 gaps (12,500 ft oxygen altitude, METARs for small ICAO fields, full result total, cruise-altitude label, terrain cache bounded without dropping a point in use, METAR freshness test for a page left open); settle LLD Open 1 (credit Copernicus/Open-Meteo on the terrain line, awaiting the user)"
+    next: "Add tests for the 46 implemented PLAN specs that have none, then close the 10 gaps (12,500 ft oxygen altitude, METARs for small ICAO fields, full result total, cruise-altitude label, terrain cache bounded without dropping a point in use, METAR freshness test for a page left open); settle LLD Open 1 (credit Copernicus/Open-Meteo on the terrain line and Open-Meteo on the winds wording, awaiting the user)"
     drift: null
 
   live-tracking:

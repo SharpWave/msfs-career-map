@@ -433,6 +433,19 @@ export interface PlanQuery {
   from?: string;
   /** Override the aircraft's typical cruise altitude for this search. */
   cruise_alt_ft?: number;
+  /** False to time the search in still air; forecast winds otherwise. */
+  wind?: boolean;
+}
+
+/** The winds a planner search was timed with. */
+export interface PlanWind {
+  /** forecast: timed with winds; off: still air by request; unavailable: still air, winds not to be had; not_needed: zero ring. */
+  status: "forecast" | "off" | "unavailable" | "not_needed";
+  reason: "failed" | "recent_failure" | "too_wide" | null;
+  /** The forecast hour, e.g. 2026-11-02T14:00Z. */
+  hour: string | null;
+  levels_hpa: number[];
+  grid_deg: number | null;
 }
 
 /** A reachable airport. `runways` is absent here; the popup loads it on demand. */
@@ -446,8 +459,11 @@ export interface PlanResult {
   aircraft_id: number;
   cruise_kts: number;
   max_minutes: number;
-  /** Ring radius from the block-time model (destination at the origin's elevation). */
+  /** The ring's longest radius (destination at the origin's elevation). */
   range_nm: number;
+  /** The ring's radius on each of 72 bearings, every 5° clockwise from true north. */
+  ring_nm: number[];
+  wind: PlanWind;
   /** What cruise speed × time alone would give. */
   naive_range_nm: number;
   profile: PerfProfile;

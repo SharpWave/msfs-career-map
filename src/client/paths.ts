@@ -1,4 +1,4 @@
-import { distanceNm, greatCircle, type LatLng } from "./geo";
+import { destination, distanceNm, greatCircle, type LatLng } from "./geo";
 import { parseTrack } from "./tracker";
 import type { Aircraft, Airport, AppState, Hop, OfpFix, TrackPoint } from "./types";
 
@@ -218,18 +218,52 @@ export function buildRenderData(state: AppState | null): RenderData {
 
 interface PlanGeometry {
   range_nm: number;
+  /** The ring's radius on each of 72 bearings, every 5° clockwise from true north. */
+  ring_nm: number[];
   origin: { lat: number; lon: number };
 }
 
-/** The range ring's bounding box: latitudes clamped to ±85°, at most a full turn of longitude wide. */
+/**
+ * The range ring's outline, placed from the origin at its own longitude: a point every 1° of
+ * bearing at the ring's radius there, interpolated linearly between the planner's 5° bearings,
+ * each point within 180° of longitude of the one before.
+ */
+// @spec MAP-GEO-022
+export function ringOutline(plan: PlanGeometry): LatLng[] {
+  const r = plan.ring_nm;
+  const pts: LatLng[] = [];
+  let prev = plan.origin.lon;
+  for (let k = 0; k < 360; k++) {
+    const i = Math.floor(k / 5), f = (k % 5) / 5;
+    const nm = r[i] + (r[(i + 1) % r.length] - r[i]) * f;
+    const [lat, raw] = destination([plan.origin.lat, plan.origin.lon], k, nm);
+    let lon = raw;
+    while (lon - prev > 180) lon -= 360;
+    while (lon - prev < -180) lon += 360;
+    pts.push([lat, lon]);
+    prev = lon;
+  }
+  return pts;
+}
+
+/** The widest zoom box, so its zoom points leave one widest gap of longitude, opposite the origin. */
+const PLAN_BOX_MAX_DEG = 320;
+
+/**
+ * The range ring's bounding box: its placed outline's, latitudes clamped to ±85°. A box wider than
+ * 320° of longitude — a ring reaching round a pole — is held to 320° centred on the origin, so
+ * gathering its zoom points cannot centre it anywhere else.
+ */
 function planBox(plan: PlanGeometry) {
-  const dLat = plan.range_nm / 60;
-  const dLon = Math.min(180, plan.range_nm / (60 * Math.max(0.05, Math.cos((plan.origin.lat * Math.PI) / 180))));
+  const pts = ringOutline(plan);
+  const lats = pts.map((p) => p[0]), lons = pts.map((p) => p[1]);
+  let west = Math.min(plan.origin.lon, ...lons), east = Math.max(plan.origin.lon, ...lons);
+  if (east - west > PLAN_BOX_MAX_DEG) [west, east] = [plan.origin.lon - PLAN_BOX_MAX_DEG / 2, plan.origin.lon + PLAN_BOX_MAX_DEG / 2];
   return {
-    south: Math.max(-85, plan.origin.lat - dLat),
-    north: Math.min(85, plan.origin.lat + dLat),
-    west: plan.origin.lon - dLon,
-    east: plan.origin.lon + dLon,
+    south: Math.max(-85, Math.min(plan.origin.lat, ...lats)),
+    north: Math.min(85, Math.max(plan.origin.lat, ...lats)),
+    west,
+    east,
   };
 }
 
