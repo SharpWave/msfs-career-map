@@ -15,7 +15,10 @@ const at = (iso: string) => new Date(iso);
 const look = (now: Date, origin = ORH, areaRadiusNm = 150, levels = LEVELS) => lookupWinds({ origin, areaRadiusNm, levels, now });
 
 beforeEach(() => forgetWinds());
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 describe("a wind lookup", () => {
   // @spec PLAN-WIND-001, PLAN-WIND-007
@@ -40,13 +43,13 @@ describe("a wind lookup", () => {
       );
     }
     expect(log.userAgents.every((ua) => ua === USER_AGENT)).toBe(true);
-    expect(totalAsked(log)).toBe(chooseGrid(ORH, 150)!.nodes.length);
+    expect(totalAsked(log)).toBe(chooseGrid(ORH, 150, LEVELS.length)!.nodes.length);
   });
 
   // @spec PLAN-WIND-007
   it("sends at most 100 nodes per request, all of them together", async () => {
-    const grid = chooseGrid(ORH, 400)!;
-    expect(grid.nodes.length).toBeGreaterThan(200);
+    const grid = chooseGrid(ORH, 300, LEVELS.length)!;
+    expect(grid.nodes.length).toBeGreaterThan(100);
     const asked: number[] = [];
     let open = 0, most = 0;
     answerFetch(FORECAST, async (url) => {
@@ -56,7 +59,7 @@ describe("a wind lookup", () => {
       open--;
       return forecastResponse(url, steady(10, 180));
     });
-    expect((await look(at("2026-11-02T14:10:00Z"), ORH, 400)).status).toBe("forecast");
+    expect((await look(at("2026-11-02T14:10:00Z"), ORH, 300)).status).toBe("forecast");
     expect(Math.max(...asked)).toBeLessThanOrEqual(100);
     expect(asked.reduce((a, b) => a + b, 0)).toBe(grid.nodes.length);
     expect(most).toBe(asked.length);
@@ -107,6 +110,77 @@ describe("a wind lookup", () => {
   });
 });
 
+describe("Open-Meteo's rate limit", () => {
+  const limited = () => Response.json({ reason: "Minutely API request limit exceeded. Please try again in one minute.", error: true }, { status: 429 });
+
+  // @spec PLAN-WIND-014
+  it("is reported as such, and pauses lookups for one minute", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    answerFetch(FORECAST, limited);
+    expect(await look(at("2026-11-02T14:10:00Z"))).toEqual({ status: "unavailable", reason: "rate_limited" });
+    resetAnswers();
+    const log = answerForecast(steady(10, 90));
+    expect(await look(at("2026-11-02T14:10:59Z"))).toEqual({ status: "unavailable", reason: "rate_limited" });
+    expect(log.urls).toHaveLength(0);
+    expect((await look(at("2026-11-02T14:11:01Z"))).status).toBe("forecast");
+  });
+
+  // @spec PLAN-WIND-014, PLAN-WIND-008
+  it("wins over another failure in the same lookup", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    let n = 0;
+    answerFetch(FORECAST, () => (n++ === 0 ? new Response("busy", { status: 503 }) : limited()));
+    expect(await look(at("2026-11-02T14:10:00Z"), ORH, 300)).toEqual({ status: "unavailable", reason: "rate_limited" });
+  });
+});
+
+describe("a failed lookup's log line", () => {
+  const logged = () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    return () => spy.mock.calls.map((c) => c.join(" ")).filter((l) => l.startsWith("[winds]"));
+  };
+
+  // @spec PLAN-WIND-015
+  it("names the requests that failed with their HTTP status and Open-Meteo's reason", async () => {
+    const lines = logged();
+    let n = 0;
+    answerFetch(FORECAST, (url) =>
+      n++ === 0 ? Response.json({ reason: "Minutely API request limit exceeded.", error: true }, { status: 429 }) : forecastResponse(url, steady(10, 90)),
+    );
+    await look(at("2026-11-02T14:10:00Z"), ORH, 300);
+    expect(lines()).toHaveLength(1);
+    expect(lines()[0]).toContain("1 of 2 requests");
+    expect(lines()[0]).toContain("HTTP 429");
+    expect(lines()[0]).toContain("Minutely API request limit exceeded.");
+  });
+
+  // @spec PLAN-WIND-015
+  it("says when the lookup timed out", async () => {
+    const lines = logged();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    answerFetch(FORECAST, (_url, init) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+      }),
+    );
+    const p = look(at("2026-11-02T14:10:00Z"));
+    await vi.advanceTimersByTimeAsync(15_000);
+    await p;
+    expect(lines()).toHaveLength(1);
+    expect(lines()[0]).toContain("timed out after 15 s");
+  });
+
+  // @spec PLAN-WIND-015
+  it("says when a node came back without a wind", async () => {
+    const lines = logged();
+    answerForecast((lat, lon) =>
+      Math.abs(lat - 42.5) < 1e-9 && Math.abs(lon + 72) < 1e-9 ? { speed: null, direction: null } : { speed: 12, direction: 200 },
+    );
+    await look(at("2026-11-02T14:10:00Z"));
+    expect(lines()).toEqual(["[winds] lookup failed: a node came back without a wind at any level"]);
+  });
+});
+
 describe("the wind cache", () => {
   // @spec PLAN-WIND-010
   it("answers a repeated lookup within the hour without asking again, and asks again in the next hour", async () => {
@@ -120,24 +194,24 @@ describe("the wind cache", () => {
     await look(at("2026-11-02T14:51:00Z"), { lat: ORH.lat + 0.6, lon: ORH.lon });
     const moved = totalAsked(log) - before;
     expect(moved).toBeGreaterThan(0);
-    expect(moved).toBeLessThan(chooseGrid({ lat: ORH.lat + 0.6, lon: ORH.lon }, 150)!.nodes.length);
+    expect(moved).toBeLessThan(chooseGrid({ lat: ORH.lat + 0.6, lon: ORH.lon }, 150, LEVELS.length)!.nodes.length);
     // Next hour.
     const hourBefore = totalAsked(log);
     await look(at("2026-11-02T15:00:00Z"));
-    expect(totalAsked(log) - hourBefore).toBe(chooseGrid(ORH, 150)!.nodes.length);
+    expect(totalAsked(log) - hourBefore).toBe(chooseGrid(ORH, 150, LEVELS.length)!.nodes.length);
     expect(log.urls.at(-1)!.searchParams.get("start_hour")).toBe("2026-11-02T15:00");
   });
 
   // @spec PLAN-WIND-010
   it("keeps the winds of the requests that answered when another failed", async () => {
-    const grid = chooseGrid(ORH, 400)!;
+    const grid = chooseGrid(ORH, 300, LEVELS.length)!;
     let n = 0;
     answerFetch(FORECAST, (url) => (n++ === 0 ? new Response("busy", { status: 503 }) : forecastResponse(url, steady(10, 180))));
-    expect((await look(at("2026-11-02T14:10:00Z"), ORH, 400)).status).toBe("unavailable");
+    expect((await look(at("2026-11-02T14:10:00Z"), ORH, 300)).status).toBe("unavailable");
     resetAnswers();
     const log = answerForecast(steady(10, 180));
     // After the pause, only the failed request's nodes are asked for again.
-    expect((await look(at("2026-11-02T14:16:00Z"), ORH, 400)).status).toBe("forecast");
+    expect((await look(at("2026-11-02T14:16:00Z"), ORH, 300)).status).toBe("forecast");
     expect(totalAsked(log)).toBeLessThanOrEqual(100);
     expect(totalAsked(log)).toBeLessThan(grid.nodes.length);
   });
@@ -147,26 +221,31 @@ describe("the wind cache", () => {
     answerForecast(steady(15, 300));
     await look(at("2026-11-02T14:05:00Z"));
     const held = windCacheSize();
-    expect(held).toBe(chooseGrid(ORH, 150)!.nodes.length * LEVELS.length);
+    expect(held).toBe(chooseGrid(ORH, 150, LEVELS.length)!.nodes.length * LEVELS.length);
     await look(at("2026-11-02T15:05:00Z"), { lat: 10, lon: 10 }, 60, [850]);
-    expect(windCacheSize()).toBe(chooseGrid({ lat: 10, lon: 10 }, 60)!.nodes.length);
+    expect(windCacheSize()).toBe(chooseGrid({ lat: 10, lon: 10 }, 60, 1)!.nodes.length);
   });
 
   // @spec PLAN-WIND-011
   it("holds at most 50,000 winds, keeping those the latest lookup used", async () => {
     const log = answerForecast(steady(20, 250));
     const now = at("2026-11-02T14:05:00Z");
-    // Areas far apart, each up to 300 nodes at all 19 levels, until well over 50,000 winds are asked for.
-    const origins: { lat: number; lon: number }[] = [];
-    for (let i = 0; totalAsked(log) * PRESSURE_LEVELS_HPA.length < 60_000; i++) {
-      const o = { lat: -60 + (i % 13) * 10, lon: -170 + i * 17 };
-      origins.push(o);
-      expect((await look(now, o, 900, PRESSURE_LEVELS_HPA)).status).toBe("forecast");
+    // Areas 10° of latitude and 30° of longitude apart, each as many nodes at 5 levels as 200 calls
+    // allow, until well over 50,000 winds are asked for.
+    const levels = PRESSURE_LEVELS_HPA.slice(0, 5);
+    const origins = [-70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70].flatMap((lat) =>
+      Array.from({ length: 12 }, (_, i) => ({ lat, lon: -180 + i * 30 })),
+    );
+    const used: { lat: number; lon: number }[] = [];
+    for (const o of origins) {
+      if (totalAsked(log) * levels.length >= 60_000) break;
+      used.push(o);
+      expect((await look(now, o, 300, levels)).status).toBe("forecast");
     }
-    expect(totalAsked(log) * PRESSURE_LEVELS_HPA.length).toBeGreaterThan(50_000);
+    expect(totalAsked(log) * levels.length).toBeGreaterThan(50_000);
     expect(windCacheSize()).toBeLessThanOrEqual(50_000);
     const asked = log.urls.length;
-    expect((await look(now, origins.at(-1)!, 900, PRESSURE_LEVELS_HPA)).status).toBe("forecast");
+    expect((await look(now, used.at(-1)!, 300, levels)).status).toBe("forecast");
     expect(log.urls.length).toBe(asked);
   });
 });

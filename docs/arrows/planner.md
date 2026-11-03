@@ -16,8 +16,9 @@ the server holding a different logbook reloads itself, a METAR is judged fresh a
 however long the page stays open, and the terrain cache is bounded for a server that runs for weeks.
 Forecast winds (HLD revised 2026-11-02): each leg timed phase by phase in Open-Meteo's winds at the
 cruise altitude, the ring a radius on each of 72 bearings, still air on request or when the winds
-cannot be had — designed, specified, tested and implemented test-first (PLAN-TIME-007 to 013,
-PLAN-WIND-001 to 013), with the ring's outline and zoom box in tour-map (MAP-GEO-021, 022).
+cannot be had, each search spending at most 200 of Open-Meteo's 600 calls a minute so three fit, a
+rate limit reported as such and paused for a minute, every failed lookup logged — designed, specified, tested and implemented test-first (PLAN-TIME-007 to 013,
+PLAN-WIND-001 to 015), with the ring's outline and zoom box in tour-map (MAP-GEO-021, 022).
 One open question: Open-Meteo's terms for a distributed app (LLD Open 1), whose credit half — a
 credit on the terrain line, which the data's CC BY 4.0 licence requires — awaits the user's approval.
 
@@ -30,7 +31,7 @@ credit on the terrain line, which the data's CC BY 4.0 licence requires — awai
 - docs/intent/planner/planner-design.md
 
 ### EARS
-- docs/intent/planner/planner-specs.md (90 specs)
+- docs/intent/planner/planner-specs.md (92 specs)
 
 ### Tests
 - tests/tour-map/map-toolbar.test.tsx — PLAN-RUN-002
@@ -39,7 +40,7 @@ credit on the terrain line, which the data's CC BY 4.0 licence requires — awai
 - tests/e2e/world-copies.spec.ts — PLAN-DRAW-005 (a candidate's popup opens beside the dot clicked, across the 180° meridian), PLAN-DRAW-001 (the ring drawn as a dashed outline)
 - tests/planner/wind-model.test.ts — PLAN-TIME-007 to 013 (groundspeed, phases, branch, cruise steps, the 72 radii)
 - tests/planner/wind-grid.test.ts — PLAN-WIND-002 to 006 (levels, lattice and its budget, interpolation)
-- tests/planner/wind-lookup.test.ts — PLAN-WIND-001, 006 to 011 (request, hour, User-Agent, 15 s, failures and the pause, cache and its bound)
+- tests/planner/wind-lookup.test.ts — PLAN-WIND-001, 006 to 011, 014, 015 (request, hour, User-Agent, 15 s, failures and the pauses, the rate limit, log lines, cache and its bound)
 - tests/planner/plan-api.test.ts — PLAN-FIND-007, 008, 011, PLAN-WIND-004, 008, 009, 012, 013, PLAN-TIME-007, 009, 013
 - tests/planner/planner-card.test.tsx — PLAN-FORM-012, PLAN-RUN-005, PLAN-LIST-001, 010
 - tests/planner/plan-url.test.tsx — PLAN-RUN-004
@@ -75,7 +76,7 @@ is parked, and show which of them live weather or darkness rules out.
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
 | Block-time model | PLAN-TIME-001 to 013 | 13 | 0 | 0 |
-| Winds aloft | PLAN-WIND-001 to 013 | 13 | 0 | 0 |
+| Winds aloft | PLAN-WIND-001 to 015 | 15 | 0 | 0 |
 | Candidate search | PLAN-FIND-001 to 011 | 9 | 0 | 2 |
 | Live checks | PLAN-FLAG-001 to 010 | 8 | 0 | 2 |
 | Terrain along a leg | PLAN-TERR-001 to 008 | 6 | 0 | 2 |
@@ -84,7 +85,7 @@ is parked, and show which of them live weather or darkness rules out.
 | Plan lifecycle | PLAN-RUN-001 to 007 | 7 | 0 | 0 |
 | Planner layers on the map | PLAN-DRAW-001 to 006 | 6 | 0 | 0 |
 
-**Summary:** 80 of 90 specs implemented; 10 gaps; none deferred. 34 specs have tests; the other 46
+**Summary:** 82 of 92 specs implemented; 10 gaps; none deferred. 36 specs have tests; the other 46
 implemented specs have none.
 
 ## Key Findings
@@ -106,7 +107,7 @@ implemented specs have none.
 10. **Open-Meteo credit and limits** — the terrain line credits neither Open-Meteo nor the
     Copernicus programme, though the data's CC BY 4.0 licence requires a credit wherever the app
     shows it, and Open-Meteo's free-tier rate limits are applied per caller address and per
-    application (LLD Open 1). The forecast winds come from Open-Meteo too, a search spending up to 300
+    application (LLD Open 1). The forecast winds come from Open-Meteo too, a search spending up to 200
     calls of the caller's daily 10,000, and the card credits neither.
 
 ## Work Required

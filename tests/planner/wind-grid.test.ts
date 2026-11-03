@@ -1,11 +1,12 @@
 /**
  * The wind grid (PLAN-WIND-002 to 006): which pressure levels a search asks for, the lattice of
- * nodes and its 300-node budget, and how a wind is read between nodes and levels.
+ * nodes and its budget of 200 Open-Meteo calls, and how a wind is read between nodes and levels.
  */
 import { describe, expect, it } from "vitest";
 import {
   PRESSURE_LEVELS_HPA,
   buildField,
+  callsPerNode,
   chooseGrid,
   gridNodes,
   levelsFor,
@@ -57,10 +58,10 @@ describe("the lattice", () => {
   const ORH = { lat: 42.2673, lon: -71.8757 };
 
   // @spec PLAN-WIND-003
-  it("puts nodes on whole multiples of the finest spacing that keeps them to 300, with every point of the area inside a fetched cell", () => {
-    const g = chooseGrid(ORH, 150)!;
+  it("puts nodes on whole multiples of the finest spacing that costs at most 200 calls, with every point of the area inside a fetched cell", () => {
+    const g = chooseGrid(ORH, 150, 4)!;
     expect(g.spacingDeg).toBe(0.5);
-    expect(g.nodes.length).toBeLessThanOrEqual(300);
+    expect(g.nodes.length).toBeLessThanOrEqual(200);
     const have = new Set(g.nodes.map(([lat, lon]) => `${lat},${lon}`));
     for (const [lat, lon] of g.nodes) {
       expect(Number.isInteger(lat / 0.5) && Number.isInteger(lon / 0.5)).toBe(true);
@@ -79,31 +80,46 @@ describe("the lattice", () => {
   });
 
   // @spec PLAN-WIND-003
-  it("moves to a coarser spacing only when the finer one needs more than 300 nodes", () => {
+  it("moves to a coarser spacing only when the finer one costs more than 200 calls", () => {
     const origin = { lat: 0, lon: 0 };
-    const g = chooseGrid(origin, 600)!;
+    const g = chooseGrid(origin, 600, 4)!;
     const finer = [0.5, 1, 2, 3, 5, 10].filter((s) => s < g.spacingDeg);
     expect(finer.length).toBeGreaterThan(0);
-    for (const s of finer) expect(gridNodes(origin, 600, s).length).toBeGreaterThan(300);
-    expect(g.nodes.length).toBeLessThanOrEqual(300);
+    for (const s of finer) expect(gridNodes(origin, 600, s).length).toBeGreaterThan(200);
+    expect(g.nodes.length).toBeLessThanOrEqual(200);
     expect(g.nodes).toEqual(gridNodes(origin, 600, g.spacingDeg));
   });
 
   // @spec PLAN-WIND-003
+  it("counts a node at more than 5 levels as one call per 10 variables", () => {
+    expect(callsPerNode(4)).toBe(1);
+    expect(callsPerNode(5)).toBe(1);
+    expect(callsPerNode(6)).toBeCloseTo(1.2, 9);
+    expect(callsPerNode(19)).toBeCloseTo(3.8, 9);
+    // 171 nodes at 0.5°: 171 calls at 4 levels, 205 at 6.
+    expect(gridNodes(ORH, 160, 0.5)).toHaveLength(171);
+    expect(chooseGrid(ORH, 160, 4)!.spacingDeg).toBe(0.5);
+    expect(chooseGrid(ORH, 160, 6)!.spacingDeg).toBe(1);
+  });
+
+  // @spec PLAN-WIND-003
   it("keeps longitudes from −180° to under 180° across the antimeridian, and latitudes within ±85°", () => {
-    const g = chooseGrid({ lat: 52, lon: 179.5 }, 300)!;
+    const g = chooseGrid({ lat: 52, lon: 179.5 }, 300, 4)!;
     const lons = g.nodes.map(([, lon]) => lon);
     expect(Math.min(...lons)).toBeGreaterThanOrEqual(-180);
     expect(Math.max(...lons)).toBeLessThan(180);
     expect(lons).toContain(-180);
     expect(lons.some((l) => l > 170) && lons.some((l) => l < -170)).toBe(true);
-    const polar = chooseGrid({ lat: 82, lon: 15 }, 400)!;
+    const polar = chooseGrid({ lat: 82, lon: 15 }, 400, 4)!;
     expect(Math.max(...polar.nodes.map(([lat]) => Math.abs(lat)))).toBeLessThanOrEqual(85);
   });
 
   // @spec PLAN-WIND-004
-  it("cannot be had for an area needing more than 300 nodes even at 10°", () => {
-    expect(chooseGrid({ lat: 0, lon: 0 }, 5400)).toBeNull();
+  it("cannot be had for an area costing more than 200 calls even at 10°", () => {
+    expect(chooseGrid({ lat: 0, lon: 0 }, 5400, 4)).toBeNull();
+    // A 2,000 nm still-air ring from 45°N at 6 levels: 3,000 nm of area.
+    expect(chooseGrid({ lat: 45, lon: 0 }, 3000, 6)).toBeNull();
+    expect(chooseGrid({ lat: 45, lon: 0 }, 2800, 6)).not.toBeNull();
   });
 });
 

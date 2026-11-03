@@ -441,7 +441,7 @@ export interface PlanQuery {
 export interface PlanWind {
   /** forecast: timed with winds; off: still air by request; unavailable: still air, winds not to be had; not_needed: zero ring. */
   status: "forecast" | "off" | "unavailable" | "not_needed";
-  reason: "failed" | "recent_failure" | "too_wide" | null;
+  reason: "failed" | "recent_failure" | "rate_limited" | "too_wide" | null;
   /** The forecast hour, e.g. 2026-11-02T14:00Z. */
   hour: string | null;
   levels_hpa: number[];

@@ -171,20 +171,23 @@ same winds.
   stop at ±85°.
 - **Grid.** A fixed latitude-longitude lattice with nodes on whole multiples of its spacing, so
   searches from nearby origins share them, and longitudes in −180° to under 180°, so 180°E and
-  180°W are one node. The spacing is the finest of 0.5°, 1°, 2°, 3°, 5° and 10° that keeps the
-  nodes to at most 300; the nodes fetched are the corners of every lattice cell the area touches,
-  so every point in the area has four nodes around it. A search whose area needs more than 300
-  nodes even at 10° — some 5,000 nm in radius — is timed in still air.
+  180°W are one node. The spacing is the finest of 0.5°, 1°, 2°, 3°, 5° and 10° whose nodes cost at
+  most 200 Open-Meteo calls ([Requests](#winds-aloft)); the nodes fetched are the corners of every
+  lattice cell the area touches, so every point in the area has four nodes around it. A search
+  whose area costs more than 200 calls even at 10° — a still-air ring of some 2,000 nm, less at
+  high latitudes — is timed in still air.
 - **Interpolation.** Each wind is split into its east and north components, which are interpolated
   bilinearly between the four nodes of the cell around the point, wrapping across 180°; speed and
   direction are never averaged themselves, since an average of 350° and 010° would point south. A
   point outside the fetched cells takes the nearest fetched node's wind. A node with no wind at
   some level takes its own wind at the nearest level above that has one; a node with no wind at any
   level counts as missing.
-- **Requests.** Open-Meteo counts each location as one call (its free tier allows 600 a minute and
-  10,000 a day per caller), so a search costs at most 300 calls and usually far fewer. Nodes go in
-  requests of up to 100, sent together, with the User-Agent the server sends on every outside
-  request (app-shell, APP-API-005); the lookup gives up 15 s after the first is sent.
+- **Requests.** Open-Meteo counts each location as one call, or as more for over 10 variables —
+  one call per 10 — so a node at 6 levels (12 variables) costs 1.2. Its free tier allows 600 calls
+  a minute and 10,000 a day per caller, so a search spends at most 200 calls: three searches fit in a
+  minute, as a pilot comparing aircraft or times makes them, and the cache makes repeats free.
+  Nodes go in requests of up to 100, sent together, with the User-Agent the server sends on every
+  outside request (app-shell, APP-API-005); the lookup gives up 15 s after the first is sent.
 - **Cache.** Each node's wind at each level is kept in the server's memory for its forecast hour,
   so a search repeated or moved a little within the hour asks only for nodes it has not got. Winds
   from a request that answered are kept even when another of the search's requests failed. Entries
@@ -197,7 +200,10 @@ same winds.
   since a search half in wind and half in still air would rank destinations by which side of the
   gap they fall. For 5 minutes after a failed lookup, searches make none and are timed in still air
   straight away, so a pilot whose network is down, or whose day's calls are spent, does not wait
-  15 s for every search.
+  15 s for every search. A request Open-Meteo refuses for its rate limit (HTTP 429) is reported as
+  such, and pauses lookups for 1 minute instead, the time Open-Meteo asks for. Every failed lookup
+  is written to the server's log with each failed request's HTTP status and Open-Meteo's reason,
+  its error, or the timeout, so a pilot's report of still-air times can be traced.
 - **A zero still-air ring** looks nothing up: no destination fits the time in any wind.
 
 ## Finding Candidates
@@ -246,7 +252,7 @@ radii, in still air too. `wind` is:
 | Field | Meaning |
 |---|---|
 | `status` | `forecast` — timed with winds; `off` — still air by request; `unavailable` — still air because the winds could not be had; `not_needed` — a zero still-air ring, nothing looked up |
-| `reason` | With `unavailable`: `failed` (a request failed or timed out, or a node was missing), `recent_failure` (within 5 minutes of a failed lookup) or `too_wide` (more than 300 nodes at 10°); otherwise null |
+| `reason` | With `unavailable`: `failed` (a request failed or timed out, or a node was missing), `recent_failure` (within 5 minutes of a failed lookup), `rate_limited` (Open-Meteo refused a request for its rate limit, or within 1 minute of that) or `too_wide` (more than 200 calls at 10°); otherwise null |
 | `hour` | With `forecast`: the forecast hour, ISO 8601 UTC (`2026-11-02T14:00Z`); otherwise null |
 | `levels_hpa` | With `forecast`: every level fetched, highest pressure first; otherwise empty |
 | `grid_deg` | With `forecast`: the lattice spacing in degrees; otherwise null |
@@ -367,8 +373,10 @@ reads "Add an aircraft with a cruise speed to plan its next hop."
   R1 and R2 the ring's shortest and longest radii, or "within R nm" when the two round to the same
   figure; the block-time model in words with the naive range, saying with winds that climb, cruise
   and descent each fly in the wind at their own height; when the winds could not be had,
-  "Forecast winds unavailable, so times are in still air.", or "Forecast winds cover at most some
-  5,000 nm, so times are in still air." for a search too wide for them; when truncated, "Too many to show them all: the nearest N are drawn, reaching
+  "Forecast winds unavailable, so times are in still air.", "Open-Meteo's limit for this minute is
+  used up, so times are in still air. Search again in a minute for winds." for a rate limit, or
+  "Forecast winds cover a ring of at most some 2,000 nm, so times are in still air." for a search
+  too wide for them; when truncated, "Too many to show them all: the nearest N are drawn, reaching
   only D out (inner ring)…" with how to narrow the search.
 - Legends for dot fill (surface), size (class) and ring color (flight category), saying which
   airports are checked: large and medium, and small ones with an ICAO code, METAR under 90 min old.
@@ -449,11 +457,11 @@ meridian from the origin sits beside the ring (MAP-GEO-013, MAP-GEO-014).
 | Wind | Forecast winds along the direct leg, on by default, still air on request | Ignored; a switch off by default | Wind moves which airports are in reach by its share of the cruise speed, most for slow aircraft, so ignoring it offers airports out of reach and hides ones within it. On by default because it is the better estimate; still air stays one click away for comparison. |
 | Wind by phase | Climb and descent each in the wind at their half-way altitude, cruise stepped along the leg at the cruise altitude | One wind at cruise altitude for the whole leg; full integration through every altitude | Climb and descent fly through different winds from the cruise, and on a short leg they are most of it; one sample per phase captures that at no extra requests. Integrating through every altitude would add levels and requests for a difference the planner does not need (*Estimates for choosing*). |
 | Wind source | Open-Meteo's forecast at pressure levels, the default model blend | METARs interpolated between stations; NOAA's winds-aloft forecasts (FB); GFS files from NOAA NOMADS; the sim's own wind | METAR winds are 10 m above the ground, slowed by friction and backed from the wind a few thousand feet up, and stations are scattered; NOAA's FB forecasts cover the US only; GFS files need a GRIB2 decoder. Open-Meteo is keyless, worldwide, already the terrain provider, and returns gridded winds at every height the fleet cruises at. The sim reports only the wind where the aircraft is. MSFS's live weather comes from another provider, so the sim's winds will differ somewhat from the forecast's. |
-| Wind grid | A fixed lattice, at most 300 nodes per search, spacing 0.5°–10° by the area | One wind at the origin; a fixed fine grid; nodes along each candidate's leg | Open-Meteo counts each location as a call, so the node budget bounds a search's cost; a fixed lattice lets searches share cached nodes. One wind at the origin is wrong for a jet crossing the jet stream; a fine grid or per-leg nodes would spend thousands of calls on one search. Winds aloft vary over hundreds of miles, so a coarse grid over a large area loses little. |
+| Wind grid | A fixed lattice costing at most 200 Open-Meteo calls per search, spacing 0.5°–10° by the area | One wind at the origin; a fixed fine grid; nodes along each candidate's leg; 300 or 100 calls per search | Open-Meteo counts each location as a call, so the budget bounds a search's cost; 200 lets three searches fit in its 600 calls a minute, as a pilot comparing aircraft or times makes them, where 300 let only two and the third came back in still air; 100 would coarsen grids with no searches to spare for. A fixed lattice lets searches share cached nodes. One wind at the origin is wrong for a jet crossing the jet stream; a fine grid or per-leg nodes would spend thousands of calls on one search. Winds aloft vary over hundreds of miles, so a coarse grid over a large area loses little. |
 | Interpolation | East and north components, bilinear between nodes, linear in altitude between levels | Speed and direction interpolated; nearest node | Directions cannot be averaged across north; components can. Nearest-node winds would make the ring jagged at node boundaries. |
 | Wind hour | The current UTC hour for every leg | The hour of each phase's arrival | The planner times a departure now (Deferred: darkness assumes leaving now); one hour keeps one set of nodes per search. |
-| Winds unavailable | The whole search in still air, said so in the card; no lookups for 5 minutes after a failure | Fail the search; fill gaps from neighbouring nodes; try every search | The planner is still useful without winds, so a failed lookup must not block it; a search part in wind and part in still air would rank destinations unevenly. Trying every search would hold each one for the 15 s timeout while the network is down or the day's calls are spent. |
-| Searches too wide for the grid | Still air beyond 300 nodes at 10° | A coarser lattice; a larger node budget | Only searches several thousand miles across reach it, long jet legs where a 10° grid already blurs the jet stream; a larger budget spends a day's calls in a few searches. |
+| Winds unavailable | The whole search in still air, said so in the card; no lookups for 5 minutes after a failure, 1 minute after a rate limit; every failure logged | Fail the search; fill gaps from neighbouring nodes; try every search; one pause for every failure | The planner is still useful without winds, so a failed lookup must not block it; a search part in wind and part in still air would rank destinations unevenly. Trying every search would hold each one for the 15 s timeout while the network is down or the day's calls are spent. A rate limit clears in a minute, so a 5-minute pause would keep winds away four minutes longer than Open-Meteo asks; saying so tells the pilot that searching again shortly brings them back. Without a log entry, still-air times cannot be traced to their cause. |
+| Searches too wide for the grid | Still air beyond 200 calls at 10° | A coarser lattice; a larger budget | Only searches with a ring of some 2,000 nm reach it, long jet legs where a 10° grid already blurs the jet stream; a larger budget spends a day's calls in a few searches. |
 | Phase groundspeeds | One wind per climb and descent, at the phase's half-way altitude and still-air half-way point; the branch between a full and a short leg decided on the wind-adjusted distances | Sampling at the wind-adjusted half-way point; the branch on still-air distances | Placing the samples by still-air distance avoids solving for where they fall, at no visible cost; deciding the branch on the distances actually flown keeps the cruise distance from going negative. |
 | Ring shape | A radius on each of 72 bearings, every 5° | A circle of the longest reach; a circle shifted downwind | With wind the reachable area is not a circle; a circle of the longest reach would show airports out of reach upwind as reachable. A shifted circle fits only a wind that is the same everywhere. 72 bearings, every 5°, keep the outline smooth at the cost of 72 bisections, which take milliseconds. |
 | List order with winds | Nearest first by distance, as in still air; the nearest `limit` kept when truncated | Quickest first | Distance order is stable from one hour's winds to the next, and the truncation inner ring keeps its meaning — how far the drawn candidates reach; each row shows its time for comparing. |
@@ -495,7 +503,7 @@ meridian from the origin sits beside the ring (MAP-GEO-013, MAP-GEO-014).
    - *Per-application limit* (open). Whether the limit Open-Meteo counts per application, which the
      shared User-Agent lets it count, matters at the app's scale.
    - *Winds* (recommended, not yet decided). The forecast winds come from Open-Meteo under the same
-     terms and licence, and a search can spend up to 300 calls of the caller's daily 10,000.
+     terms and licence, and a search can spend up to 200 calls of the caller's daily 10,000.
      Recommended: the card's wind wording carries "Winds: Open-Meteo", decided together with the
      terrain credit.
 

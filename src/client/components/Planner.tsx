@@ -278,8 +278,10 @@ export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged
             {plan.wind.status === "unavailable" && (
               <div className="notice small">
                 {plan.wind.reason === "too_wide"
-                  ? "Forecast winds cover at most some 5,000 nm, so times are in still air."
-                  : "Forecast winds unavailable, so times are in still air."}
+                  ? "Forecast winds cover a ring of at most some 2,000 nm, so times are in still air."
+                  : plan.wind.reason === "rate_limited"
+                    ? "Open-Meteo's limit for this minute is used up, so times are in still air. Search again in a minute for winds."
+                    : "Forecast winds unavailable, so times are in still air."}
               </div>
             )}
             {plan.truncated && (

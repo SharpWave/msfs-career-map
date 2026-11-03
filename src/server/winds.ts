@@ -11,11 +11,13 @@ const OPEN_METEO = "https://api.open-meteo.com/v1/forecast";
 const EARTH_NM = 3440.065;
 const NM_PER_DEG = (EARTH_NM * Math.PI) / 180;
 const SPACINGS = [0.5, 1, 2, 3, 5, 10];
-const MAX_NODES = 300;
+/** Open-Meteo calls one search may spend: three searches fit its free tier's 600 a minute. */
+const MAX_CALLS = 200;
 const MAX_LAT = 85;
 const PER_REQUEST = 100;
 const TIMEOUT_MS = 15_000;
 const PAUSE_MS = 5 * 60_000;
+const RATE_PAUSE_MS = 60_000;
 const CACHE_MAX = 50_000;
 
 export const PRESSURE_LEVELS_HPA = [1000, 975, 950, 925, 900, 850, 800, 700, 600, 500, 400, 300, 250, 200, 150, 100, 70, 50, 30];
@@ -98,12 +100,27 @@ export function gridNodes(origin: { lat: number; lon: number }, radiusNm: number
   return nodes.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
 }
 
-/** The finest lattice that needs at most 300 nodes for the area, or null when even 10° needs more. */
+/**
+ * Open-Meteo calls a lookup of one location at `levels` levels costs: one, or more for over 10
+ * variables (speed and direction per level), as Open-Meteo counts them.
+ */
+export function callsPerNode(levels: number): number {
+  return Math.max(1, (2 * levels) / 10);
+}
+
+/**
+ * The finest lattice whose nodes, at `levels` levels, cost at most 200 Open-Meteo calls, or null
+ * when even 10° costs more.
+ */
 // @spec PLAN-WIND-003, PLAN-WIND-004
-export function chooseGrid(origin: { lat: number; lon: number }, radiusNm: number): { spacingDeg: number; nodes: [number, number][] } | null {
+export function chooseGrid(
+  origin: { lat: number; lon: number },
+  radiusNm: number,
+  levels: number,
+): { spacingDeg: number; nodes: [number, number][] } | null {
   for (const spacingDeg of SPACINGS) {
     const nodes = gridNodes(origin, radiusNm, spacingDeg);
-    if (nodes.length <= MAX_NODES) return { spacingDeg, nodes };
+    if (nodes.length * callsPerNode(levels) <= MAX_CALLS) return { spacingDeg, nodes };
   }
   return null;
 }
@@ -200,7 +217,7 @@ export function buildField(grid: { spacingDeg: number; levels: number[]; nodes: 
 
 export type WindLookup =
   | { status: "forecast"; field: WindField; hour: string; levels: number[]; spacingDeg: number }
-  | { status: "unavailable"; reason: "failed" | "recent_failure" | "too_wide" };
+  | { status: "unavailable"; reason: "failed" | "recent_failure" | "rate_limited" | "too_wide" };
 
 interface Cached {
   speed: number | null;
@@ -213,7 +230,8 @@ const cache = new Map<string, Cached>();
 const inUse = new Map<string, number>();
 /** Hours a lookup under way uses, with how many. */
 const hoursInUse = new Map<string, number>();
-let lastFailure: number | null = null;
+/** After a failed lookup, none until `until`; a rate limit's pause reports itself as one. */
+let pause: { until: number; rateLimited: boolean } | null = null;
 
 const cacheKey = (hour: string, level: number, lat: number, lon: number) => `${hour}|${level}|${lat},${lon}`;
 
@@ -236,12 +254,21 @@ function store(key: string, value: Cached) {
 /** Forget every wind held and any failure (tests). */
 export function forgetWinds(): void {
   cache.clear();
-  lastFailure = null;
+  pause = null;
 }
 
 /** How many winds the cache holds (one node at one level for one hour each). */
 export function windCacheSize(): number {
   return cache.size;
+}
+
+class HttpStatusError extends Error {
+  constructor(
+    readonly status: number,
+    body: string,
+  ) {
+    super(`HTTP ${status}${body ? ` ${body}` : ""}`);
+  }
 }
 
 /** Ask Open-Meteo for `nodes` at `levels` for `hour`; each location's winds in order. */
@@ -251,7 +278,7 @@ async function fetchNodes(nodes: [number, number][], levels: number[], hour: str
     `${OPEN_METEO}?latitude=${nodes.map((n) => n[0]).join(",")}&longitude=${nodes.map((n) => n[1]).join(",")}` +
     `&hourly=${hourly}&wind_speed_unit=kn&start_hour=${hour}&end_hour=${hour}`;
   const res = await fetch(url, { headers: { "user-agent": USER_AGENT }, signal });
-  if (!res.ok) throw new Error(`open-meteo: ${res.status}`);
+  if (!res.ok) throw new HttpStatusError(res.status, (await res.text().catch(() => "")).slice(0, 200));
   const j = (await res.json()) as unknown;
   const locations = (Array.isArray(j) ? j : [j]) as { hourly?: Record<string, unknown[]> }[];
   if (locations.length !== nodes.length) throw new Error("open-meteo: wrong number of locations");
@@ -264,14 +291,15 @@ async function fetchNodes(nodes: [number, number][], levels: number[], hour: str
 /**
  * The winds over a circle of `areaRadiusNm` around `origin` at `levels`, for the UTC hour under way
  * at `now`: from the cache where held, from Open-Meteo otherwise, in requests of up to 100 nodes
- * sent together and given up after 15 s. Unavailable when a request fails or a node has no wind,
- * for 5 minutes after such a failure, and for an area needing more than 300 nodes.
+ * sent together and given up after 15 s. Unavailable when a request fails or a node has no wind
+ * (and for 5 minutes after), when Open-Meteo's rate limit refuses a request (and for 1 minute
+ * after), and for an area costing more than 200 calls; each failure is logged.
  */
-// @spec PLAN-WIND-001, PLAN-WIND-004, PLAN-WIND-007, PLAN-WIND-008, PLAN-WIND-009, PLAN-WIND-010, PLAN-WIND-011
+// @spec PLAN-WIND-001, PLAN-WIND-004, PLAN-WIND-007, PLAN-WIND-008, PLAN-WIND-009, PLAN-WIND-010, PLAN-WIND-011, PLAN-WIND-014, PLAN-WIND-015
 export async function lookupWinds(opts: { origin: { lat: number; lon: number }; areaRadiusNm: number; levels: number[]; now?: Date }): Promise<WindLookup> {
   const now = opts.now ?? new Date();
-  if (lastFailure !== null && now.getTime() - lastFailure < PAUSE_MS) return { status: "unavailable", reason: "recent_failure" };
-  const grid = chooseGrid(opts.origin, opts.areaRadiusNm);
+  if (pause && now.getTime() < pause.until) return { status: "unavailable", reason: pause.rateLimited ? "rate_limited" : "recent_failure" };
+  const grid = chooseGrid(opts.origin, opts.areaRadiusNm, opts.levels.length);
   if (!grid) return { status: "unavailable", reason: "too_wide" };
   const hour = now.toISOString().slice(0, 13) + ":00";
   const levels = opts.levels;
@@ -296,9 +324,14 @@ export async function lookupWinds(opts: { origin: { lat: number; lon: number }; 
         if (r.status !== "fulfilled") return;
         chunks[ci].forEach(([lat, lon], ni) => levels.forEach((l, li) => store(cacheKey(hour, l, lat, lon), r.value[ni][li])));
       });
-      if (results.some((r) => r.status === "rejected")) {
-        lastFailure = now.getTime();
-        return { status: "unavailable", reason: "failed" };
+      const errors = results.flatMap((r) => (r.status === "rejected" ? [r.reason as unknown] : []));
+      if (errors.length) {
+        const rateLimited = errors.some((e) => e instanceof HttpStatusError && e.status === 429);
+        pause = { until: now.getTime() + (rateLimited ? RATE_PAUSE_MS : PAUSE_MS), rateLimited };
+        console.error(
+          `[winds] lookup failed (${errors.length} of ${chunks.length} requests): ${errors.map((e) => (ctl.signal.aborted ? "timed out after 15 s" : e instanceof Error ? e.message : String(e))).join("; ")}`,
+        );
+        return { status: "unavailable", reason: rateLimited ? "rate_limited" : "failed" };
       }
     }
     const nodes: GridNode[] = grid.nodes.map(([lat, lon]) => {
@@ -314,7 +347,8 @@ export async function lookupWinds(opts: { origin: { lat: number; lon: number }; 
     });
     const field = buildField({ spacingDeg: grid.spacingDeg, levels, nodes });
     if (!field) {
-      lastFailure = now.getTime();
+      pause = { until: now.getTime() + PAUSE_MS, rateLimited: false };
+      console.error("[winds] lookup failed: a node came back without a wind at any level");
       return { status: "unavailable", reason: "failed" };
     }
     return { status: "forecast", field, hour: hour + "Z", levels, spacingDeg: grid.spacingDeg };

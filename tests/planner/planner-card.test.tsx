@@ -107,7 +107,11 @@ describe("the result's summary", () => {
     card.rerender(planResult(1, ["KACK"], { wind: UNAVAILABLE("recent_failure") }));
     expect(screen.getByText("Forecast winds unavailable, so times are in still air.")).toBeTruthy();
     card.rerender(planResult(1, ["KACK"], { wind: UNAVAILABLE("too_wide") }));
-    expect(screen.getByText("Forecast winds cover at most some 5,000 nm, so times are in still air.")).toBeTruthy();
+    expect(screen.getByText("Forecast winds cover a ring of at most some 2,000 nm, so times are in still air.")).toBeTruthy();
+    card.rerender(planResult(1, ["KACK"], { wind: UNAVAILABLE("rate_limited") }));
+    expect(
+      screen.getByText("Open-Meteo's limit for this minute is used up, so times are in still air. Search again in a minute for winds."),
+    ).toBeTruthy();
     card.rerender(planResult(1, ["KACK"], { wind: OFF }));
     expect(screen.queryByText(/so times are in still air/)).toBeNull();
   });
