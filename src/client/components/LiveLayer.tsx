@@ -10,6 +10,8 @@ import { useWorldCopies } from "./WorldCopies";
 interface Props {
   live: LiveState;
   aircraft: Aircraft[];
+  /** The live aircraft was clicked while bound to a fleet aircraft: the page picks that aircraft. */
+  onPickAircraft?: (id: number) => void;
 }
 
 const CASING = { color: "#05080c", weight: 8, opacity: 0.45, lineCap: "round", lineJoin: "round" } as const;
@@ -20,8 +22,8 @@ const CASING = { color: "#05080c", weight: 8, opacity: 0.45, lineCap: "round", l
  * lines placed sample to sample. The casual path stays drawn while the sim is away; the aircraft
  * needs the link.
  */
-// @spec LIVE-LAYER-001, LIVE-LAYER-002, LIVE-LAYER-003, LIVE-LAYER-004
-export function LiveLayer({ live, aircraft }: Props) {
+// @spec LIVE-LAYER-001, LIVE-LAYER-002, LIVE-LAYER-003, LIVE-LAYER-004, LIVE-LAYER-005
+export function LiveLayer({ live, aircraft, onPickAircraft }: Props) {
   const { copies } = useWorldCopies();
   const s = live.status;
   const position = s?.connected ? s.position : null;
@@ -78,7 +80,14 @@ export function LiveLayer({ live, aircraft }: Props) {
           <Polyline key={`track@${d}`} positions={shiftLine(track, d)} interactive={false} pathOptions={{ color, weight: 4, opacity: 0.95, lineCap: "round", lineJoin: "round" }} />
         ))}
       {copyShifts([pos[1], pos[1]], copies).map((d) => (
-        <Marker key={`live@${d}`} position={shiftPoint(pos, d)} zIndexOffset={2000} icon={icon}>
+        <Marker
+          key={`live@${d}`}
+          position={shiftPoint(pos, d)}
+          zIndexOffset={2000}
+          icon={icon}
+          // It sits over its own parked marker at the gate, so it takes that marker's click.
+          eventHandlers={{ click: () => bound && onPickAircraft?.(bound.id) }}
+        >
           <Tooltip direction="top" offset={[0, -26]} className="tip" opacity={1}>
             <div className="tip-title" style={{ color }}>
               {casual ? "CASUAL" : "LIVE"} · {name}

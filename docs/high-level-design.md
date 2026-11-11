@@ -60,6 +60,8 @@ and page from source beside an installed copy.
 - Choosing the next hop takes one search, with unusable airports filtered and doubtful ones flagged.
 - Any tracked flight can be examined afterwards: profile, landing, distance, fuel, and the plan it
   was flown from.
+- Any tour can be looked back on as a whole: its hops in one list, each with how far, how long, how
+  it landed and what it burned, and the tour's totals.
 - Hand-logged history is first-class: hops from before tracking, or flown without the app, sit in
   the same tours.
 
@@ -205,6 +207,7 @@ which owns no specs: its segments' folders nest beneath it (`docs/intent/desktop
 | [planner](intent/planner/planner-design.md) | `PLAN` | Block-time model with forecast winds, reachable-airport search, weather and darkness flags, terrain check, the planner card and layers |
 | [live-tracking](intent/live-tracking/live-tracking-design.md) | `LIVE` | Sim link (one per PC), leg detection, airport naming, landings and ratings, logging and pending legs, casual mode, the live card and layer |
 | [flight-panel](intent/flight-panel/flight-panel-design.md) | `PANEL` | One flight under the map: profile chart, landing and flight cards, how ratings look |
+| [aircraft-panel](intent/aircraft-panel/aircraft-panel-design.md) | `ACP` | One aircraft beside the map: its picture, hiding it or the others, its tour's totals and landings, and its hops in a list, latest first |
 | [simbrief](intent/simbrief/simbrief-design.md) | `SB` | Dispatch links, type list, importing and keeping plans, the SimBrief card and route |
 | [app-shell](intent/app-shell/app-shell-design.md) | `APP` | Server startup and clean shutdown, data locations, backups and bringing in a logbook from another data folder or a backup, API conventions, page layout, shared formatting, development scripts and the test harness |
 | [desktop](intent/desktop/desktop-design.md) | `DESK` | The installed app: a grouping of three segments under one design doc that holds what they share and owns no specs or arrow doc of its own. Each part has its design and specs under `docs/intent/desktop/<part>/`, its arrow doc under `docs/arrows/desktop/`, and a prefix extending `DESK`, so its spec IDs read like `DESK-SHELL-TRAY-001`: [shell](intent/desktop/shell/shell-design.md) (`DESK-SHELL`) — the window and tray, closing and quitting, the single running copy, supervising the server (its port, data folder and shutdown), first run, notifications, outside links and updates; [start lists](intent/desktop/start-lists/start-lists-design.md) (`DESK-START`) — starting with MSFS or Windows; [distribution](intent/desktop/distribution/distribution-design.md) (`DESK-DIST`) — packaging, installer and uninstaller, and releases |
@@ -227,6 +230,13 @@ flowchart BT
   live --> simbrief
   fleet --> simbrief
   tourmap --> simbrief
+  panel --> acpanel["aircraft-panel"]
+  live --> acpanel
+  simbrief --> acpanel
+  tourmap --> acpanel
+  logbook --> acpanel
+  fleet --> acpanel
+  airports --> acpanel
   simbrief --> planner
   live --> planner
   tourmap --> planner

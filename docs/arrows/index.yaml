@@ -1,5 +1,5 @@
 schema_version: 2
-last_updated: 2026-11-02
+last_updated: 2026-11-11
 
 # Depth-2 mapping with one sub-HLD: every node sits directly under docs/high-level-design.md except
 # shell, start-lists and distribution, the segments under the desktop sub-HLD
@@ -11,7 +11,7 @@ arrows:
     sampled: 2026-10-09
     audited: null
     audited_sha: null
-    blocks: [tour-map, planner, live-tracking, flight-panel]
+    blocks: [tour-map, planner, live-tracking, flight-panel, aircraft-panel]
     blockedBy: [fleet, airports]
     detail: logbook.md
     next: "Add tests for the 34 implemented LOG specs that have none, first those the desktop app relies on (LOG-REC-013 to 016, LOG-FORM-008), then close the 6 gaps (atomic renumber, server-side time checks, tracked-hop corrections, card errors)"
@@ -23,7 +23,7 @@ arrows:
     sampled: 2026-10-09
     audited: null
     audited_sha: null
-    blocks: [logbook, tour-map, planner, live-tracking, flight-panel, simbrief]
+    blocks: [logbook, tour-map, planner, live-tracking, flight-panel, simbrief, aircraft-panel]
     blockedBy: []
     detail: fleet.md
     next: "Cite FLEET-LOOK-006 in the upload API test (tests/app-shell/api.test.ts) and add its removal of every file named for the id, since app-shell's backups and import rely on it (APP-BAK-003, APP-IMP-003); close the 5 gaps test-first (the icon address rule and icon files removed on delete first, then unique name + livery, the hops' SimBrief plans removed on delete, visibility-toggle errors); then tests for the other implemented FLEET specs (3 of 38 tested; the performance table's 20 are)"
@@ -35,7 +35,7 @@ arrows:
     sampled: 2026-10-09
     audited: null
     audited_sha: null
-    blocks: [logbook, tour-map, planner, live-tracking, flight-panel, shell, distribution]
+    blocks: [logbook, tour-map, planner, live-tracking, flight-panel, aircraft-panel, shell, distribution]
     blockedBy: []
     detail: airports.md
     next: "Close the official-site link test-first (APT-POP-007), which the desktop shell relies on; then the other 5 gaps (nearest across 180°, Wikipedia fallback on network errors, latest search results only, expired METAR entries, blurb cut at a sentence) and tests for the 33 implemented APT specs that have none; see the monthly refresh run against the real OurAirports lists"
@@ -47,10 +47,10 @@ arrows:
     sampled: 2026-10-09
     audited: null
     audited_sha: null
-    blocks: [planner, live-tracking, simbrief]
+    blocks: [planner, live-tracking, simbrief, aircraft-panel]
     blockedBy: [logbook, fleet, airports]
     detail: tour-map.md
-    next: "Put the basemap-tiles question (LLD Open Questions 1: OpenStreetMap's tile usage policy, Esri's terms) to the user before the first public release; close the 6 gaps test-first — the earlier hazard set served as fetched, bounded to 3 hours, flagged and timed, and the all-failed set shown as unavailable (MAP-HAZ-004, MAP-HAZ-011, MAP-HAZ-012), attribution links in a new tab (MAP-VIEW-008), then arc zoom (MAP-GEO-012) and partial hazard outages (MAP-HAZ-009); add tests for the 27 implemented MAP specs that have none and for MAP-ZOOM-008's repeat and replacement clauses"
+    next: "Put the basemap-tiles question (LLD Open Questions 1: OpenStreetMap's tile usage policy, Esri's terms) to the user before the first public release; close the 6 gaps test-first — the earlier hazard set served as fetched, bounded to 3 hours, flagged and timed, and the all-failed set shown as unavailable (MAP-HAZ-004, MAP-HAZ-011, MAP-HAZ-012), attribution links in a new tab (MAP-VIEW-008), then arc zoom (MAP-GEO-012) and partial hazard outages (MAP-HAZ-009); add tests for the 20 implemented MAP specs that have none and for MAP-ZOOM-008's repeat and replacement clauses"
     drift: null
 
   planner:
@@ -71,7 +71,7 @@ arrows:
     sampled: 2026-10-09
     audited: null
     audited_sha: null
-    blocks: [planner, flight-panel, simbrief, shell, distribution]
+    blocks: [planner, flight-panel, simbrief, aircraft-panel, shell, distribution]
     blockedBy: [logbook, fleet, airports, tour-map]
     detail: live-tracking.md
     next: "Fly the sim-link claim and the sim's clock beside a real MSFS; add tests for the 25 implemented LIVE specs that have none, LIVE-HOP-001's takeoff time first; refresh the LLD's code line links"
@@ -83,10 +83,10 @@ arrows:
     sampled: 2026-10-09
     audited: null
     audited_sha: null
-    blocks: []
+    blocks: [aircraft-panel]
     blockedBy: [logbook, fleet, airports, live-tracking]
     detail: flight-panel.md
-    next: "Close the 3 gaps test-first (the live flight card, PANEL-STAT-002; landed in the live header, PANEL-HEAD-004; the G wording, PANEL-LAND-004); add tests for the 22 implemented PANEL specs that have none, PANEL-CHART-009 and PANEL-OPEN-012 first"
+    next: "Close the 3 gaps test-first (the live flight card, PANEL-STAT-002; landed in the live header, PANEL-HEAD-004; the G wording, PANEL-LAND-004); add tests for the 19 implemented PANEL specs that have none, PANEL-CHART-009 and PANEL-OPEN-012 first"
     drift: null
 
   simbrief:
@@ -95,10 +95,22 @@ arrows:
     sampled: 2026-10-09
     audited: null
     audited_sha: null
-    blocks: [planner, shell, distribution]
+    blocks: [planner, aircraft-panel, shell, distribution]
     blockedBy: [fleet, live-tracking, tour-map]
     detail: simbrief.md
     next: "Add tests for the 20 implemented SB specs that have none, then close the 8 gaps (preview-and-confirm everywhere, hop plan replace/delete, pending-leg plan, registration test); the OFP-text gate the first release waits for is closed (SB-CARD-006, SB-CARD-009 to 011)"
+    drift: null
+
+  aircraft-panel:
+    status: MAPPED
+    parent: null
+    sampled: 2026-11-11
+    audited: null
+    audited_sha: null
+    blocks: []
+    blockedBy: [logbook, fleet, airports, tour-map, live-tracking, flight-panel, simbrief]
+    detail: aircraft-panel.md
+    next: "All 51 ACP specs implemented and tested. Next: try the panel by hand in the installed app on the real logbook (a long tour's list, an uploaded icon as the picture, hiding the others across a restart, the PDF link opening in the default browser)"
     drift: null
 
   # Grouping node (sub-HLD): owns no EARS and no arrow doc; dependencies are recorded on its leaves.

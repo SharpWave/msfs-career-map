@@ -23,7 +23,8 @@ Hops enter the logbook two ways:
 
 This segment owns the hop record and its invariants, the rules for correcting a hop, the
 hand-logging form, and the hop list inside each aircraft card. It does not own how hops are drawn
-(tour-map), the flight panel a hop opens (flight-panel), the SimBrief plan linked to a hop
+(tour-map), the flight panel a hop opens (flight-panel), the read-only list of a tour beside the
+map (aircraft-panel), the SimBrief plan linked to a hop
 (simbrief), the aircraft rows hops belong to (fleet; deleting an aircraft deletes its hops), or the
 logbook database as a whole (app-shell): the SQLite file in the data folder that holds the hops
 beside the fleet, the tracker's checkpoint and the airport tables, with its location, backups, schema
@@ -191,6 +192,12 @@ its parked position and the destination to the picked airport, and clears messag
 ([57-67](../../../src/client/components/HopForm.tsx#L57-L67)); the page opens the Log a hop drawer
 and scrolls it to this form (app-shell). After a hop is saved from the drawer the app clears both
 the plan and the preset ([App.tsx:404-408](../../../src/client/App.tsx#L404-L408)).
+
+**Aircraft panel hand-off.** The aircraft panel's **Log a hop** (aircraft-panel) hands over its
+aircraft alone. The form switches to that aircraft — whatever it was set to, since it follows the
+highlight only when the highlight changes — sets the origin to where the aircraft is parked (blank
+for an aircraft without hops), keeps a destination, times, flight time and notes already typed, and
+clears messages; the page opens the Log a hop drawer and scrolls it to this form (app-shell).
 
 **Validation, in order** ([79-86](../../../src/client/components/HopForm.tsx#L79-L86)): an
 aircraft is chosen; origin present; destination present; arrival not before departure when both

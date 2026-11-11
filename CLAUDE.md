@@ -153,9 +153,17 @@ description, API table and roadmap.
   computed in `src/client/paths.ts` and shared by the map and the zoom-to-fit logic. Keep those in
   sync. The map wraps: every layer is drawn on every world copy in view (`copyShifts` with the copies
   from `WorldCopies.tsx`), so a new layer must do the same.
-- Panels float over a full-window map. Their sizes (column width, top bar, flight panel height)
-  live in `src/client/layout.ts` and are mirrored in `styles.css`; zooms fit into the part of the
-  map the panels leave clear, worked out from `layout.ts`, so keep the two in step.
+- Panels float over a full-window map. Their sizes (column width, top bar, flight panel height,
+  the aircraft panel's room and when its list scrolls alone) live in `src/client/layout.ts` and are
+  mirrored in `styles.css`; zooms fit into the part of the map the panels leave clear, worked out
+  from `layout.ts` (and handed to the styles as `--clear-top/left/right/bottom`), so keep the two in
+  step.
+- The aircraft panel (`components/AircraftPanel.tsx`, opened by `pickAircraft` in App.tsx) shows the
+  highlighted aircraft; whether it is open is page state apart from the highlight. Its figures come
+  from `src/client/tour.ts`, worked out from the map state's hops, never from `paths.ts`, so a
+  hidden aircraft's tour adds up the same. Hiding is the stored `aircraft.visible` flag everywhere
+  (the Fleet card's eye, the panel's toggles, **Show all planes**); many at once go through
+  `PUT /api/aircraft/visibility`, registered ahead of `/aircraft/:id`.
 - Data locations come from `dataLocations()` in `src/server/locations.ts`, given the database the
   server's inputs name: `currentInputs().dbPath` in `src/server/inputs.ts`, which is `--data`'s
   `career.db`, else `CAREER_DB`, else `data/career.db`. `images/`, `airports.csv`, `runways.csv`

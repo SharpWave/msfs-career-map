@@ -253,6 +253,17 @@ export interface BriefingSummary {
   fixes: OfpFix[];
 }
 
+/** One hop's plan in `GET /api/aircraft/:id/plans`: what a list of hops shows of it (SB-HOP-006). */
+export interface PlanDigestEntry {
+  hop_id: number;
+  /** The plan's id, which the hop's `briefing_id` names. */
+  id: number;
+  ete_min: number | null;
+  /** SimBrief's unit, "lbs" or "kgs", and the planned en-route burn in it. */
+  fuel: { units: string | null; burn: number | null };
+  pdf_url: string | null;
+}
+
 export interface Briefing extends BriefingSummary {
   hop_id: number | null;
   aircraft_id: number | null;

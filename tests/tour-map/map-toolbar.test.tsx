@@ -37,6 +37,8 @@ function Harness(extra: Extra & { initialHazards?: HazardKind[]; initialNight?: 
       onClearHighlight={extra.onClearHighlight ?? (() => {})}
       planShown={extra.planShown ?? false}
       onClearPlan={extra.onClearPlan ?? (() => {})}
+      anyHidden={extra.anyHidden ?? false}
+      onShowAll={extra.onShowAll ?? (() => {})}
     />
   );
 }
@@ -130,6 +132,25 @@ describe("the map toolbar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Clear plan" }));
     expect(onClearHighlight).toHaveBeenCalledTimes(1);
     expect(onClearPlan).toHaveBeenCalledTimes(1);
+  });
+
+  // @spec MAP-HL-002
+  it("says on hover that Clear highlight stops fading the other planes", () => {
+    render(<Harness highlighted />);
+    expect(screen.getByRole("button", { name: "Clear highlight" }).getAttribute("title")).toBe("Stop fading the other planes");
+  });
+
+  // @spec FLEET-LOOK-012
+  it("offers Show all planes only while an aircraft is hidden", () => {
+    const onShowAll = vi.fn();
+    const { unmount } = render(<Harness />);
+    expect(screen.queryByRole("button", { name: "Show all planes" })).toBeNull();
+    unmount();
+    render(<Harness anyHidden onShowAll={onShowAll} />);
+    const chip = screen.getByRole("button", { name: "Show all planes" });
+    expect(chip.getAttribute("title")).toBe("Show every hidden plane on the map");
+    fireEvent.click(chip);
+    expect(onShowAll).toHaveBeenCalledTimes(1);
   });
 
   // @spec APP-UI-016

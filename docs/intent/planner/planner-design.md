@@ -344,7 +344,10 @@ reads "Add an aircraft with a cruise speed to plan its next hop."
 
 - **Aircraft** — every aircraft, labelled with its cruise speed or "no cruise speed". It starts
   on, and follows, the highlighted aircraft; otherwise the first with a cruise speed. If the chosen
-  aircraft is deleted it falls back the same way. An aircraft without a cruise speed shows "Set a
+  aircraft is deleted it falls back the same way. The aircraft panel's **Plan next hop**
+  (aircraft-panel) hands its aircraft over: the planner card opens if it was collapsed, the form
+  switches to that aircraft whatever it was set to, and the keyboard focus goes to the flight-time
+  field; no search runs. An aircraft without a cruise speed shows "Set a
   cruise speed on this aircraft to unlock the planner." with an **Edit aircraft** link, which opens
   that aircraft's form in the Fleet drawer (app-shell), and the search button is disabled.
 - **Max flight time, min** — default 90, with quick picks 30 min, 1 h, 1 h 30, 2 h, 3 h, 4 h.

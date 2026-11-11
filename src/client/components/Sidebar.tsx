@@ -34,6 +34,8 @@ interface Props {
   /** A pending leg handed to the live card (`#pending=`): the card opens at that leg's block. */
   showPending?: { key: number; id: string } | null;
   logging?: PendingLogging;
+  /** An aircraft handed to the planner (the aircraft panel's Plan next hop): the card opens on it. */
+  planFor?: { key: number; aircraftId: number } | null;
 }
 
 /** Whether a card was left open (default) or collapsed, remembered in the browser. */
@@ -51,7 +53,7 @@ function useCardOpen(key: string): [boolean, () => void] {
  * What a session uses again and again: the live card above the planner card. Collapsing a card
  * hides its body without discarding it.
  */
-// @spec APP-UI-001, APP-UI-010, APP-UI-029, LIVE-CARD-015
+// @spec APP-UI-001, APP-UI-010, APP-UI-029, LIVE-CARD-015, PLAN-FORM-013
 export function Sidebar(p: Props) {
   const [liveOpen, toggleLive] = useCardOpen("card.live");
   const [planOpen, togglePlan] = useCardOpen("card.plan");
@@ -63,6 +65,14 @@ export function Sidebar(p: Props) {
     handled.current = p.showPending.key;
     if (!liveOpen) toggleLive();
   }, [p.showPending, liveOpen, toggleLive]);
+
+  // A hand-off to the planner opens a collapsed planner card, as a click on it would.
+  const planHandled = useRef<number | null>(null);
+  useEffect(() => {
+    if (!p.planFor || planHandled.current === p.planFor.key) return;
+    planHandled.current = p.planFor.key;
+    if (!planOpen) togglePlan();
+  }, [p.planFor, planOpen, togglePlan]);
 
   return (
     <aside className="sidebar">
@@ -103,6 +113,8 @@ export function Sidebar(p: Props) {
             onPick={p.onPickCandidate}
             onFocus={p.onFocusCandidate}
             onEditAircraft={p.onEditAircraft}
+            handoff={p.planFor}
+            shown={planOpen}
           />
         </div>
       </section>

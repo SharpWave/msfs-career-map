@@ -98,7 +98,7 @@ airport lists `airports.csv` and `runways.csv` with their `.downloaded` times (A
 - [x] **APP-UI-002**: When the user clicks the sidebar toggle, the page shall hide the left column, closing any open drawer, or show the sidebar in it again; the page shall open with the sidebar shown.
 - [x] **APP-UI-003**: While the map state has not loaded, the map area shall read "Loading…", or "Starting… (<step>)" while the server's start-up work runs (APP-UI-030).
 - [x] **APP-UI-004**: If loading the map state fails other than with a 503 during the server's start-up work (APP-UI-030), then the page shall show "Server error: message" with **Retry**, which loads it again.
-- [x] **APP-UI-005**: If the live card, the flight panel, the planned routes or the live aircraft fail to render, then the page shall show "<part> failed: message" with **Retry** in that part's place — the flight panel keeping its place and close button, a map layer as a notice at the top of the clear part of the map (APP-UI-020) — and keep the rest of the page working.
+- [x] **APP-UI-005**: If the live card, the flight panel, the aircraft panel, the planned routes or the live aircraft fail to render, then the page shall show "<part> failed: message" with **Retry** in that part's place — the flight panel and the aircraft panel (ACP-OPEN-009) keeping their place and close button, a map layer as a notice at the top of the clear part of the map (APP-UI-020) — and keep the rest of the page working.
 - [x] **APP-UI-006**: The page shall use one dark theme, with its colors — accent, text, muted, ok, caution, airborne and danger — defined once as theme variables, and shall use the accent for no status.
 - [x] **APP-UI-007**: The page shall style hints and warnings under form fields the same way wherever they appear, including the planner's cruise-altitude warning.
 - [x] **APP-UI-008**: The page shall be titled "MSFS Career Map" with an orange airplane icon.
@@ -115,7 +115,7 @@ airport lists `airports.csv` and `runways.csv` with their `.downloaded` times (A
 - [x] **APP-UI-014**: When the user closes a drawer, the page shall show the sidebar in the left column and return the keyboard focus to the control that opened the drawer.
 - [x] **APP-UI-015**: When a drawer opens, the page shall move the keyboard focus into it: to the field a hand-off fills, else to the drawer's close button.
 - [x] **APP-UI-016**: The page shall close the menu and the Layers menu on Esc, when their button is clicked again, and when the pointer goes down outside them, letting that click act on whatever it lands on; opening either menu shall close the other.
-- [x] **APP-UI-017**: When another part of the page hands work to a drawer (LOG-FORM-004, FLEET-SIM-003, PLAN-FORM-003), the page shall open that drawer, showing the left column, and scroll the drawer to the form the hand-off fills once the drawer is showing.
+- [x] **APP-UI-017**: When another part of the page hands work to a drawer (LOG-FORM-004, FLEET-SIM-003, PLAN-FORM-003, ACP-ACT-002, ACP-ACT-004), the page shall open that drawer, showing the left column, and scroll the drawer to the form the hand-off fills once the drawer is showing.
 - [x] **APP-UI-018**: The page shall keep the sidebar, and each drawer once it has opened, mounted while hidden, so its forms, expanded cards and results are as the user left them when it shows again unless a hand-off has changed them, and shall make a hidden panel inert: out of the tab order, not read out, and unable to take the focus.
 - [x] **APP-UI-019**: When a hop is logged or an aircraft saved from a drawer, the page shall keep the drawer open.
 - [x] **APP-UI-037**: When the user chooses **Back up now** in the menu, the page shall close the menu, ask the server for a backup (APP-BAK-002) and show a toast "Backed up to <file>" when it is done, or "Backup failed: <reason>" with the full reason (APP-BAK-008) when it fails.
@@ -136,9 +136,11 @@ airport lists `airports.csv` and `runways.csv` with their `.downloaded` times (A
 
 ## The Covered Part of the Map
 
-- [x] **APP-UI-020**: The page shall supply every zoom request with the part of the map the panels leave clear — right of the left column (or of the window's edge gutter when the column is hidden), below the top bar and above the flight panel — worked out from which panels are open when the request is made.
-- [x] **APP-UI-021**: When a map popup opens, the page shall pan the map so the popup lies inside the clear part of the map (APP-UI-020); the page shall show the map's attribution above the flight panel.
-- [x] **APP-UI-022**: The page shall stack, from the bottom, the map with its popups and tooltips, the "Nothing on the map yet" card, the left column and the flight panel, the top bar, the menus, the toast, and the error banner, and shall centre the toast, the error banner and the empty-map card across the clear part of the map (APP-UI-020), the toast and banner just above the flight panel while it is open.
+- [x] **APP-UI-020**: The page shall supply every zoom request with the part of the map the panels leave clear — right of the left column (or of the window's edge gutter when the column is hidden), below the top bar, above the flight panel and left of the aircraft panel while it is open (ACP-LAY-003) — worked out from which panels are open when the request is made.
+- [x] **APP-UI-021**: When a map popup opens, the page shall pan the map so the popup lies inside the clear part of the map (APP-UI-020); the page shall show the map's attribution above the flight panel and left of the aircraft panel while it is open.
+- [x] **APP-UI-043**: The page shall keep the notices at the top of the clear part of the map (APP-UI-005, APP-UI-031, APP-UI-036) within the clear part's width (APP-UI-020), so none runs under the aircraft panel.
+- [x] **APP-UI-044**: When the aircraft panel hands its aircraft to the planner (ACP-ACT-001), the page shall show the left column with the sidebar in it, an open drawer staying mounted behind it (APP-UI-018).
+- [x] **APP-UI-022**: The page shall stack, from the bottom, the map with its popups and tooltips, the "Nothing on the map yet" card, the left column, the aircraft panel and the flight panel, the top bar, the menus, the toast, and the error banner, and shall centre the toast, the error banner and the empty-map card across the clear part of the map (APP-UI-020), the toast and banner just above the flight panel while it is open.
 
 ## The Look
 

@@ -39,8 +39,9 @@ and leave the app's window for the pilot's default browser as every outside link
 
 ## Opening and Closing
 
-The panel opens for a hop when its path is clicked on the map (MAP-PATH-004) or its row in an
-aircraft card (LOG-LIST-003), for the live leg from the live card's **Profile** (LIVE-CARD-005),
+The panel opens for a hop when its path is clicked on the map (MAP-PATH-004), its row in an
+aircraft card (LOG-LIST-003), or its row or the longest-hop line in the aircraft panel
+(aircraft-panel), for the live leg from the live card's **Profile** (LIVE-CARD-005),
 and for a pending leg from that leg's **Profile** in the live card (LIVE-CARD-010). One flight
 shows at a time; opening another replaces it ([App.tsx:279-291](../../../src/client/App.tsx#L279-L291)).
 
@@ -172,8 +173,8 @@ or more" ([FlightPanel.tsx:243](../../../src/client/components/FlightPanel.tsx#L
 A flight can touch down more than once: a bounce puts the wheels back on the runway seconds later,
 a touch-and-go flies a whole circuit before the next touchdown, a go-around after a bounce comes
 back minutes later. The tracker records and rates every touchdown alike (LIVE-LAND). Wherever one
-touchdown has to stand for the flight — the landing card, a hop's map tooltip, its hop row, the
-live card — it is the **first touchdown of the flight's final landing**:
+touchdown has to stand for the flight — the landing card, a hop's map tooltip, its hop row, its
+row and the landing summary in the aircraft panel, the live card — it is the **first touchdown of the flight's final landing**:
 
 - a touchdown less than 30 s after the flight's previous touchdown is a bounce, part of the same
   landing;
@@ -200,8 +201,8 @@ word, never alone.
 
 **Landing badge** ([LandingBadge.tsx](../../../src/client/components/LandingBadge.tsx)): a pill in the
 rating's color with icon, word and fpm ("🧈 Butter · 85 fpm"), or icon and fpm when compact; its
-hover text is "Word: caption · N fpm, G.GG G". Hop tooltips use the full badge; hop rows and the
-live card the compact one. Each shows the touchdown that stands for its flight.
+hover text is "Word: caption · N fpm, G.GG G". Hop tooltips use the full badge; hop rows, the
+aircraft panel's rows and the live card the compact one. Each shows the touchdown that stands for its flight.
 
 ## Flight Card
 
@@ -288,7 +289,8 @@ opens it (LIVE-API-007).
   leg's takeoff time kept unchanged in the hop logged from it, LIVE-HOP-001, LIVE-HOP-004; the hops
   reloaded after a reconnect, LIVE-API-005), logbook (hops; hop ids never given twice,
   LOG-REC-014), fleet (aircraft label and color), airports (positions for the direct distance)
-- Opened from: tour-map (a hop's path), logbook (a hop row), live-tracking (the live card's
+- Opened from: tour-map (a hop's path), logbook (a hop row), aircraft-panel (a row, the
+  longest-hop line), live-tracking (the live card's
   **Profile**), app-shell (the page's address fragment, APP-UI-032, which the desktop shell's
   notifications set)
 - Hosted: simbrief's SimBrief card

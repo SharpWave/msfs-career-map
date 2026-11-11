@@ -23,7 +23,7 @@ providers' terms for a distributed app, an open question. Four new gaps; the cod
 - docs/intent/tour-map/tour-map-design.md
 
 ### EARS
-- docs/intent/tour-map/tour-map-specs.md (68 specs)
+- docs/intent/tour-map/tour-map-specs.md (70 specs)
 
 ### Context
 Downstream of this segment (desktop relies on tour-map through live-tracking), read for detail only;
@@ -80,14 +80,14 @@ parked and when airports were visited, and overlay daylight and weather hazards.
 | Hop paths and layers | MAP-PATH-001 to 006 | 6 | 0 | 0 |
 | Visited-airport dots | MAP-DOT-001 to 003 | 3 | 0 | 0 |
 | Parked markers | MAP-PARK-001 to 002 | 2 | 0 | 0 |
-| Highlighting | MAP-HL-001 to 003 | 3 | 0 | 0 |
+| Highlighting and the marked hop | MAP-HL-001 to 005 | 5 | 0 | 0 |
 | Zooming | MAP-ZOOM-001 to 011 | 11 | 0 | 0 |
 | Basemaps and view | MAP-VIEW-001 to 008 | 7 | 0 | 1 |
 | Night shading | MAP-NIGHT-001 to 002 | 2 | 0 | 0 |
 | Weather hazards | MAP-HAZ-001 to 012 | 8 | 0 | 4 |
 
-**Summary:** 62 of 68 specs implemented; 6 gaps; none deferred. 35 specs have tests, all of them
-implemented; 27 implemented specs have none.
+**Summary:** 64 of 70 specs implemented; 6 gaps; none deferred. 44 specs have tests, all of them
+implemented; 20 implemented specs have none.
 
 ## Key Findings
 
@@ -151,5 +151,5 @@ implemented; 27 implemented specs have none.
 
 ### Nice to Have
 6. Show partial hazard outages in the toolbar (MAP-HAZ-009), beside the work in item 1.
-7. Add tests for the 27 implemented MAP specs that have none, and for the clauses of MAP-ZOOM-008
+7. Add tests for the 20 implemented MAP specs that have none, and for the clauses of MAP-ZOOM-008
    that fit.test.ts leaves out (a repeated request zooms again; a request replaces one under way).

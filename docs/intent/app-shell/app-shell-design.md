@@ -600,7 +600,8 @@ floats over it, so the map stays the main view and shows around and through the 
 |---|---|
 | Top left | The **menu button** — the app's airplane mark and "Career Map" — with the **sidebar toggle** beside it |
 | Left, under the top bar | The **left column**: the **sidebar** (**Live from the sim** above **Plan next hop**), or the open **drawer** in its place |
-| Top right | The map toolbar (tour-map): **Layers**, the hazard count while any hazard toggle is on, **Fit all**, and **Clear highlight** / **Clear plan** while they apply |
+| Top right | The map toolbar (tour-map): **Layers**, the hazard count while any hazard toggle is on, **Fit all**, and **Clear highlight** / **Clear plan** / **Show all planes** while they apply |
+| Right, under the top bar | The aircraft panel (aircraft-panel) while it is open: as wide as the left column, as tall as what it holds, down to the bottom gutter or to one gutter above the flight panel |
 | Bottom | The flight panel (flight-panel) while a flight is open, from the left column's right edge — the window's edge when the column is hidden — to the right edge, 40% of the window's height and at least 260 px |
 
 The top bar is the row holding the menu button and the toolbar. Panels keep a 12 px gutter from the
@@ -662,10 +663,16 @@ between visits.
 | The planner's **Use** on a candidate (LOG-FORM-004) | Log a hop | The hop form, with the planned aircraft, its parked airport and the picked destination |
 | The live card's **+ New** (FLEET-SIM-003) | Fleet | A new-aircraft form prefilled from the sim aircraft |
 | The planner's **Edit aircraft** (PLAN-FORM-003) | Fleet | That aircraft's edit form |
+| The aircraft panel's **Log a hop** (ACP-ACT-002) | Log a hop | The hop form, with the panel's aircraft and its parked airport |
+| The aircraft panel's **Edit aircraft** (ACP-ACT-004) | Fleet | That aircraft's edit form |
 
 The drawer scrolls to its own form once it is showing. A hand-off wins over what the drawer held:
-**Use** replaces the aircraft, From and To of a half-filled hop and keeps its times and notes;
-**+ New** and **Edit aircraft** replace an open aircraft form. Highlighting an aircraft switches the
+**Use** replaces the aircraft, From and To of a half-filled hop and keeps its times and notes; the
+aircraft panel's **Log a hop** replaces the aircraft and From and keeps the rest;
+**+ New** and **Edit aircraft** replace an open aircraft form. The aircraft panel's
+**Plan next hop** hands off to the sidebar instead of a drawer: the page shows the left column with
+the sidebar in it, an open drawer staying mounted behind it, and the planner card takes the
+aircraft (PLAN-FORM-013). Highlighting an aircraft switches the
 Log a hop form to it whether or not the drawer is showing (LOG-FORM-003).
 
 **Kept while hidden.** The sidebar mounts with the page and each drawer the first time it opens;
@@ -676,28 +683,33 @@ and none of its fields can take the focus.
 
 **The covered part of the map.** The panels hide part of the map, so the page works out which part
 is clear: right of the left column (or of the window's edge gutter when the column is hidden),
-below the top bar, and above the flight panel. It works this out from which panels are open and
-their set sizes, at the moment of each zoom — so a hop opened together with the flight panel is
-fitted above the panel that opens with it.
+below the top bar, above the flight panel, and left of the aircraft panel while it is open. It
+works this out from which panels are open and their set sizes, at the moment of each zoom — so a
+hop opened together with the flight panel is fitted above the panel that opens with it, and an
+aircraft highlighted together with its aircraft panel is fitted left of it.
 
 - Every zoom keeps to the clear part (MAP-ZOOM-007): fitting points, flying to a single point, the
   live card's **Zoom** and the `?view=` option all centre in it, and fitting keeps its 60 px padding
   inside it. When the clear part is smaller than 240 × 160 px, a zoom uses the whole window.
 - Map popups pan the map to open inside the clear part.
-- The map's attribution sits just above the flight panel.
+- The map's attribution sits just above the flight panel and left of the aircraft panel, so the
+  basemap's credit is never under a panel.
+- The notices at the top of the clear part — airport preparation, a page of another version, a map
+  layer that failed — keep within its width.
 - Opening or closing a panel never moves the map; it only changes where the next zoom lands.
 
 **Stacking**, from the bottom: the map with its popups and tooltips; the "Nothing on the map yet"
-card; the left column and the flight panel; the top bar; the menu and the Layers menu; the toast;
+card; the left column, the aircraft panel and the flight panel; the top bar; the menu and the
+Layers menu; the toast;
 the error banner. The toast, the error banner and the empty-map card are centred across the clear
 part, the toast and banner just above the flight panel while it is open.
 
 **Loading and errors.** Until the map state loads, the window reads "Loading…" (or "Starting…" while
 the server's start-up work runs, below). If it fails other than with a 503 during that work, a
 banner reads "Server error: message" with **Retry**. A part of the page that fails to render — the
-live card, the flight panel, the planned routes, the live aircraft — shows "<part> failed: message"
-with **Retry** in its place, and the rest of the page keeps working. A failed flight panel keeps its
-place and its close button; a failed map layer (planned routes, live aircraft) shows its message
+live card, the flight panel, the aircraft panel, the planned routes, the live aircraft — shows
+"<part> failed: message" with **Retry** in its place, and the rest of the page keeps working. A
+failed flight panel or aircraft panel keeps its place and its close button; a failed map layer (planned routes, live aircraft) shows its message
 as a notice at the top of the clear part.
 
 **Starting.** A page loaded while the server's start-up work runs — F5 during a restart, a browser

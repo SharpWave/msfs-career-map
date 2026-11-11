@@ -166,9 +166,27 @@ and image addresses on other hosts as they are (desktop shell). An upload replac
 URL icon stays in the folder, unnamed by any row, until that aircraft uploads again or is deleted
 (Deferred 8).
 
-**Visibility.** The eye button on the card toggles `visible`; a hidden aircraft is not drawn on
-the map and its card is dimmed ([Fleet.tsx:109-112](../../../src/client/components/Fleet.tsx#L109-L112),
-[174](../../../src/client/components/Fleet.tsx#L174)).
+**Visibility.** The `visible` flag is the one notion of hidden on the page: a hidden aircraft's
+tour is off the map — its paths and chevrons, its parked marker and its part in the airport dots
+(tour-map) — and its card is dimmed. What is drawn for a flight under way or being planned does
+not look at the flag: the live aircraft and its track, SimBrief routes and planner results show for
+a hidden aircraft as for any other, so hiding never takes the flight being flown off the map. Three
+controls set it:
+
+- the eye button on the aircraft card, for that aircraft
+  ([Fleet.tsx:109-112](../../../src/client/components/Fleet.tsx#L109-L112),
+  [174](../../../src/client/components/Fleet.tsx#L174));
+- the aircraft panel's **Hide this plane** and **Hide other planes** (aircraft-panel), for the
+  aircraft it shows and for every other one;
+- **Show all planes** in the map toolbar (tour-map hosts it; "Show every hidden plane on the map"
+  on hover), offered while any aircraft is hidden,
+  which makes every aircraft visible again from wherever the pilot is. If it fails, a toast reads
+  "Could not show all planes: message".
+
+Changing many aircraft at once is one request, `PUT /api/aircraft/visibility` (API): the server sets
+the flag on every aircraft, or on every aircraft but one it is told to leave as it is, in a single
+change, so the fleet is never left half hidden, and an aircraft the page has not heard of yet —
+added in another window — is included.
 
 ## Performance and Limits
 
@@ -484,8 +502,9 @@ only one aircraft form is open at a time ([Fleet.tsx:13](../../../src/client/com
 
 Each fleet row renders as a card ([Fleet.tsx:142-181](../../../src/client/components/Fleet.tsx#L142-L181)):
 
-- Badge and name; clicking either highlights the aircraft on the map, or clears the highlight if
-  it is already highlighted.
+- Badge and name; clicking either highlights the aircraft on the map and opens the aircraft panel
+  on it (aircraft-panel); on the card of the aircraft the open panel already shows, the click
+  clears the highlight instead.
 - Meta line: livery; "parked at IDENT" or "no hops yet"; cruise speed; ceiling in thousands of
   feet; "VFR only" when not IFR capable; a link icon with "sim", and the bound title/livery on
   hover, when bound. The items wrap as whole items, never mid-item.
@@ -505,6 +524,7 @@ header holds **+ Aircraft**.
 | GET | `/api/aircraft-types/:type` | One entry, designator matched upper-cased and trimmed: type, name, variant, preset, icon, pressurised, the eight numbers each with its provenance (kind, cited source ids, calculation, note), the sources it cites (id, title, publisher, page, address), research and check dates | 404 not in the table, a malformed designator included |
 | POST | `/api/aircraft` | Create → 201 + row (`visible` not accepted); a blank icon becomes `builtin:twin-piston` | 400 per field rule, a non-blank icon neither built-in nor an http or https address off this PC among them (intended); 409 duplicate name + livery (intended) |
 | PUT | `/api/aircraft/:id` | Partial update; an omitted field keeps its value, and an icon sent unchanged is kept as it is | 400 (a changed non-blank icon as for POST, intended); 404; 409 duplicate name + livery (intended) |
+| PUT | `/api/aircraft/visibility` | `{visible, except?}` → set `visible` on every aircraft, or on every aircraft but the one `except` names, in one change; answers every aircraft as `GET /api/aircraft` does | 400 `visible` not true or false, or `except` not an aircraft id; 404 `except` names no aircraft |
 | DELETE | `/api/aircraft/:id` | Delete with its hops, then (intended) remove every icon file named for its id, leaving and logging one that cannot be removed → 204 | 400; 404 |
 | POST | `/api/aircraft/:id/icon` | `{dataUrl}` → remove every icon file named for the id, store the image as `aircraft-<id>.<ext>`, set the icon to `/images/aircraft-<id>.<ext>?v=<ms>`, return the row | 400 bad data URL; 413 over 4 MB; 404 |
 
@@ -514,6 +534,7 @@ Handlers: [routes.ts:231-311](../../../src/server/routes.ts#L231-L311).
 
 | Decision | Chosen | Alternatives Considered | Rationale |
 |----------|--------|------------------------|-----------|
+| Hiding or showing many aircraft | One request the server applies to every aircraft, or to all but one | One update per aircraft from the page's list | A run of single updates can stop halfway and leave the fleet half hidden, and works from the page's list, which misses an aircraft added in another window since it loaded. |
 | Unit of the fleet | One row per aircraft + livery | One row per aircraft type, liveries as variants | Wear-tracking add-ons persist per livery, and each livery resumes where it parked, so each pairing has its own tour. |
 | Duplicate pairs | Refused (409), comparing name and livery trimmed and case-insensitively | Allow duplicates | The pairing is the unit of persistence; two rows for one pairing would split a single tour in two. |
 | Optional numbers | Blank or zero stored as null, meaning "no limit" or "use the default" | Store zero; require values | [inferred] Lets a user leave anything unknown blank and still use the planner with defaults; zero is never a meaningful runway, ceiling or rate. |

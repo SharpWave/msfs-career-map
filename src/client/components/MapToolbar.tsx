@@ -1,4 +1,4 @@
-import { useCallback, useRef, type CSSProperties } from "react";
+import { useCallback, useRef, type CSSProperties, type Ref } from "react";
 import type { HazardKind } from "../types";
 import { HAZARD_STYLE } from "./HazardLayer";
 import { Icon } from "./Icon";
@@ -33,12 +33,17 @@ export interface MapToolbarProps {
   onFitAll: () => void;
   highlighted: boolean;
   onClearHighlight: () => void;
+  /** The Clear highlight button, for the aircraft panel's close button to hand the focus to. */
+  clearHighlightRef?: Ref<HTMLButtonElement>;
   planShown: boolean;
   onClearPlan: () => void;
+  /** Whether any fleet aircraft is hidden from the map (fleet). */
+  anyHidden?: boolean;
+  onShowAll?: () => void;
 }
 
-/** The top bar's right end: Clear chips while they apply, the hazard count, Layers and Fit all. */
-// @spec MAP-VIEW-006, MAP-VIEW-007, MAP-HAZ-005, MAP-HAZ-008, MAP-HL-002, PLAN-RUN-002
+/** The top bar's right end: the chips that apply (Show all planes, Clear highlight, Clear plan), the hazard count, Layers and Fit all. */
+// @spec MAP-VIEW-006, MAP-VIEW-007, MAP-HAZ-005, MAP-HAZ-008, MAP-HL-002, PLAN-RUN-002, FLEET-LOOK-012
 export function MapToolbar(p: MapToolbarProps) {
   const wrap = useRef<HTMLDivElement>(null);
   const close = useCallback(() => p.onLayersOpenChange(false), [p.onLayersOpenChange]);
@@ -47,8 +52,13 @@ export function MapToolbar(p: MapToolbarProps) {
 
   return (
     <div className="map-toolbar">
+      {p.anyHidden && (
+        <button type="button" className="chip-button glass" onClick={p.onShowAll} title="Show every hidden plane on the map">
+          Show all planes
+        </button>
+      )}
       {p.highlighted && (
-        <button type="button" className="chip-button glass" onClick={p.onClearHighlight} title="Show all aircraft at full strength">
+        <button type="button" ref={p.clearHighlightRef} className="chip-button glass" onClick={p.onClearHighlight} title="Stop fading the other planes">
           Clear highlight
         </button>
       )}

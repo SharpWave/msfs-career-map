@@ -15,7 +15,8 @@ export type FleetForm = { mode: "new"; prefill?: AircraftPrefill } | { mode: "ed
 interface Props {
   state: AppState;
   selectedId: number | null;
-  onSelect: (id: number | null) => void;
+  /** An aircraft picked from its card: the page highlights it and opens its panel, or clears the highlight. */
+  onPickAircraft: (id: number) => void;
   onFocusHop: (hop: Hop) => void;
   reload: () => Promise<void>;
   form: FleetForm;
@@ -24,7 +25,7 @@ interface Props {
 
 /** The Fleet drawer's body: the new-aircraft form when open, then a card per aircraft. */
 // @spec FLEET-FORM-005, FLEET-SIM-003
-export function Fleet({ state, selectedId, onSelect, onFocusHop, reload, form, onFormChange }: Props) {
+export function Fleet({ state, selectedId, onPickAircraft, onFocusHop, reload, form, onFormChange }: Props) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const usedColors = state.aircraft.map((a) => a.color);
   const prefill = form?.mode === "new" ? form.prefill : undefined;
@@ -71,7 +72,7 @@ export function Fleet({ state, selectedId, onSelect, onFocusHop, reload, form, o
           onEdit={() => onFormChange(form?.mode === "edit" && form.id === a.id ? null : { mode: "edit", id: a.id })}
           onEditDone={() => onFormChange(null)}
           onToggleExpanded={() => toggleExpanded(a.id)}
-          onSelect={() => onSelect(selectedId === a.id ? null : a.id)}
+          onSelect={() => onPickAircraft(a.id)}
           onFocusHop={onFocusHop}
           reload={reload}
           usedColors={usedColors}
@@ -146,10 +147,10 @@ function AircraftCard(p: CardProps) {
       style={{ "--c": a.color } as CSSProperties}
     >
       <div className="card-head">
-        <button type="button" className="badge-btn" onClick={p.onSelect} title={`Highlight ${a.name} on map`} aria-label={`Highlight ${a.name} on map`}>
+        <button type="button" className="badge-btn" onClick={p.onSelect} title={`Show ${a.name} on the map and in its panel`} aria-label={`Show ${a.name} on the map and in its panel`}>
           <span className="plane-head small" dangerouslySetInnerHTML={{ __html: iconInnerHtml(a) }} />
         </button>
-        <button type="button" className="title-btn" onClick={p.onSelect} title="Highlight on map">
+        <button type="button" className="title-btn" onClick={p.onSelect} title="Highlight on the map and open its panel">
           <span className="name">{a.name}</span>
           <span className="meta">
             {a.livery && <span className="code">{a.livery}</span>}

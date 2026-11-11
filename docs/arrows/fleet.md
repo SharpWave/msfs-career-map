@@ -33,7 +33,7 @@ table** and **Sources** in the form, and the scripts — is built and tested; it
 - docs/intent/fleet/fleet-design.md
 
 ### EARS
-- docs/intent/fleet/fleet-specs.md (65 specs)
+- docs/intent/fleet/fleet-specs.md (68 specs)
 
 ### Tests
 - tests/fleet/fleet-list.test.tsx — FLEET-CARD-002, FLEET-LOOK-010
@@ -89,14 +89,14 @@ page's icon addresses are relative to its origin (FLEET-LOOK-006), so the window
 | Category | Spec IDs | Implemented | Deferred | Gaps |
 |----------|----------|-------------|----------|------|
 | Aircraft record | FLEET-REC-001 to 019 | 15 | 0 | 4 |
-| Color, icon, visibility | FLEET-LOOK-001 to 011 | 10 | 0 | 1 |
+| Color, icon, visibility | FLEET-LOOK-001 to 014 | 13 | 0 | 1 |
 | Performance and limit fields | FLEET-PERF-001 to 003 | 3 | 0 | 0 |
 | Sim binding, SimBrief type and airline | FLEET-SIM-001 to 005 | 5 | 0 | 0 |
 | Performance table | FLEET-TYPE-001 to 020 | 20 | 0 | 0 |
 | Aircraft form | FLEET-FORM-001 to 005 | 5 | 0 | 0 |
 | Card header | FLEET-CARD-001 to 002 | 2 | 0 | 0 |
 
-**Summary:** 60 of 65 specs implemented; 5 gaps; none deferred. The performance table is complete
+**Summary:** 63 of 68 specs implemented; 5 gaps; none deferred. The performance table is complete
 and tested (FLEET-TYPE-001 to 020, FLEET-SIM-004): every type of the 2026-10-25 snapshot is an entry
 or left out for want of any accepted source (FLEET-TYPE-008, which `npm run aircraft-types:check`
 reports), each entry researched and checked by fleet-design's method, the fifth tier, MSFS add-ons'

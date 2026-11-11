@@ -277,6 +277,25 @@ api.post("/aircraft", wrap((req, res) => {
   res.status(201).json(requireAircraft(Number(r.lastInsertRowid)));
 }));
 
+/**
+ * Hide or show many aircraft at once: `{ visible, except? }` sets the map-visibility flag of every
+ * aircraft, or of every aircraft but `except`, in one statement. Registered ahead of
+ * `/aircraft/:id`, which would otherwise take "visibility" for an id.
+ */
+// @spec FLEET-LOOK-013
+api.put("/aircraft/visibility", wrap((req, res) => {
+  const b = req.body ?? {};
+  if (typeof b.visible !== "boolean") throw new HttpError(400, "visible must be true or false");
+  if (b.except !== undefined && b.except !== null) {
+    if (typeof b.except !== "number" || !Number.isInteger(b.except) || b.except < 1) throw new HttpError(400, "except must be an aircraft id");
+    requireAircraft(b.except);
+    db.prepare(`UPDATE aircraft SET visible = ? WHERE id <> ?`).run(b.visible ? 1 : 0, b.except);
+  } else {
+    db.prepare(`UPDATE aircraft SET visible = ?`).run(b.visible ? 1 : 0);
+  }
+  res.json(aircraftList.all());
+}));
+
 api.put("/aircraft/:id", wrap((req, res) => {
   const id = idParam(req);
   const cur = requireAircraft(id);
@@ -797,6 +816,35 @@ api.delete("/hops/:id/briefing", wrap((req, res) => {
   if (hop.briefing_id != null) briefingDelete.run(hop.briefing_id);
   hopSetBriefing.run(null, hop.id);
   res.status(204).end();
+}));
+
+const aircraftPlans = db.prepare(
+  `SELECT h.id AS hop_id, b.id AS id, b.summary AS summary
+     FROM hops h JOIN briefings b ON b.id = h.briefing_id
+    WHERE h.aircraft_id = ? ORDER BY h.seq, h.id`,
+);
+
+/**
+ * A digest of the plans an aircraft's hops link to, in tour order: what a list of its hops shows
+ * of each plan, without the OFP text or the route.
+ */
+// @spec SB-HOP-006
+api.get("/aircraft/:id/plans", wrap((req, res) => {
+  const id = idParam(req);
+  requireAircraft(id);
+  const rows = aircraftPlans.all(id) as unknown as { hop_id: number; id: number; summary: string }[];
+  res.json(
+    rows.map((r) => {
+      const s = JSON.parse(r.summary) as Partial<BriefingSummary>;
+      return {
+        hop_id: r.hop_id,
+        id: r.id,
+        ete_min: s.ete_min ?? null,
+        fuel: { units: s.fuel?.units ?? null, burn: s.fuel?.burn ?? null },
+        pdf_url: s.pdf_url ?? null,
+      };
+    }),
+  );
 }));
 
 // ---------- SimBrief ----------

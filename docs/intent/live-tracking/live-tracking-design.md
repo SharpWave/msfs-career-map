@@ -730,6 +730,10 @@ answer to it; the flight panel shows the leg's profile (flight-panel).
 
 When a leg is logged, the map and lists reload, planner results and any planner hand-off clear, and
 a toast "Logged ORIG → DEST · time" shows for 8 s ([App.tsx:158-177](../../../src/client/App.tsx#L158-L177)).
+When the hop's aircraft is hidden from the map (fleet) the toast ends "· hidden from the map", since
+the new path will not appear: hiding the other aircraft is one click in the aircraft panel and lasts
+until it is undone, and a flight that seems not to have been logged is the one thing the pilot must
+never be left to wonder about.
 
 ## On the Map
 
@@ -739,6 +743,13 @@ known ([LiveLayer.tsx](../../../src/client/components/LiveLayer.tsx)): the bound
 aircraft's color over a dark casing. Both are drawn on every world copy in view (MAP-GEO-014):
 the aircraft at its own position, the track placed sample to sample (MAP-GEO-015). The tooltip reads "LIVE · name", altitude, ground speed, heading and "on
 ground", and the leg's origin and point count.
+
+Clicking the live aircraft, while the sim's aircraft is bound to a fleet aircraft, picks that
+aircraft as a click on its parked marker does: the page highlights it and opens the aircraft panel
+on it, or clears the highlight when the panel already shows it (aircraft-panel). The career's
+aircraft start each session at the gate where they last parked, so the live aircraft usually sits
+exactly over its own parked marker, and would otherwise swallow the click meant for it. An unbound
+live aircraft has no fleet aircraft to show, and a click on it does nothing.
 
 In casual mode the casual path takes the leg track's place: each segment drawn in the live
 aircraft's current color, **dashed**, over the same dark casing, placed sample to sample on every

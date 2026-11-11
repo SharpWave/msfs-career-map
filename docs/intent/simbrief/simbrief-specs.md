@@ -53,6 +53,7 @@ waits for the OFP text shown as SB-CARD-006 and SB-CARD-009 to 011 say (DESK-DIS
 - [ ] **SB-HOP-003**: When a hop is deleted, alone or with its fleet aircraft, the system shall delete its SimBrief plan.
 - [x] **SB-HOP-004**: When `GET /api/briefings/:id` is called, the system shall return that plan's summary, OFP text, hop and aircraft, or HTTP 404 when there is no such plan.
 - [ ] **SB-HOP-005**: When `GET /api/hops/:id/briefing` is called, the system shall return the plan the hop links to, and HTTP 404 when the hop does not exist or links to no plan.
+- [x] **SB-HOP-006**: When `GET /api/aircraft/:id/plans` is called, the system shall return, for each of that fleet aircraft's hops whose plan link names a stored SimBrief plan, in the aircraft's hop order, `{hop_id, id, ete_min, fuel: {units, burn}, pdf_url}` — the hop's id, the plan's id, and the plan's time en route in minutes, fuel unit, planned burn and PDF address as its stored summary holds them, null where the summary has none — with no entry for a hop without a plan, and HTTP 404 when there is no such aircraft.
 
 ## SimBrief Controls in the Live Card
 

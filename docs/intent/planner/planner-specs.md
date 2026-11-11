@@ -93,6 +93,7 @@ along a leg), `FORM` (planner form), `LIST` (results in the planner card), `RUN`
 - [ ] **PLAN-FORM-009**: The planner form shall state its aircraft's limits: "Only airports with a runway of at least X (aircraft setting; airports without runway data are left out)." or "No minimum runway length set for this aircraft, so every airport in range is included."; with a service ceiling C, "Fields above C − 2,000 ft are out (ceiling C minus a 2,000 ft pattern)."; and without oxygen, "No oxygen/pressurisation, so fields above 10,500 ft are out."
 - [x] **PLAN-FORM-010**: When the user searches, the planner form shall refuse, with a message under the form, a missing aircraft, an aircraft without a cruise speed, a time that is not a positive number, no airport type, no starting airport for an aircraft without hops, or a cruise altitude below 500 ft, and shall show server errors in the same place.
 - [x] **PLAN-FORM-011**: While a planner search runs, the search button shall read "Searching…" and be disabled.
+- [x] **PLAN-FORM-013**: When the aircraft panel hands over its aircraft (its **Plan next hop** action, ACP-ACT-001), the system shall open the planner card if it is collapsed, switch the planner form to that aircraft, and, once the sidebar is showing (APP-UI-044), move the keyboard focus to the form's maximum-flight-time field, without running a search.
 
 ## Results in the Planner Card
 

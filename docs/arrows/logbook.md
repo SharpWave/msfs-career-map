@@ -30,7 +30,7 @@ Consumers that rely on this segment's specs; no other obligation on it.
 - docs/intent/logbook/logbook-design.md
 
 ### EARS
-- docs/intent/logbook/logbook-specs.md (47 specs)
+- docs/intent/logbook/logbook-specs.md (48 specs)
 
 ### Tests
 - tests/fleet/fleet-list.test.tsx — LOG-LIST-001, LOG-LIST-004, LOG-LIST-005
@@ -64,10 +64,10 @@ hops by hand.
 | Hop record | LOG-REC-001 to 016 | 14 | 0 | 2 |
 | Ordering & parked position | LOG-SEQ-001 to 009 | 8 | 0 | 1 |
 | Correcting a tracked hop | LOG-EDIT-001 to 003 | 1 | 0 | 2 |
-| Hop form | LOG-FORM-001 to 012 | 12 | 0 | 0 |
+| Hop form | LOG-FORM-001 to 013 | 13 | 0 | 0 |
 | Hop list | LOG-LIST-001 to 007 | 6 | 0 | 1 |
 
-**Summary:** 41 of 47 specs implemented; 6 gaps; none deferred. 7 specs have tests (LOG-REC-002 in
+**Summary:** 42 of 48 specs implemented; 6 gaps; none deferred. 8 specs have tests (LOG-REC-002 in
 tests/live-tracking/sim-clock.test.ts: the nullable columns, an insert without them, and the hop
 API's sim-clock times kept on an edit).
 

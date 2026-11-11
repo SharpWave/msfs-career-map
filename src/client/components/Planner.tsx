@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { api } from "../api";
 import { aircraftLabel, airportTypeLabel, airportWhere, fmtDuration, fmtFt, fmtNm, runwaySummary } from "../format";
 import { isBlocked, type Flag } from "../constraints";
@@ -24,6 +24,10 @@ interface Props {
   /** Zoom the map to this candidate. */
   onFocus: (c: PlanCandidate) => void;
   onEditAircraft: (id: number) => void;
+  /** An aircraft handed over by the aircraft panel's Plan next hop; `key` changes on every hand-off. */
+  handoff?: { key: number; aircraftId: number } | null;
+  /** Whether the planner card's body is showing, so a field in it can take the focus. */
+  shown?: boolean;
 }
 
 const TYPE_OPTIONS: [string, string][] = [
@@ -45,7 +49,7 @@ function reach(plan: PlanResult): string {
 const LIST_MAX = 80;
 
 // @spec PLAN-FORM-012, PLAN-RUN-005, PLAN-LIST-001, PLAN-LIST-010
-export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged, selectedId, onPlan, onPick, onFocus, onEditAircraft }: Props) {
+export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged, selectedId, onPlan, onPick, onFocus, onEditAircraft, handoff, shown = true }: Props) {
   const eligible = state.aircraft.filter((a) => a.cruise_kts);
   const [aircraftId, setAircraftId] = useState<number>(() =>
     selectedId && state.aircraft.some((a) => a.id === selectedId) ? selectedId : eligible[0]?.id ?? state.aircraft[0]?.id ?? 0,
@@ -64,6 +68,25 @@ export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged
   useEffect(() => {
     if (selectedId && state.aircraft.some((a) => a.id === selectedId)) setAircraftId(selectedId);
   }, [selectedId, state.aircraft]);
+
+  // An aircraft handed over: switch to it, whatever the form was set to, and put the focus in the
+  // flight-time field once the card is showing. No search runs.
+  const minutesField = useRef<HTMLInputElement>(null);
+  const handoffTaken = useRef<number | null>(null);
+  const handoffFocused = useRef<number | null>(null);
+  // @spec PLAN-FORM-013
+  useEffect(() => {
+    if (!handoff) return;
+    if (handoffTaken.current !== handoff.key) {
+      handoffTaken.current = handoff.key;
+      if (state.aircraft.some((a) => a.id === handoff.aircraftId)) setAircraftId(handoff.aircraftId);
+    }
+    if (shown && handoffFocused.current !== handoff.key) {
+      handoffFocused.current = handoff.key;
+      minutesField.current?.focus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handoff, shown]);
 
   // Switching aircraft resets the cruise-altitude override to that aircraft's typical altitude.
   useEffect(() => {
@@ -185,7 +208,7 @@ export function Planner({ state, plan, metars, flags, hideFlagged, onHideFlagged
         <div className="two">
           <label>
             <span>Max flight time, min</span>
-            <input type="number" min={1} step={1} value={minutes} onChange={(e) => setMinutes(e.target.value)} />
+            <input ref={minutesField} type="number" min={1} step={1} value={minutes} onChange={(e) => setMinutes(e.target.value)} />
             <div className="quick">
               {QUICK_MINUTES.map((m) => (
                 <button type="button" key={m} className={`chip${Number(minutes) === m ? " on" : ""}`} onClick={() => setMinutes(String(m))}>

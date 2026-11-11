@@ -76,7 +76,7 @@ set by the desktop shell's notifications).
 | How a rating looks | PANEL-LOOK-001 to 004 | 4 | 0 | 0 |
 | Flight card | PANEL-STAT-001 to 003 | 2 | 0 | 1 |
 
-**Summary:** 38 of 41 specs implemented; 3 gaps; none deferred. 16 implemented specs have tests.
+**Summary:** 38 of 41 specs implemented; 3 gaps; none deferred. 19 implemented specs have tests.
 
 ## Key Findings
 
@@ -99,6 +99,6 @@ set by the desktop shell's notifications).
 ### Nice to Have
 2. Say "landed" in the live header after touchdown (PANEL-HEAD-004).
 3. Fix the G wording in the scale (PANEL-LAND-004).
-4. Tests for the 22 implemented specs that have none — PANEL-CHART-009 (redrawn whole on a reconnect)
+4. Tests for the 19 implemented specs that have none — PANEL-CHART-009 (redrawn whole on a reconnect)
    and PANEL-OPEN-012 (each load starts closed) first, since the desktop shell's server restarts and
    discarded window lean on them.

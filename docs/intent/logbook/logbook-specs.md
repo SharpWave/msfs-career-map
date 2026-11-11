@@ -61,6 +61,7 @@ tab: the page and the hop API are the same in each.
 - [x] **LOG-FORM-010**: If the aircraft chosen in the "Log a hop" form is deleted, then the system shall switch the form to the first fleet aircraft.
 - [x] **LOG-FORM-011**: When the user edits a hop inline, the system shall offer every fleet aircraft in the form so the hop can be moved to another aircraft.
 - [x] **LOG-FORM-012**: The hop form shall enter and show real-world departure and arrival times in the page's local time zone — the pilot's PC's own, since the server answers only on 127.0.0.1 (app-shell, APP-SRV-005) — converting them to and from the stored ISO 8601 UTC times.
+- [x] **LOG-FORM-013**: When the aircraft panel hands over its aircraft (its **Log a hop** action, ACP-ACT-002), the system shall switch the "Log a hop" form to that aircraft, fill the origin with where it is parked (blank for an aircraft without hops), keep the destination, times, flight time and notes the form holds, and open the Log a hop drawer scrolled to that form.
 
 ## The Hop List in an Aircraft Card
 

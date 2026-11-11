@@ -134,6 +134,18 @@ to bring in instead (it opens by itself when there are any). The button beside i
 for a clear map. At the top right, **Layers** picks the basemap, night shading and weather hazards;
 **Fit all** zooms to every path.
 
+Click a plane on the map, or one of its legs, and its **aircraft panel** opens at the right: its
+picture (when its icon is an image), where it is parked, what its tour adds up to — hops, hours,
+distance, fuel burned, airports, its longest hop and a summary of its landings — and every hop it has
+flown, latest first, each with its distance, flight time, landing rate, fuel burned and, when a
+SimBrief plan is kept with it, the planned time and burn and a link to the plan's PDF. Click a hop to
+open it in the flight panel; point at one to pick it out on the map. **Hide other planes** and
+**Hide this plane** take tours off the map until you bring them back — hidden planes stay hidden
+across restarts, and **Show all planes** appears at the top right while any is hidden. **Plan next
+hop**, **Log a hop**, **Zoom to tour** and the pencil hand that plane to the planner, the hop form,
+the map and its edit form. The panel's close button leaves the plane highlighted; **Clear highlight**
+closes it too.
+
 An address ending in `#hop=<id>` opens that hop in the flight panel, and `#pending=<id>` a leg waiting
 to be logged. While the server is starting the page says which step it is at; while it prepares
 airport data a notice shows the progress; and a page left open across an update or a logbook swap
@@ -431,9 +443,11 @@ All JSON, under `/api`:
 | GET | `/simbrief/latest` | Preview your latest SimBrief OFP without storing it; optional `?username=` |
 | GET | `/briefings/:id` | A stored briefing: summary, fixes, OFP text as HTML |
 | GET/POST/DELETE | `/hops/:id/briefing` | The hop's briefing / attach your latest OFP to it / remove it |
+| GET | `/aircraft/:id/plans` | A digest of the plans an aircraft's hops link to, in tour order: `[{ hop_id, id, ete_min, fuel: { units, burn }, pdf_url }]` |
 | GET/POST | `/aircraft` | List / create |
 | GET | `/aircraft-types` | The performance table's types (designator, name, variant) and its SimBrief snapshot date |
 | GET | `/aircraft-types/:type` | One type's numbers, each with its source or calculation |
+| PUT | `/aircraft/visibility` | Show or hide every aircraft on the map, or every one but `except`: `{ visible, except? }`; answers the fleet |
 | PUT/DELETE | `/aircraft/:id` | Update / delete (deletes its hops) |
 | POST | `/aircraft/:id/icon` | Upload a custom icon as a base64 data URL |
 | PUT | `/aircraft/:id/hops/order` | Reorder hops: `{ ids: [...] }` |
@@ -463,7 +477,9 @@ src/client/   Vite + React + Leaflet UI
   icons.ts    built-in aircraft silhouettes and the path color palette
   tracker.ts  subscribes to the tracker's event stream
   landing.ts  how landing ratings are shown
+  tour.ts     what a tour adds up to: each hop's figures, totals, the landing summary
   components/FlightPanel.tsx, ProfileChart.tsx   the bottom panel and its chart
+  components/AircraftPanel.tsx                   the panel for one aircraft at the right
 src/desktop/  Electron shell: runs the server, keeps it running, the window, the tray and its start lists (main.ts is the Electron glue)
 scripts/      import-airports.ts, sim-probe.ts (print what the sim reports), sim-fake.ts (synthetic flight),
               desktop-build.ts, tray-icons.ts, page-packages.ts and third-party-notices.ts (the desktop
@@ -483,11 +499,12 @@ release/      electron-builder's output (ignored by git)
 Live tracking shipped in 0.7 on [`node-simconnect`](https://github.com/EvenAR/node-simconnect);
 landing rates, flight profiles, SimBrief briefings, the performance table and the Windows app in 0.8.
 Around them: thin very long tracks
-before storing them, per-aircraft totals that include tracked time and landing averages, and
-comparing the flown track against the SimBrief route.
+before storing them, and comparing the flown track against the SimBrief route.
 
-Other ideas: engine-hours per aircraft, flight-time totals, exporting the map, importing a
-logbook from other tools.
+Other ideas: a photo of every SimBrief aircraft type, gathered from public sources and shipped with
+the app as the performance numbers are, so each plane has a picture without uploading one;
+engine-hours per aircraft, totals by month or year, exporting the map, importing a logbook from other
+tools.
 
 ## Licence
 

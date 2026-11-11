@@ -43,6 +43,11 @@ export function fmtNm(nm: number): string {
   return `${Math.round(nm).toLocaleString()} nm`;
 }
 
+/** A weight of fuel in whole pounds. */
+export function fmtLb(lb: number): string {
+  return `${Math.round(lb).toLocaleString()} lb`;
+}
+
 /** Logged duration, or the difference between departure and arrival if both are known. */
 export function hopDurationMin(h: Hop): number | null {
   if (h.duration_min != null) return h.duration_min;

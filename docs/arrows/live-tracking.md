@@ -63,7 +63,7 @@ them (LIVE-LINK-011, LIVE-SAVE-004, 005, LIVE-CASUAL-013, 015).
 - docs/intent/live-tracking/live-tracking-design.md
 
 ### EARS
-- docs/intent/live-tracking/live-tracking-specs.md (126 specs)
+- docs/intent/live-tracking/live-tracking-specs.md (127 specs)
 
 ### Tests
 - tests/live-tracking/sim-link.test.ts — LIVE-LEG-012, LIVE-LINK-005, 009 (the link driven through `fake-sim.ts`, a stand-in node-simconnect)
@@ -149,10 +149,10 @@ sim crash, a restart of the server or the app, or a second copy of the app on th
 | Casual mode | LIVE-CASUAL-001 to 015 | 15 | 0 | 0 |
 | API and event stream | LIVE-API-001 to 016 | 16 | 0 | 0 |
 | Live card | LIVE-CARD-001 to 015 | 15 | 0 | 0 |
-| Live aircraft on the map | LIVE-LAYER-001 to 004 | 4 | 0 | 0 |
+| Live aircraft on the map | LIVE-LAYER-001 to 005 | 5 | 0 | 0 |
 | Development tools | LIVE-TOOL-001 to 005 | 5 | 0 | 0 |
 
-**Summary:** all 126 specs implemented; none deferred. 101 have tests.
+**Summary:** all 127 specs implemented; none deferred. 102 have tests.
 
 ## Key Findings
 

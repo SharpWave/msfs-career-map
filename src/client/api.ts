@@ -17,6 +17,7 @@ import type {
   Settings,
   TerrainResult,
   TrackerStatus,
+  PlanDigestEntry,
   WikiSummary,
 } from "./types";
 import type { AirportDataReport } from "./notices";
@@ -96,6 +97,10 @@ export const api = {
   createAircraft: (a: AircraftInput) => req<Aircraft>("POST", "/api/aircraft", a),
   updateAircraft: (id: number, a: Partial<AircraftInput>) => req<Aircraft>("PUT", `/api/aircraft/${id}`, a),
   deleteAircraft: (id: number) => req<void>("DELETE", `/api/aircraft/${id}`),
+  /** Hide or show every aircraft, or every aircraft but `except`, in one change (FLEET-LOOK-013). */
+  setVisibility: (visible: boolean, except?: number) =>
+    req<Aircraft[]>("PUT", "/api/aircraft/visibility", except === undefined ? { visible } : { visible, except }),
+  aircraftPlans: (id: number) => req<PlanDigestEntry[]>("GET", `/api/aircraft/${id}/plans`),
   uploadIcon: (id: number, dataUrl: string) => req<Aircraft>("POST", `/api/aircraft/${id}/icon`, { dataUrl }),
 
   createHop: (h: HopInput) => req<Hop>("POST", "/api/hops", h),

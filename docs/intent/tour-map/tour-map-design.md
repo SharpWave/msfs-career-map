@@ -14,21 +14,23 @@ real flown track wherever the sim recorded one.
 This segment owns:
 
 - the map itself: basemaps, the initial view, resizing, and the map toolbar — the **Layers** menu
-  (basemap, night shading, hazard toggles), the hazard count, **Fit all** and **Clear highlight**
+  (basemap, night shading, hazard toggles), the hazard count, **Fit all** and **Clear highlight**,
+  and the place it gives **Clear plan** (planner) and **Show all planes** (fleet)
   ([MapToolbar.tsx](../../../src/client/components/MapToolbar.tsx));
 - **map geometry** — turning hops into paths, airport dots and parked positions, placing shapes
   across the antimeridian, the world copies every layer is drawn on, and the zoom-to-fit points —
   shared by every map layer and by the zoom logic ([paths.ts](../../../src/client/paths.ts),
   [geo.ts](../../../src/client/geo.ts));
 - tours (hop paths, direction chevrons, hop tooltips), visited-airport dots and their tooltips,
-  parked-aircraft markers, highlighting and zooming;
+  parked-aircraft markers, highlighting, the marked hop and zooming;
 - the night and weather-hazard overlays.
 
 The map also hosts layers owned elsewhere: the planner's range ring and candidate dots (planner),
 the live aircraft and its growing track (live-tracking), and SimBrief routes (simbrief); this
 segment places them and draws them on every world copy in view like its own layers. The airport
 popup opened from a dot is airports'. Hops, their order and where an aircraft is parked
-come from logbook; aircraft color, icon and visibility from fleet.
+come from logbook; aircraft color, icon and visibility from fleet. The aircraft panel that a click
+on a parked marker or a path opens beside the map is aircraft-panel's.
 
 **Where the map runs.** The map is part of the page, so it behaves the same wherever the page is
 shown: in the installed app's window or a test-mode copy's, in a browser tab on the installed app or
@@ -129,7 +131,8 @@ poleward bulge can fall outside the fit. Which world copy a zoom lands on is the
 ## Tours on the Map
 
 Layers are drawn bottom to top: hazards and night shading; planner ring and candidates; SimBrief
-routes; path casings; colored paths; chevrons; airport dots; parked markers; the live aircraft
+routes; path casings; colored paths; the marked hop; chevrons; airport dots; parked markers; the
+live aircraft
 ([MapView.tsx:214-362](../../../src/client/components/MapView.tsx#L214-L362)).
 
 - **Paths.** Every hop gets a dark casing (weight 9) under a colored line (weight 5). Odd-numbered
@@ -142,7 +145,8 @@ routes; path casings; colored paths; chevrons; airport dots; parked markers; the
   "· N nm flown (tracked)" for tracked hops; departure, arrival and duration when known; the badge
   and G of the first touchdown of its final landing (flight-panel); the notes; "Click for the flight profile" when tracked
   ([MapView.tsx:521-552](../../../src/client/components/MapView.tsx#L521-L552)).
-- **Clicking a path** opens that hop in the flight panel, selects its aircraft and zooms to the hop.
+- **Clicking a path** opens that hop in the flight panel, highlights its aircraft, opens the
+  aircraft panel on it (aircraft-panel) and zooms to the hop.
 - **Airport dots** are filled with the visiting aircraft's color when exactly one aircraft has been
   there, white otherwise. The tooltip lists the airport, its location, up to three runways, every
   arrival and departure ("(time not logged)" when untimed, with the hop number), "Currently here:"
@@ -150,19 +154,30 @@ routes; path casings; colored paths; chevrons; airport dots; parked markers; the
   popup ([MapView.tsx:311-330](../../../src/client/components/MapView.tsx#L311-L330),
   [555-579](../../../src/client/components/MapView.tsx#L555-L579)).
 - **Parked markers** show the aircraft's badge (fleet) at its parked position; the tooltip reads the
-  aircraft and "parked at IDENT · name". Clicking a marker highlights that aircraft, or clears the
-  highlight if it is already highlighted ([MapView.tsx:332-354](../../../src/client/components/MapView.tsx#L332-L354)).
+  aircraft and "parked at IDENT · name". Clicking a marker highlights that aircraft and opens the
+  aircraft panel on it (aircraft-panel); clicking the marker of the aircraft the open panel already
+  shows clears the highlight instead ([MapView.tsx:332-354](../../../src/client/components/MapView.tsx#L332-L354)).
 - **Empty map.** With no hops at all, the map shows "Nothing on the map yet" and how to start
   ([App.tsx:474-479](../../../src/client/App.tsx#L474-L479)).
 
 ## Highlighting and Zooming
 
 **Highlight.** One aircraft can be highlighted, from its card, its parked marker or a path. While
-one is, every other aircraft fades: paths to 0.45 opacity (casing 0.25), parked markers to 0.6,
-airport dots that aircraft never visited to 0.5, and their chevrons are hidden; the highlighted
-marker is drawn on top ([MapView.tsx:30](../../../src/client/components/MapView.tsx#L30)). The
-**Clear highlight** button appears while one is set. Deleting the highlighted aircraft clears it
+one is, and is drawn on the map, every other aircraft fades: paths to 0.45 opacity (casing 0.25),
+parked markers to 0.6, airport dots that aircraft never visited to 0.5, and their chevrons are
+hidden; the highlighted marker is drawn on top
+([MapView.tsx:30](../../../src/client/components/MapView.tsx#L30)). A highlighted aircraft that is
+hidden from the map fades nothing: it stays highlighted for the rest of the page — the aircraft
+panel, the planner, the hop form — while the map shows the others at full strength. The
+**Clear highlight** button ("Stop fading the other planes" on hover) appears while one is set. Deleting the highlighted aircraft clears it
 ([App.tsx:246-249](../../../src/client/App.tsx#L246-L249)).
+
+**The marked hop.** The aircraft panel marks one hop at a time, the one whose row the pilot points
+at (aircraft-panel). The map draws that hop's path again above every other path — a white casing
+(weight 11, 0.9 opacity) under its own colored line at full opacity — on every world copy in view,
+so the hop can be found in a tour that crosses itself, a highlight's fade notwithstanding. The mark
+takes no clicks and shows no tooltip, moves nothing, and goes when the panel stops marking the hop.
+A hop that is not drawn — its aircraft hidden, or an airport missing — has no mark.
 
 **Zoom requests** ([App.tsx:226-279](../../../src/client/App.tsx#L226-L279),
 [layout.ts:31-44](../../../src/client/layout.ts#L31-L44), [fit.ts:32-104](../../../src/client/fit.ts#L32-L104),
@@ -172,10 +187,13 @@ marker is drawn on top ([MapView.tsx:30](../../../src/client/components/MapView.
 |---|---|
 | The page's first load of the map state | Every path |
 | **Fit all** | Every path |
-| Highlighting an aircraft | That aircraft's paths |
-| Opening a hop in the flight panel, from anywhere the page opens one (path click, hop row, a hop named in the page's address) | That hop |
+| Highlighting an aircraft; opening the aircraft panel on one already highlighted, from its marker or card; **Zoom to tour** in the aircraft panel | That aircraft's paths |
+| Opening a hop in the flight panel, from anywhere the page opens one (path click, hop row, a row of the aircraft panel, a hop named in the page's address) | That hop |
 | A new planner result | The plan's ring |
 | Focusing a planner candidate | The candidate |
+
+A click on a path highlights its aircraft and opens the hop at once; the zoom carried out is the
+hop's.
 
 Of the page's loads of the map state, only the first fits the view to every path. Later loads —
 after any change the page makes or hears of (a hop logged, edited or deleted, an aircraft changed)
@@ -243,7 +261,7 @@ window as in a browser), the map jumps to the request's view instead of flying.
 
 **Map toolbar** ([MapToolbar.tsx](../../../src/client/components/MapToolbar.tsx)), at the top right:
 **Layers**; the hazard count while any hazard toggle is on (see below); **Fit all**; and **Clear
-highlight** and **Clear plan** (planner) while they apply.
+highlight**, **Clear plan** (planner) and **Show all planes** (fleet) while they apply.
 
 **Layers menu.** One menu holds the choices made once a session and then left alone:
 
@@ -327,6 +345,8 @@ a failure is cached, so the next request asks the sources again.
 | Airport dots | One per airport, drawn on every world copy in view, colored by the sole visitor or white | One per airport per world copy a chain reaches | Every copy shows every path, so one dot per airport meets them all; a dot per copy reached would stack copies of the same dot, each with part of the airport's visits. |
 | Several aircraft parked together | Fan out around the dot | Stack | Every parked aircraft stays visible and clickable. |
 | Highlight | Fade every other aircraft rather than hide it | Hide others; no highlight | [inferred] Keeps the whole fleet in context while one tour stands out. |
+| A highlighted aircraft that is hidden | Fades nothing | Fade the others as for any highlight; clear the highlight when its aircraft is hidden | The fade exists to make one tour stand out; with that tour not drawn it would only dim the rest of the fleet around nothing. The highlight itself has to stay, since the aircraft panel shows the highlighted aircraft and is where it is unhidden. |
+| Marking a hop from the aircraft panel | Its path drawn again on top with a white casing, the view left alone | Zoom to the hop; fade every other hop | Pointing at rows is done in passing, down a list; a view that moved with the pointer could not be read. A casing over the path's own color finds the hop without changing what any other path looks like. |
 | Basemaps | Esri and OpenStreetMap tiles, no API keys | Keyed providers (Mapbox etc.) | Nothing to sign up for or configure (HLD tenet Keyless and local). Whether each provider's terms allow its tiles in a distributed app is open (Open Questions). |
 | Attribution links | Opened in a new tab, like the page's other outside links | Leaflet's default, a link that navigates the page itself | Navigating away throws the page away — open panels, a half-typed form — in a browser tab. In the installed app's window outside links open in the pilot's default browser either way (HLD System Design), so the new tab costs nothing there. |
 | Night shading | Two overlapping layers at 0° and −6° sun elevation, every world copy in view, minute refresh | One terminator line; no shading | [inferred] Shows dusk and full night apart, which matters for VFR planning, without visual noise. |
@@ -422,5 +442,7 @@ Shortfalls of the code against the design above, each an active gap in the specs
 - Context: [Desktop](../desktop/desktop-design.md) — details behind the HLD's System Design: the
   installed app's fixed port (3380), test mode's port (3280) and Electron's own folder, where the
   window's page keeps its local storage
+- Opens: aircraft-panel (from a parked marker or a path), which also marks a hop and asks for
+  **Zoom to tour**. Hosted in the toolbar: planner's **Clear plan**, fleet's **Show all planes**
 - Hosted layers: planner (ring, candidates, candidate popup), live-tracking (`LiveLayer`), simbrief
   (`BriefingLayer`)

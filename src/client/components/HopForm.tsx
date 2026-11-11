@@ -4,11 +4,14 @@ import { aircraftLabel, isoToLocalInput, localInputToIso } from "../format";
 import type { Aircraft, Hop } from "../types";
 import { AirportInput } from "./AirportInput";
 
-/** A destination handed over from the planner; `key` changes on every pick so repeats still apply. */
+/**
+ * An aircraft handed to the form, with the destination the planner picked or, from the aircraft
+ * panel, none; `key` changes on every hand-off so repeats still apply.
+ */
 export interface HopPreset {
   key: number;
   aircraftId: number;
-  dest: string;
+  dest?: string;
 }
 
 interface Props {
@@ -54,13 +57,15 @@ export function HopForm({ aircraft, hops, initial, defaultAircraftId, preset, on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultAircraftId]);
 
-  // The planner picked a destination: switch to that aircraft and fill it in. The page opens the
-  // Log a hop drawer at this form.
+  // A hand-off: switch to that aircraft and where it is parked. The planner also hands over the
+  // destination it picked; the aircraft panel hands over the aircraft alone, and what was typed
+  // stays. The page opens the Log a hop drawer at this form.
+  // @spec LOG-FORM-004, LOG-FORM-013
   useEffect(() => {
     if (isEdit || !preset) return;
     setAircraftId(preset.aircraftId);
     setOrigin(lastDest(preset.aircraftId));
-    setDest(preset.dest);
+    if (preset.dest !== undefined) setDest(preset.dest);
     setFlash(null);
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps

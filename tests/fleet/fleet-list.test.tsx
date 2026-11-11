@@ -13,9 +13,9 @@ const hops = [
   hop({ id: 13, aircraft_id: 1, seq: 3, origin: "KHYA", dest: "KACK" }),
 ];
 
-function renderFleet(state: AppState = appState({ aircraft: [bound, hidden], hops }), reload = async () => {}) {
+function renderFleet(state: AppState = appState({ aircraft: [bound, hidden], hops }), reload = async () => {}, onPickAircraft: (id: number) => void = () => {}) {
   return render(
-    <Fleet state={state} selectedId={null} onSelect={() => {}} onFocusHop={() => {}} reload={reload} form={null} onFormChange={() => {}} />,
+    <Fleet state={state} selectedId={null} onPickAircraft={onPickAircraft} onFocusHop={() => {}} reload={reload} form={null} onFormChange={() => {}} />,
   );
 }
 
@@ -24,6 +24,16 @@ const card = (id: number) => document.getElementById(`aircraft-${id}`) as HTMLEl
 afterEach(() => vi.restoreAllMocks());
 
 describe("the aircraft card", () => {
+  // @spec FLEET-CARD-001
+  it("picks its aircraft from the badge or the name, leaving the page to highlight it and open its panel, or to clear the highlight", () => {
+    const picked: number[] = [];
+    renderFleet(undefined, undefined, (id) => picked.push(id));
+    fireEvent.click(card(1).querySelector(".badge-btn") as HTMLElement);
+    fireEvent.click(card(2).querySelector(".title-btn") as HTMLElement);
+    fireEvent.click(card(2).querySelector(".title-btn") as HTMLElement);
+    expect(picked).toEqual([1, 2, 2]);
+  });
+
   // @spec FLEET-CARD-002
   it("shows each detail as its own item, with a link icon and 'sim' when bound", () => {
     renderFleet();

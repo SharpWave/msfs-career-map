@@ -33,7 +33,7 @@ DOMPurify as the card shows it, `outsideLink` judges the PDF and links, and the 
 - docs/intent/simbrief/simbrief-design.md
 
 ### EARS
-- docs/intent/simbrief/simbrief-specs.md (45 specs)
+- docs/intent/simbrief/simbrief-specs.md (46 specs)
 
 ### Tests
 - tests/tour-map/copies.test.ts — SB-ROUTE-003 (the route placed fix to fix; drawn on every copy by the map's shared copies)
@@ -87,12 +87,12 @@ shell edge.
 | Fetching a plan | SB-OFP-001 to 004 | 4 | 0 | 0 |
 | Preview and confirm | SB-PICK-001 to 003 | 1 | 0 | 2 |
 | Current plan | SB-CUR-001 to 004 | 4 | 0 | 0 |
-| Plans on hops | SB-HOP-001 to 005 | 2 | 0 | 3 |
+| Plans on hops | SB-HOP-001 to 006 | 3 | 0 | 3 |
 | Live card controls | SB-CTRL-001 to 004 | 4 | 0 | 0 |
 | Flight panel card | SB-CARD-001 to 011 | 9 | 0 | 2 |
 | Route on the map | SB-ROUTE-001 to 006 | 6 | 0 | 0 |
 
-**Summary:** 37 of 45 specs implemented; 8 gaps; none deferred. 17 specs have tests.
+**Summary:** 38 of 46 specs implemented; 8 gaps; none deferred. 18 specs have tests.
 
 ## Key Findings
 

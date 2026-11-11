@@ -11,7 +11,7 @@ copy run from source or on the installed app's own address) and under the browse
 
 ## Opening and Closing
 
-- [x] **PANEL-OPEN-001**: When the user opens a hop (from its map path or its hop row) or the live leg (from the live card's **Profile**), the system shall show that flight in the flight panel across the bottom of the map, replacing any flight already shown.
+- [x] **PANEL-OPEN-001**: When the user opens a hop (from its map path, its hop row, or its row or the longest-hop line in the aircraft panel) or the live leg (from the live card's **Profile**), the system shall show that flight in the flight panel across the bottom of the map, replacing any flight already shown.
 - [x] **PANEL-OPEN-002**: When the user clicks **Profile** on a pending leg in the live card, the system shall show that pending leg in the flight panel, replacing any flight already shown.
 - [x] **PANEL-OPEN-003**: When the user clicks the flight panel's close button, the system shall close the panel.
 - [x] **PANEL-OPEN-004**: When the hop shown in the flight panel is deleted, the system shall close the panel.
@@ -59,8 +59,8 @@ copy run from source or on the installed app's own address) and under the browse
 
 - [x] **PANEL-LOOK-001**: The system shall show the landing ratings as butter "🧈 Butter — nobody looked up from their book" (#3bceac), solid "👍 Solid — the coffee stayed in the cups" (#86b6ef), hard "💥 Hard — a few gasps from the cabin" (#fbbf24), hospital "🏥 Hospital — someone is calling a lawyer" (#f97316) and graveyard "🪦 Graveyard — nobody is walking away from that one" (#ef4444), and never by color alone, wherever the page shows a rating, apart from the tracker's own message (LIVE-HOP-006), which words the rating as plain text.
 - [x] **PANEL-LOOK-002**: The landing badge shall show the rating's icon, word and fpm in the rating's color, or the icon and fpm when compact, with the hover text "Word: caption · N fpm" followed by ", G.GG G" when the G is known.
-- [x] **PANEL-LOOK-003**: The system shall use the full landing badge in a hop's map tooltip, and the compact badge in hop rows and in the live card.
-- [x] **PANEL-LOOK-004**: The system shall stand for a flight with touchdowns by the first touchdown of its final landing (for the live leg, its latest landing so far) in the landing card, the hop's map tooltip, the hop's row and the live card, counting a touchdown less than 30 s after the flight's previous touchdown as a bounce within the same landing and any other touchdown as the start of a new landing.
+- [x] **PANEL-LOOK-003**: The system shall use the full landing badge in a hop's map tooltip, and the compact badge in hop rows, in the aircraft panel's hop rows and in the live card.
+- [x] **PANEL-LOOK-004**: The system shall stand for a flight with touchdowns by the first touchdown of its final landing (for the live leg, its latest landing so far) in the landing card, the hop's map tooltip, the hop's row, the hop's row in the aircraft panel and that panel's landing summary (ACP-TOUR-008), and the live card, counting a touchdown less than 30 s after the flight's previous touchdown as a bounce within the same landing and any other touchdown as the start of a new landing.
 
 ## Flight Card
 

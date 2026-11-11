@@ -2,7 +2,7 @@
 
 Design: [tour-map-design.md](tour-map-design.md). Prefix `MAP`; facets `GEO` (map geometry),
 `PATH` (hop paths and layer order), `DOT` (visited-airport dots), `PARK` (parked-aircraft
-markers), `HL` (highlighting), `ZOOM` (zoom requests), `VIEW` (basemaps and view preferences),
+markers), `HL` (highlighting and the marked hop), `ZOOM` (zoom requests), `VIEW` (basemaps and view preferences),
 `NIGHT` (day/night shading), `HAZ` (weather hazard overlay).
 
 Unless a spec names its scope, it holds wherever the page is shown — the installed app's window or a
@@ -41,8 +41,8 @@ source).
 - [x] **MAP-PATH-001**: The system shall draw every hop as a colored line over a dark casing, in its aircraft's path color for odd-numbered hops and a 38% lighter shade of it for even-numbered hops.
 - [x] **MAP-PATH-002**: When a hop's direct distance is at least 8 nm and its aircraft is not faded by a highlight, the system shall draw a direction chevron in the path's color at the middle point of the hop's path, pointing along the path.
 - [x] **MAP-PATH-003**: When the user hovers a hop's path, the system shall show the aircraft; origin → destination, hop number and direct distance, plus the flown distance for a tracked hop; the departure, arrival and duration when known; the badge and G of the first touchdown of its final landing when the hop has touchdowns; the notes; and "Click for the flight profile" for a tracked hop.
-- [x] **MAP-PATH-004**: When the user clicks a hop's path, the system shall open that hop in the flight panel, highlight its aircraft and zoom to the hop.
-- [x] **MAP-PATH-005**: The system shall draw map layers from bottom to top: hazard areas and night shading; planner ring and candidates; SimBrief routes; path casings; paths; chevrons; airport dots; parked markers; the live aircraft.
+- [x] **MAP-PATH-004**: When the user clicks a hop's path, the system shall open that hop in the flight panel, highlight its aircraft, open the aircraft panel on it (ACP-OPEN-001) and zoom to the hop.
+- [x] **MAP-PATH-005**: The system shall draw map layers from bottom to top: hazard areas and night shading; planner ring and candidates; SimBrief routes; path casings; paths; the marked hop (MAP-HL-004); chevrons; airport dots; parked markers; the live aircraft.
 - [x] **MAP-PATH-006**: While there are no hops at all, the system shall show "Nothing on the map yet" over the map with how to add an aircraft and log a first hop.
 
 ## Visited-Airport Dots
@@ -54,20 +54,22 @@ source).
 ## Parked-Aircraft Markers
 
 - [x] **MAP-PARK-001**: The system shall show each parked aircraft as its badge at its parked position, with a hover tooltip naming the aircraft and "parked at IDENT · name".
-- [x] **MAP-PARK-002**: When the user clicks a parked-aircraft marker, the system shall highlight that aircraft, or clear the highlight if that aircraft is already highlighted.
+- [x] **MAP-PARK-002**: When the user clicks a parked-aircraft marker, the system shall highlight that aircraft and open the aircraft panel on it (ACP-OPEN-001), or clear the highlight if the aircraft panel is already open on that aircraft (ACP-OPEN-002).
 
 ## Highlighting
 
-- [x] **MAP-HL-001**: While an aircraft is highlighted, the system shall fade every other aircraft's paths (0.45 opacity, casing 0.25) and parked markers (0.6), fade airport dots the highlighted aircraft never visited (0.5), hide other aircraft's chevrons, and draw the highlighted aircraft's marker above the others.
-- [x] **MAP-HL-002**: While an aircraft is highlighted, the map toolbar shall offer "Clear highlight", which clears it.
+- [x] **MAP-HL-001**: While an aircraft is highlighted and drawn on the map (not hidden from it, FLEET-LOOK-010), the system shall fade every other aircraft's paths (0.45 opacity, casing 0.25) and parked markers (0.6), fade airport dots the highlighted aircraft never visited (0.5), hide other aircraft's chevrons, and draw the highlighted aircraft's marker above the others.
+- [x] **MAP-HL-002**: While an aircraft is highlighted, the map toolbar shall offer "Clear highlight", with the hover text "Stop fading the other planes", which clears it.
 - [x] **MAP-HL-003**: When the highlighted aircraft is deleted, the system shall clear the highlight.
+- [x] **MAP-HL-004**: While the aircraft panel marks a hop (ACP-LIST-007) that is drawn on the map, the system shall draw that hop's path again above every other path and under the chevrons — a white casing (weight 11, 0.9 opacity) under the hop's own colored line at full opacity, whether or not a highlight fades that hop — on every world copy in view (MAP-GEO-014), taking no clicks, showing no tooltip and leaving the view where it is.
+- [x] **MAP-HL-005**: While the highlighted aircraft is hidden from the map, the system shall fade no aircraft, path, chevron or airport dot, and shall keep that aircraft highlighted, the map toolbar still offering **Clear highlight** (MAP-HL-002).
 
 ## Zooming
 
 - [x] **MAP-ZOOM-001**: When the map state first loads after the page loads (a page opened, reloaded, or opened again in the installed app's window), the system shall fit the view to every hop; when the same page loads the map state again (after any change the page makes or hears of — a hop logged, edited or deleted, an aircraft changed — or when its event stream reconnects, live-tracking), it shall leave the view as it is.
 - [x] **MAP-ZOOM-002**: When the user clicks **Fit all**, the system shall fit the view to every hop.
-- [x] **MAP-ZOOM-003**: When an aircraft becomes highlighted, the system shall fit the view to that aircraft's hops.
-- [x] **MAP-ZOOM-004**: When a hop is opened in the flight panel, from anywhere the page opens one — its path, its hop row, a hop named in the page's address (app-shell) — the system shall fit the view to that hop.
+- [x] **MAP-ZOOM-003**: When an aircraft becomes highlighted, or the aircraft panel is opened on an aircraft that is already highlighted by a click on its parked marker or its aircraft card (ACP-OPEN-001), the system shall fit the view to that aircraft's hops, unless the same click opens a hop, whose zoom is carried out instead (MAP-ZOOM-004).
+- [x] **MAP-ZOOM-004**: When a hop is opened in the flight panel, from anywhere the page opens one — its path, its hop row, its row or the longest-hop line in the aircraft panel (aircraft-panel), a hop named in the page's address (app-shell) — the system shall fit the view to that hop.
 - [x] **MAP-ZOOM-005**: When a new planner result arrives, the system shall fit the view to the plan's range ring.
 - [x] **MAP-ZOOM-006**: When the user focuses a planner candidate, the system shall zoom to that candidate.
 - [x] **MAP-ZOOM-007**: When a zoom request's points, once gathered (MAP-ZOOM-011), all lie at one place, the system shall fly there at zoom 9 or the current zoom if closer; otherwise it shall fly to the points' bounds with 60 px padding, no closer than zoom 11, over 0.6 s; either way it shall centre the view in the clear part of the map the page supplies (APP-UI-020), or in the whole window when that part is smaller than 240 × 160 px.

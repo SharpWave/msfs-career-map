@@ -88,7 +88,7 @@ distribution, which packages the page build as `page/` beside the seed lists, ou
 - docs/intent/app-shell/app-shell-design.md
 
 ### EARS
-- docs/intent/app-shell/app-shell-specs.md (120 specs)
+- docs/intent/app-shell/app-shell-specs.md (122 specs)
 
 ### Tests
 - tests/app-shell/inputs.test.ts — APP-SRV-006, 007, 008, 023; APP-DATA-001; APP-API-005; LIVE-LINK-012, 013 (`readInputs` in both forms, `currentInputs`, the version; APP-SRV-008 and 023 as far as the page, database, icons and lists and the test servers' inputs; APP-API-005 without the User-Agent)
@@ -228,11 +228,11 @@ or the internet.
 | Backups | APP-BAK-001 to 011 | 11 | 11 | 0 | 0 |
 | Bringing in a logbook | APP-IMP-001 to 005 | 5 | 5 | 0 | 0 |
 | API conventions | APP-API-001 to 012 | 12 | 12 | 0 | 0 |
-| Page: layout, menu and drawers, covered map, look, starting, hand-offs, reloading | APP-UI-001 to 042 | 42 | 42 | 0 | 0 |
+| Page: layout, menu and drawers, covered map, look, starting, hand-offs, reloading | APP-UI-001 to 044 | 44 | 44 | 0 | 0 |
 | Shared formatting | APP-FMT-001 to 003 | 3 | 3 | 0 | 0 |
 | Development scripts and tests | APP-RUN-001 to 004, 010 to 021 | 16 | 16 | 0 | 0 |
 
-**Summary:** all 120 specs implemented; none deferred. 115 have tests, and APP-RUN-003 is checked by
+**Summary:** all 122 specs implemented; none deferred. 117 have tests, and APP-RUN-003 is checked by
 `npm run typecheck`; APP-DATA-003, APP-UI-003, APP-UI-008 and APP-RUN-010 have none.
 
 ## Key Findings

@@ -11,7 +11,7 @@ import { statusBody } from "../support/page-server.ts";
 import { aircraft, airport, appState, hop, liveState, planResult, trackerStatus } from "../support/page-data.ts";
 
 const stub = vi.hoisted(() => ({
-  map: null as null | { focus: { key: number; clear?: unknown } | null; onSelect: (id: number | null) => void },
+  map: null as null | { focus: { key: number; clear?: unknown } | null; onPickAircraft: (id: number) => void },
   live: null as unknown as LiveState,
 }));
 
@@ -248,7 +248,7 @@ describe("hand-offs to a drawer", () => {
     await renderPage();
     chooseFromMenu("Log a hop");
     fireEvent.click(within(region("Log a hop")).getByRole("button", { name: "Close" }));
-    act(() => stub.map!.onSelect(2));
+    act(() => stub.map!.onPickAircraft(2));
     chooseFromMenu("Log a hop");
     expect((within(region("Log a hop")).getByRole("combobox") as HTMLSelectElement).value).toBe("2");
   });

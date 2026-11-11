@@ -468,7 +468,7 @@ button.icon.bar-button:hover:not(:disabled) {
 .toast,
 .banner {
   position: absolute;
-  left: calc(var(--clear-left) + (100% - var(--clear-left)) / 2);
+  left: calc(var(--clear-left) + (100% - var(--clear-left) - var(--clear-right, 0px)) / 2);
 }
 
 .map-empty {
@@ -524,13 +524,13 @@ button.icon.bar-button:hover:not(:disabled) {
 }
 
 /* the airport-data and version notices, at the top of the clear part */
-/* @spec APP-UI-031, APP-UI-036 */
+/* @spec APP-UI-031, APP-UI-036, APP-UI-043 */
 .notices {
   position: absolute;
   z-index: var(--z-panels);
   top: calc(var(--clear-top) + 8px);
   left: calc(var(--clear-left) + 12px);
-  right: var(--gutter);
+  right: calc(var(--clear-right, 0px) + var(--gutter));
   max-width: 460px;
   display: flex;
   flex-direction: column;
@@ -548,7 +548,7 @@ button.icon.bar-button:hover:not(:disabled) {
   z-index: 1000;
   top: calc(var(--clear-top) + 8px);
   left: calc(var(--clear-left) + 12px);
-  max-width: 420px;
+  max-width: min(420px, calc(100% - var(--clear-left) - var(--clear-right, 0px) - 24px));
 }
 
 /* ---------- controls ---------- */
@@ -1893,9 +1893,14 @@ fieldset.perf legend em {
   font: inherit;
 }
 
-/* the attribution sits above the flight panel */
+/* the attribution sits above the flight panel and left of the aircraft panel */
+/* @spec APP-UI-021 */
 .leaflet-bottom {
   bottom: var(--clear-bottom, 0px);
+}
+
+.leaflet-bottom.leaflet-right {
+  right: var(--clear-right, 0px);
 }
 
 .leaflet-control-attribution {
@@ -2592,6 +2597,357 @@ fieldset.perf legend em {
   color: var(--muted);
   font-weight: 400;
   font-family: var(--font);
+}
+
+/* ---------- aircraft panel ---------- */
+
+/* At the right edge, the left column's width, as tall as what it holds: down to the bottom gutter,
+   or to one gutter above the flight panel. layout.ts works out the same room. */
+/* It floats: the map keeps the window and the flight panel its place whether it is open or not. */
+/* @spec ACP-LAY-001, ACP-LAY-002, ACP-LAY-004, ACP-LAY-005 */
+.aircraft-panel {
+  position: absolute;
+  z-index: var(--z-panels);
+  top: calc(var(--gutter) * 2 + var(--bar-h));
+  right: var(--gutter);
+  width: var(--col-w);
+  max-height: calc(100% - var(--gutter) * 3 - var(--bar-h));
+  border-radius: var(--r-panel);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: acp-in 0.2s ease-out;
+}
+
+.app.panel-open .aircraft-panel {
+  max-height: calc(100% - var(--gutter) * 4 - var(--bar-h) - max(260px, 40vh));
+}
+
+/* A window too short to leave 240 px above the flight panel: the panel runs to the bottom gutter, over it. */
+@media (max-height: 587px) {
+  .app.panel-open .aircraft-panel {
+    max-height: calc(100% - var(--gutter) * 3 - var(--bar-h));
+  }
+}
+
+@keyframes acp-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+.acp-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+}
+
+.aircraft-panel > .error {
+  margin: 12px 46px 12px 12px;
+}
+
+.acp-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 2px;
+  padding: 10px 44px 9px 12px;
+  border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+
+.acp-head .plane-head {
+  grid-row: span 2;
+  align-self: start;
+  --c: inherit;
+}
+
+.acp-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1px 8px;
+  min-width: 0;
+}
+
+.acp-title .name {
+  font-weight: 700;
+  font-size: 14.5px;
+  overflow-wrap: anywhere;
+}
+
+.acp-title .code {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.acp-parked,
+.acp-hidden {
+  grid-column: 2 / -1;
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 0;
+}
+
+.acp-parked b {
+  color: var(--text);
+}
+
+.acp-hidden {
+  color: var(--caution);
+}
+
+/* Everything under the header: the hop list scrolls alone while it has the room, else all of it as one. */
+.acp-under {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.acp-under > * {
+  flex-shrink: 0;
+}
+
+.aircraft-panel.scroll-all .acp-under {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.aircraft-panel.list-alone .acp-under {
+  overflow: hidden;
+}
+
+.aircraft-panel.list-alone .acp-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* the picture: whole, never scaled up, no room taken until it has loaded */
+/* @spec ACP-HEAD-003 */
+.acp-picture {
+  display: flex;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.38);
+  border-bottom: 1px solid var(--line);
+}
+
+.acp-picture:not(.loaded) {
+  height: 0;
+  overflow: hidden;
+  border-bottom: 0;
+}
+
+.acp-picture img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+}
+
+.acp-vis {
+  padding: 10px 12px 0;
+}
+
+.acp-toggles {
+  display: flex;
+  gap: 8px;
+}
+
+.acp-toggles .layer-toggle {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 12.5px;
+}
+
+.acp-vis .error {
+  margin-top: 8px;
+}
+
+.acp-tour {
+  margin: 0;
+  padding: 10px 12px 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 14px;
+  font-size: 12.5px;
+}
+
+.acp-tour > div {
+  display: contents;
+}
+
+.acp-tour dt {
+  color: var(--muted);
+}
+
+.acp-tour dd {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.acp-tour dd .muted {
+  font-family: var(--font);
+}
+
+.acp-longest {
+  font: inherit;
+  text-align: left;
+}
+
+.acp-rating {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--rc) 14%, transparent);
+  white-space: nowrap;
+}
+
+.acp-empty {
+  margin: 10px 12px 0;
+  font-size: 12.5px;
+}
+
+.acp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px;
+}
+
+.acp-list-title {
+  margin: 0;
+  padding: 8px 12px 4px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.acp-scroll {
+  padding: 0 6px 8px;
+}
+
+.acp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.acp-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+  border-radius: var(--r-control);
+}
+
+.acp-list li:hover,
+.acp-list li:focus-within {
+  background: var(--raise-2);
+}
+
+/* the hop the flight panel shows */
+.acp-list li.current {
+  background: var(--raise);
+  box-shadow: inset 3px 0 0 var(--c);
+}
+
+.acp-row {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 1px;
+  background: none;
+  border: none;
+  padding: 6px;
+  text-align: left;
+  color: inherit;
+}
+
+.acp-row:hover:not(:disabled) {
+  background: none;
+}
+
+.acp-row .seq {
+  grid-column: 1;
+  grid-row: 1 / span 5;
+  align-self: start;
+  min-width: 18px;
+  padding-top: 2px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.acp-row .route {
+  grid-column: 2;
+  font-size: 13px;
+}
+
+.acp-row .landing-badge {
+  grid-column: 3;
+  justify-self: end;
+}
+
+.acp-row .when,
+.acp-row .planned,
+.acp-row .notes {
+  grid-column: 2 / -1;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.acp-row .when,
+.acp-row .figures,
+.acp-row .planned {
+  font-family: var(--mono);
+}
+
+.acp-row .figures {
+  grid-column: 2;
+  font-size: 11.5px;
+}
+
+.acp-row .plan-mark {
+  grid-column: 3;
+  justify-self: end;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.acp-row .notes {
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+a.button.small.acp-pdf {
+  flex: 0 0 auto;
+  margin: 6px 6px 0 0;
 }
 
 /* ---------- motion ---------- */

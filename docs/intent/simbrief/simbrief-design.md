@@ -157,6 +157,15 @@ A carried plan is then like any other: replacing or removing the current plan de
 uses it (SB-CUR-001, SB-CUR-002), and a pending leg's plan goes with the leg when it is logged or is
 deleted when it is discarded (LIVE-HOP-005).
 
+**An aircraft's plans.** The aircraft panel lists a tour's hops with each plan's PDF and planned
+figures (aircraft-panel), which the map state does not carry: it holds only each hop's link to its
+plan, and a whole plan is far more than a list row needs. `GET /api/aircraft/:id/plans` answers a
+digest instead — for each of the aircraft's hops whose link names a stored plan, in tour order, the
+hop, the plan's id, its time en route, its fuel unit and planned burn, and its PDF address, as the
+plan's summary holds them. A hop without a plan, or whose link names a plan that is gone, has no
+entry. The PDF address is the plan's own, unchecked; the page decides whether it may be a link
+([Links](#the-ofp-text)).
+
 **Deleting hops and aircraft.** A plan is deleted with its hop, whether the hop is deleted alone or
 with its aircraft's tour; a plan on no hop (the tracker's current plan, a pending leg's) stays,
 with its aircraft link cleared when the aircraft goes (FLEET-REC-016). Nothing in the app can show
@@ -170,6 +179,7 @@ with its hop link cleared.
 | `DELETE /api/tracker/briefing` | Clear the current plan | |
 | `GET /api/briefings/:id` | A stored plan: summary, OFP text, hop and aircraft | 404 |
 | `GET /api/hops/:id/briefing` | The plan the hop links to | 404 no hop or no plan |
+| `GET /api/aircraft/:id/plans` | A digest of the plans the aircraft's hops link to, in tour order: `[{hop_id, id, ete_min, fuel: {units, burn}, pdf_url}]` | 404 no aircraft |
 | `POST /api/hops/:id/briefing` | `{ofp_id}`: attach the previewed plan to the hop, replacing its old one → 201 + plan | 404 hop; 400 / 502 as above; 409 latest plan changed |
 | `DELETE /api/hops/:id/briefing` | Delete the hop's plan → 204 | 404 hop |
 

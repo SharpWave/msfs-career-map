@@ -7,7 +7,8 @@ const isTestServer = (url: URL) => url.protocol === "data:" || (TEST_HOSTS.has(u
 
 /**
  * Every browser test: the page may reach only the two test servers, and the tracker starts out of
- * casual mode with no live or pending leg, whatever an earlier test left.
+ * casual mode with no live or pending leg and every aircraft shown on the map, whatever an earlier
+ * test left.
  */
 export const test = base.extend<{ isolated: void }>({
   isolated: [
@@ -15,6 +16,7 @@ export const test = base.extend<{ isolated: void }>({
       // @spec APP-RUN-018
       await context.route((url) => !isTestServer(url), (route) => route.abort("blockedbyclient"));
       await request.put("/api/tracker/casual", { data: { on: false } });
+      await request.put("/api/aircraft/visibility", { data: { visible: true } });
       await request.delete("/api/tracker/leg");
       // Every pending leg, by its id (LIVE-API-003); a server without ids holds at most one.
       const st = (await (await request.get("/api/tracker")).json()) as { pending: unknown };

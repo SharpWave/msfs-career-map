@@ -70,7 +70,7 @@ describe("the icon set", () => {
           onOpenPending={noop}
           onNewFromSim={noop}
         />
-        <Fleet state={state} selectedId={null} onSelect={noop} onFocusHop={noop} reload={async () => {}} form={null} onFormChange={noop} />
+        <Fleet state={state} selectedId={null} onPickAircraft={noop} onFocusHop={noop} reload={async () => {}} form={null} onFormChange={noop} />
       </div>,
     );
     const buttons = screen.getAllByRole("button");

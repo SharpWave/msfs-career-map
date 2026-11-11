@@ -42,6 +42,9 @@ form from it), `FORM` (the aircraft form), `CARD` (the aircraft card header).
 - [x] **FLEET-LOOK-009**: The system shall show a fleet aircraft's badge as its icon inside a circle ringed in its path color, in the aircraft card, the form preview and the parked-aircraft marker on the map.
 - [x] **FLEET-LOOK-010**: When the user clicks the visibility (eye) button on an aircraft card, the system shall toggle whether that aircraft is drawn on the map and dim the card while it is hidden, the button showing a crossed-out eye while it is.
 - [ ] **FLEET-LOOK-011**: If toggling an aircraft's visibility fails, then the system shall show the error on its card.
+- [x] **FLEET-LOOK-014**: The system shall draw the live aircraft and its track (live-tracking), SimBrief routes (simbrief) and the planner's ring and candidates (planner) whether or not the fleet aircraft they belong to is hidden from the map; hiding shall take off the map only that aircraft's logged tour — its hop paths and chevrons, its parked marker and its part in the visited-airport dots (MAP-GEO-001).
+- [x] **FLEET-LOOK-012**: While any fleet aircraft is hidden from the map, the map toolbar shall offer **Show all planes**, with the hover text "Show every hidden plane on the map", which makes every fleet aircraft visible on the map in one request (FLEET-LOOK-013) and reloads the map state; if that request fails, the page shall show the toast "Could not show all planes: message".
+- [x] **FLEET-LOOK-013**: When `PUT /api/aircraft/visibility` is called with `{visible, except}`, the system shall set the map-visibility flag of every fleet aircraft — or, when `except` names an aircraft, of every fleet aircraft but that one, which keeps its flag — to `visible` as one atomic change, and answer every fleet aircraft as `GET /api/aircraft` does; it shall answer HTTP 400 and change nothing when `visible` is not `true` or `false` or `except` is given and is not an aircraft id, and HTTP 404 and change nothing when `except` names no fleet aircraft.
 
 ## Performance and Limit Fields
 
@@ -90,5 +93,5 @@ form from it), `FORM` (the aircraft form), `CARD` (the aircraft card header).
 
 ## The Aircraft Card Header
 
-- [x] **FLEET-CARD-001**: When the user clicks an aircraft card's badge or name, the system shall highlight that aircraft on the map, or clear the highlight if that aircraft is already highlighted.
+- [x] **FLEET-CARD-001**: When the user clicks an aircraft card's badge or name, the system shall highlight that aircraft on the map and open the aircraft panel on it (ACP-OPEN-001), or clear the highlight if the aircraft panel is already open on that aircraft (ACP-OPEN-002).
 - [x] **FLEET-CARD-002**: The aircraft card shall show the livery; "parked at IDENT", or "no hops yet" when it has no hops; the cruise speed when set; the service ceiling in thousands of feet when set; "VFR only" when not IFR capable; and a link icon with "sim", with the bound sim title and livery on hover, when bound — wrapping between these items, never inside one.

@@ -323,6 +323,16 @@ export function routeLine(fixes: OfpFix[]): LatLng[] {
 
 /** Every rendered coordinate, optionally limited to one aircraft or one hop. Used for zoom-to-fit. */
 // @spec MAP-GEO-011
+/**
+ * The aircraft whose highlight fades the rest of the map: the highlighted one while it is drawn.
+ * A highlighted aircraft that is hidden, or gone, fades nothing.
+ */
+// @spec MAP-HL-001, MAP-HL-005
+export function fadingId(selectedId: number | null, aircraft: Aircraft[]): number | null {
+  if (selectedId == null) return null;
+  return aircraft.some((a) => a.id === selectedId && a.visible) ? selectedId : null;
+}
+
 export function focusPoints(data: RenderData, filter?: { aircraftId?: number; hopId?: number }): LatLng[] {
   const pts: LatLng[] = [];
   for (const r of data.hops) {

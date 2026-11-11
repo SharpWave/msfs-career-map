@@ -7,7 +7,7 @@ import { assessCandidate, type Flag } from "./constraints";
 import { planAirports } from "./simbrief";
 import { useTracker } from "./tracker";
 import { fmtDuration } from "./format";
-import { clearInsets, columnReducer, initialColumn, type DrawerKey } from "./layout";
+import { aircraftPanelRoom, clearInsets, columnReducer, initialColumn, listScrollsAlone, type DrawerKey, type OpenPanels } from "./layout";
 import { readPref, writePref } from "./prefs";
 import { clearFragment, parseFragment, reloadPage } from "./navigation";
 import { PAGE_TIMING, airportNotice, startingText, versionNotice, type AirportDataReport } from "./notices";
@@ -16,6 +16,7 @@ import type { AppState, Briefing, HazardKind, Hop, OfpFix, PlanCandidate, PlanRe
 import { MapView, type Basemap, type Focus } from "./components/MapView";
 import { Sidebar } from "./components/Sidebar";
 import { FlightPanel, type PanelSource } from "./components/FlightPanel";
+import { AircraftPanel } from "./components/AircraftPanel";
 import { Menu } from "./components/Menu";
 import { MapToolbar, HAZARD_TOGGLES } from "./components/MapToolbar";
 import { LeftColumn, type DrawerRequest } from "./components/Drawer";
@@ -42,9 +43,9 @@ const windowSize = () => ({ width: window.innerWidth, height: window.innerHeight
 
 /**
  * The page: the map across the whole window, with the top bar, the left column (the sidebar or a
- * drawer) and the flight panel floating over it.
+ * drawer), the aircraft panel and the flight panel floating over it.
  */
-// @spec APP-UI-001, APP-UI-002, APP-UI-017, APP-UI-020, APP-UI-022
+// @spec APP-UI-001, APP-UI-002, APP-UI-017, APP-UI-020, APP-UI-022, APP-UI-043
 export function App() {
   const [state, setState] = useState<AppState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +59,19 @@ export function App() {
   const stateRef = useRef<AppState | null>(null);
   stateRef.current = state;
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  /**
+   * Whether the aircraft panel is open; it shows the highlighted aircraft. Each load of the page
+   * starts with it closed, and opening it moves no focus.
+   */
+  // @spec ACP-OPEN-003, ACP-OPEN-007, ACP-OPEN-008
+  const [aircraftPanelOpen, setAircraftPanelOpen] = useState(false);
+  /** The hop the aircraft panel marks on the map. */
+  const [markedHopId, setMarkedHopId] = useState<number | null>(null);
+  /** A hop opened from outside the aircraft panel's list, whose row the list brings into view. */
+  const [reveal, setReveal] = useState<{ key: number; hopId: number } | null>(null);
+  /** An aircraft the aircraft panel handed to the planner. */
+  const [planFor, setPlanFor] = useState<{ key: number; aircraftId: number } | null>(null);
+  const clearHighlightButton = useRef<HTMLButtonElement>(null);
   const [column, dispatchColumn] = useReducer(columnReducer, initialColumn);
   const [drawerRequest, setDrawerRequest] = useState<DrawerRequest | null>(null);
   const [fleetForm, setFleetForm] = useState<FleetForm>(null);
@@ -288,7 +302,10 @@ export function App() {
         void reload();
         setPlan(null);
         setHopPreset(null);
-        setToast(`Logged ${hop.origin} → ${hop.dest}${hop.duration_min != null ? ` · ${fmtDuration(hop.duration_min)}` : ""}`);
+        // The new path will not appear for an aircraft hidden from the map: say so.
+        // @spec LIVE-CARD-009
+        const hidden = stateRef.current?.aircraft.some((a) => a.id === hop.aircraft_id && !a.visible) ?? false;
+        setToast(`Logged ${hop.origin} → ${hop.dest}${hop.duration_min != null ? ` · ${fmtDuration(hop.duration_min)}` : ""}${hidden ? " · hidden from the map" : ""}`);
         // A live panel follows its own leg into the logbook, and no other hop.
         // @spec PANEL-OPEN-005, PANEL-OPEN-013
         setPanel((p) => (p?.kind === "live" && liveDeparted.current != null && hop.departed_at === liveDeparted.current ? { kind: "hop", hopId: hop.id } : p));
@@ -438,16 +455,25 @@ export function App() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // The aircraft panel shows the highlighted aircraft while it is open: hidden from the map or
+  // not, and through every hand-off its actions make.
+  // @spec ACP-OPEN-003, ACP-VIS-005, ACP-ACT-005
+  const panelAircraft = aircraftPanelOpen && state ? state.aircraft.find((a) => a.id === selectedId) : undefined;
+
   // Which panels cover the map, as of this render; a zoom that opens one says so itself.
-  const covered = { columnShown: !column.hidden, panelOpen: panel != null && state != null };
+  const covered: OpenPanels = { columnShown: !column.hidden, panelOpen: panel != null && state != null, aircraftPanelOpen: panelAircraft != null };
   const coveredRef = useRef(covered);
   coveredRef.current = covered;
   const clear = clearInsets(win, covered);
 
   /** Ask the map to zoom, into the part the panels leave clear once this update has applied. */
-  const requestFocus = (points: LatLng[], opts: { zoom?: number; panelOpen?: boolean } = {}) => {
+  const requestFocus = (points: LatLng[], opts: { zoom?: number; panelOpen?: boolean; aircraftPanelOpen?: boolean } = {}) => {
     if (!points.length) return;
-    const open = { ...coveredRef.current, ...(opts.panelOpen != null ? { panelOpen: opts.panelOpen } : {}) };
+    const open = {
+      ...coveredRef.current,
+      ...(opts.panelOpen != null ? { panelOpen: opts.panelOpen } : {}),
+      ...(opts.aircraftPanelOpen != null ? { aircraftPanelOpen: opts.aircraftPanelOpen } : {}),
+    };
     setFocus({ key: ++seq.current, points, zoom: opts.zoom, clear: clearInsets(windowSize(), open) });
   };
 
@@ -464,9 +490,13 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
-  // Drop the selection if that aircraft was deleted.
+  // Drop the selection, and with it the aircraft panel, if that aircraft was deleted.
+  // @spec MAP-HL-003, ACP-OPEN-006
   useEffect(() => {
-    if (state && selectedId != null && !state.aircraft.some((a) => a.id === selectedId)) setSelectedId(null);
+    if (state && selectedId != null && !state.aircraft.some((a) => a.id === selectedId)) {
+      setSelectedId(null);
+      setAircraftPanelOpen(false);
+    }
   }, [state, selectedId]);
 
   const setBasemap = (b: Basemap) => {
@@ -474,16 +504,55 @@ export function App() {
     writePref("basemap", b);
   };
 
-  const select = (id: number | null) => {
+  /** Highlight an aircraft and fit its tour, or clear the highlight, which closes the aircraft panel. */
+  // @spec ACP-OPEN-004, ACP-OPEN-006
+  const select = (id: number | null, opts: { aircraftPanelOpen?: boolean } = {}) => {
     setSelectedId(id);
-    if (id != null) requestFocus(focusPoints(data, { aircraftId: id }));
+    setReveal(null);
+    if (id == null) setAircraftPanelOpen(false);
+    else requestFocus(focusPoints(data, { aircraftId: id }), opts);
   };
 
-  /** Zoom to a hop and open its profile in the flight panel. */
-  const openHop = (hop: Hop) => {
+  /**
+   * An aircraft picked to look at, from its parked marker or its card: highlight it and open the
+   * aircraft panel on it; picked again while the panel shows it, clear the highlight.
+   */
+  // @spec ACP-OPEN-001, ACP-OPEN-002, MAP-PARK-002, FLEET-CARD-001, MAP-ZOOM-003
+  const pickAircraft = (id: number) => {
+    if (panelAircraft?.id === id) return select(null);
+    setAircraftPanelOpen(true);
+    select(id, { aircraftPanelOpen: true });
+  };
+
+  /**
+   * Zoom to a hop and open its profile in the flight panel. A click on its path also opens the
+   * aircraft panel; opened from anywhere but that panel's own rows, the panel's list brings its row
+   * into view.
+   */
+  // @spec MAP-PATH-004, ACP-LIST-004, ACP-LIST-006
+  const openHop = (hop: Hop, opts: { fromList?: boolean; openAircraftPanel?: boolean } = {}) => {
     setPanel({ kind: "hop", hopId: hop.id });
     setSelectedId(hop.aircraft_id);
-    requestFocus(focusPoints(data, { hopId: hop.id }), { panelOpen: true });
+    if (opts.openAircraftPanel) setAircraftPanelOpen(true);
+    setReveal(opts.fromList ? null : { key: ++seq.current, hopId: hop.id });
+    requestFocus(focusPoints(data, { hopId: hop.id }), { panelOpen: true, ...(opts.openAircraftPanel ? { aircraftPanelOpen: true } : {}) });
+  };
+
+  /** The aircraft panel's close button: the highlight stays, and Clear highlight takes the focus. */
+  // @spec ACP-OPEN-005
+  const closeAircraftPanel = () => {
+    setAircraftPanelOpen(false);
+    clearHighlightButton.current?.focus();
+  };
+
+  // @spec FLEET-LOOK-012
+  const showAllPlanes = async () => {
+    try {
+      await api.setVisibility(true);
+      await reload();
+    } catch (e) {
+      setToast(`Could not show all planes: ${errMsg(e)}`);
+    }
   };
 
   const onPlan = (p: PlanResult | null) => {
@@ -616,10 +685,24 @@ export function App() {
     openDrawer("fleet", "#aircraft-form-new");
   };
 
-  // @spec PLAN-FORM-003
+  // @spec PLAN-FORM-003, ACP-ACT-004
   const editAircraft = (id: number) => {
     setFleetForm({ mode: "edit", id });
     openDrawer("fleet", `#aircraft-${id}`);
+  };
+
+  /** The aircraft panel's Plan next hop: the sidebar shows, and the planner card takes the aircraft. */
+  // @spec ACP-ACT-001, APP-UI-044
+  const planNextHop = (aircraftId: number) => {
+    dispatchColumn({ type: "sidebar" });
+    setPlanFor({ key: ++seq.current, aircraftId });
+  };
+
+  /** The aircraft panel's Log a hop: the hop form takes the aircraft, keeping what was typed. */
+  // @spec ACP-ACT-002
+  const logHopFor = (aircraftId: number) => {
+    setHopPreset({ key: ++seq.current, aircraftId });
+    openDrawer("log", ".hop-form");
   };
 
   const notice = airportNotice(airportData);
@@ -627,11 +710,16 @@ export function App() {
   const vars = {
     "--clear-top": `${clear.top}px`,
     "--clear-left": `${clear.left}px`,
+    "--clear-right": `${clear.right}px`,
     "--clear-bottom": `${clear.bottom}px`,
   } as CSSProperties;
 
   return (
-    <div className={`app${column.hidden ? " column-hidden" : ""}${panel && state ? " panel-open" : ""}`} data-basemap={basemap} style={vars}>
+    <div
+      className={`app${column.hidden ? " column-hidden" : ""}${panel && state ? " panel-open" : ""}${panelAircraft ? " aircraft-panel-open" : ""}`}
+      data-basemap={basemap}
+      style={vars}
+    >
       <header className="top-bar">
         <Menu
           ref={menuButton}
@@ -656,8 +744,11 @@ export function App() {
           onFitAll={() => requestFocus(focusPoints(data))}
           highlighted={selectedId != null}
           onClearHighlight={() => select(null)}
+          clearHighlightRef={clearHighlightButton}
           planShown={plan != null}
           onClearPlan={() => setPlan(null)}
+          anyHidden={state?.aircraft.some((a) => !a.visible) ?? false}
+          onShowAll={() => void showAllPlanes()}
         />
       </header>
 
@@ -689,6 +780,7 @@ export function App() {
               onNewFromSim={newFromSim}
               showPending={showPending}
               logging={pendingLogging}
+              planFor={planFor}
             />
           }
           drawers={{
@@ -725,7 +817,15 @@ export function App() {
                 </button>
               ),
               body: (
-                <Fleet state={state} selectedId={selectedId} onSelect={select} onFocusHop={openHop} reload={reload} form={fleetForm} onFormChange={setFleetForm} />
+                <Fleet
+                  state={state}
+                  selectedId={selectedId}
+                  onPickAircraft={pickAircraft}
+                  onFocusHop={(h) => openHop(h)}
+                  reload={reload}
+                  form={fleetForm}
+                  onFormChange={setFleetForm}
+                />
               ),
             },
           }}
@@ -746,13 +846,33 @@ export function App() {
         />
       )}
 
+      {/* The aircraft panel: the highlighted aircraft, beside the map and above the flight panel. */}
+      {panelAircraft && state && (
+        <AircraftPanel
+          aircraft={panelAircraft}
+          state={state}
+          currentHopId={panel?.kind === "hop" ? panel.hopId : null}
+          reveal={reveal}
+          listAlone={listScrollsAlone(aircraftPanelRoom(win, { panelOpen: covered.panelOpen }), !panelAircraft.icon.startsWith("builtin:"))}
+          reload={reload}
+          onClose={closeAircraftPanel}
+          onOpenHop={(h, from) => openHop(h, { fromList: from === "row" })}
+          onMarkHop={setMarkedHopId}
+          onPlanNext={() => planNextHop(panelAircraft.id)}
+          onLogHop={() => logHopFor(panelAircraft.id)}
+          onZoomTour={() => requestFocus(focusPoints(data, { aircraftId: panelAircraft.id }))}
+          onEditAircraft={() => editAircraft(panelAircraft.id)}
+        />
+      )}
+
       <main className="map-layer">
         {state ? (
           <MapView
             data={data}
             aircraft={state.aircraft}
             selectedId={selectedId}
-            onSelect={select}
+            onPickAircraft={pickAircraft}
+            markedHopId={panelAircraft ? markedHopId : null}
             focus={focus}
             basemap={basemap}
             plan={plan}
@@ -765,7 +885,7 @@ export function App() {
             onHazardStatus={setHazardStatus}
             onPickCandidate={pickCandidate}
             live={live}
-            onOpenHop={openHop}
+            onOpenHop={(h) => openHop(h, { openAircraftPanel: true })}
             routes={routes}
             planAirports={planAirportMarks}
             clear={clear}

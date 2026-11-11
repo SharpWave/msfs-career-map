@@ -20,7 +20,7 @@ import { headMarkerHtml, hopStroke } from "../icons";
 import { applyFocus, type FitMap } from "../fit";
 import type { Insets } from "../layout";
 import { prefersReducedMotion } from "../prefs";
-import { copiesInView, copyShifts, lonSpan, planSpan, ringOutline, shiftLine, shiftPoint, type AirportNode, type Copies, type RenderData, type RenderHop } from "../paths";
+import { copiesInView, copyShifts, fadingId, lonSpan, planSpan, ringOutline, shiftLine, shiftPoint, type AirportNode, type Copies, type RenderData, type RenderHop } from "../paths";
 import type { Aircraft, PlanCandidate, PlanResult } from "../types";
 import { RunwayInfo } from "./RunwayInfo";
 import { AirportPopup } from "./AirportPopup";
@@ -107,7 +107,10 @@ interface Props {
   data: RenderData;
   aircraft: Aircraft[];
   selectedId: number | null;
-  onSelect: (id: number | null) => void;
+  /** A parked aircraft's marker was clicked: the page highlights it and opens its panel, or clears the highlight. */
+  onPickAircraft: (id: number) => void;
+  /** The hop the aircraft panel marks, drawn again over the other paths. */
+  markedHopId?: number | null;
   focus: Focus | null;
   basemap: Basemap;
   plan: PlanResult | null;
@@ -169,12 +172,13 @@ export function MapView(props: Props) {
 }
 
 /** Everything over the basemap, bottom to top, each shape on every world copy in view. */
-// @spec MAP-GEO-013, MAP-GEO-014, MAP-GEO-019, MAP-PATH-005, PLAN-DRAW-001
+// @spec MAP-GEO-013, MAP-GEO-014, MAP-GEO-019, MAP-PATH-005, MAP-HL-001, MAP-HL-005, PLAN-DRAW-001
 function Layers({
   data,
   aircraft,
   selectedId,
-  onSelect,
+  onPickAircraft,
+  markedHopId,
   plan,
   metars,
   flags,
@@ -192,6 +196,9 @@ function Layers({
   const { hops, nodes, heads } = data;
   const { copies } = useWorldCopies();
   const byId = new Map(aircraft.map((a) => [a.id, a]));
+  // The highlight fades the others only while the highlighted aircraft is itself drawn.
+  const fade = fadingId(selectedId, aircraft);
+  const markedHop = markedHopId != null ? hops.find((r) => r.hop.id === markedHopId) : undefined;
   const planAircraft = plan ? byId.get(plan.aircraft_id) : undefined;
   const spans = useMemo(() => new Map(hops.map((r) => [r.hop.id, lonSpan(r.pts)])), [hops]);
   const ring = useMemo(
@@ -279,7 +286,7 @@ function Layers({
             key={`case-${r.hop.id}@${d}`}
             positions={shiftLine(r.pts, d)}
             interactive={false}
-            pathOptions={{ color: "#05080c", weight: 9, opacity: isDim(r.aircraft, selectedId) ? DIM.casing : 0.45, lineCap: "round", lineJoin: "round" }}
+            pathOptions={{ color: "#05080c", weight: 9, opacity: isDim(r.aircraft, fade) ? DIM.casing : 0.45, lineCap: "round", lineJoin: "round" }}
           />
         )),
       )}
@@ -290,8 +297,8 @@ function Layers({
           <Polyline
             key={`hop-${r.hop.id}@${d}`}
             positions={shiftLine(r.pts, d)}
-            pathOptions={{ className: `hop-path hop-${r.hop.id}`, color: hopStroke(r.aircraft.color, r.hop.seq), weight: 5, opacity: isDim(r.aircraft, selectedId) ? DIM.path : 0.95, lineCap: "round", lineJoin: "round" }}
-            eventHandlers={{ click: () => (onOpenHop ? onOpenHop(r.hop) : onSelect(r.aircraft.id)) }}
+            pathOptions={{ className: `hop-path hop-${r.hop.id}`, color: hopStroke(r.aircraft.color, r.hop.seq), weight: 5, opacity: isDim(r.aircraft, fade) ? DIM.path : 0.95, lineCap: "round", lineJoin: "round" }}
+            eventHandlers={{ click: () => (onOpenHop ? onOpenHop(r.hop) : onPickAircraft(r.aircraft.id)) }}
           >
             <Tooltip sticky className="tip" opacity={1}>
               <HopTip r={r} />
@@ -300,9 +307,12 @@ function Layers({
         )),
       )}
 
+      {/* 2b. the hop the aircraft panel marks, over every path and under the airport dots */}
+      {markedHop && copyShifts(spans.get(markedHop.hop.id)!, copies).map((d) => <HopMark key={`mark-${markedHop.hop.id}@${d}`} r={markedHop} shift={d} />)}
+
       {/* 3. direction chevrons at each hop's midpoint */}
       {hops.map((r) => {
-        if (r.nm < 8 || isDim(r.aircraft, selectedId)) return null;
+        if (r.nm < 8 || isDim(r.aircraft, fade)) return null;
         const mid = Math.floor(r.pts.length / 2);
         const brg = bearing(r.pts[Math.max(0, mid - 1)], r.pts[Math.min(r.pts.length - 1, mid + 1)]);
         const icon = divIcon(
@@ -318,7 +328,7 @@ function Layers({
 
       {/* 4. airports visited, with arrival/departure history on hover */}
       {nodes.map((n) => {
-        const dim = selectedId != null && !n.aircraftIds.has(selectedId);
+        const dim = fade != null && !n.aircraftIds.has(fade);
         const single = n.aircraftIds.size === 1 ? byId.get([...n.aircraftIds][0]) : undefined;
         return at(n.pos).map((d) => (
           <CircleMarker
@@ -345,9 +355,9 @@ function Layers({
             key={`head-${a.id}@${d}`}
             position={shiftPoint(pos, d)}
             zIndexOffset={selectedId === a.id ? 1000 : 0}
-            opacity={isDim(a, selectedId) ? DIM.head : 1}
+            opacity={isDim(a, fade) ? DIM.head : 1}
             icon={icon}
-            eventHandlers={{ click: () => onSelect(selectedId === a.id ? null : a.id) }}
+            eventHandlers={{ click: () => onPickAircraft(a.id) }}
           >
             <Tooltip direction="top" offset={[offset[0], -24 + offset[1]]} className="tip" opacity={1}>
               <div className="tip-title" style={{ color: a.color }}>
@@ -364,15 +374,49 @@ function Layers({
       {/* 6. the aircraft being flown right now, with its track so far */}
       {live && (
         <ErrorBoundary label="Live aircraft" className="map-notice">
-          <LiveLayer live={live} aircraft={aircraft} />
+          <LiveLayer live={live} aircraft={aircraft} onPickAircraft={onPickAircraft} />
         </ErrorBoundary>
       )}
     </>
   );
 }
 
-function isDim(a: Aircraft, selectedId: number | null) {
-  return selectedId != null && a.id !== selectedId;
+/** Whether an aircraft is faded: another one's highlight is fading the map (`fadingId`). */
+function isDim(a: Aircraft, fade: number | null) {
+  return fade != null && a.id !== fade;
+}
+
+/**
+ * The marked hop on one world copy: its path drawn again with a white casing under its own color,
+ * at full strength whatever a highlight fades, taking no clicks.
+ */
+// @spec MAP-HL-004
+function HopMark({ r, shift }: { r: RenderHop; shift: number }) {
+  const casing = useRef<L.Polyline>(null);
+  const line = useRef<L.Polyline>(null);
+  const positions = useMemo(() => shiftLine(r.pts, shift), [r.pts, shift]);
+  // Leaflet draws a path over everything added to its layer before it, which would put the mark,
+  // added last, over the airport dots: move it to just under the first dot (MAP-PATH-005).
+  useEffect(() => {
+    for (const layer of [casing.current, line.current]) {
+      const el = layer?.getElement();
+      const group = el?.parentNode;
+      const dot = group?.querySelector(":scope > .airport-dot");
+      if (el && group && dot) group.insertBefore(el, dot);
+    }
+  });
+  const shared = { lineCap: "round", lineJoin: "round" } as const;
+  return (
+    <>
+      <Polyline ref={casing} positions={positions} interactive={false} pathOptions={{ ...shared, className: `hop-mark hop-mark-${r.hop.id}`, color: "#ffffff", weight: 11, opacity: 0.9 }} />
+      <Polyline
+        ref={line}
+        positions={positions}
+        interactive={false}
+        pathOptions={{ ...shared, className: `hop-mark hop-mark-${r.hop.id}`, color: hopStroke(r.aircraft.color, r.hop.seq), weight: 5, opacity: 1 }}
+      />
+    </>
+  );
 }
 
 function legLine(c: PlanCandidate): string {

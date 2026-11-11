@@ -31,7 +31,7 @@ credit on the terrain line, which the data's CC BY 4.0 licence requires — awai
 - docs/intent/planner/planner-design.md
 
 ### EARS
-- docs/intent/planner/planner-specs.md (92 specs)
+- docs/intent/planner/planner-specs.md (93 specs)
 
 ### Tests
 - tests/tour-map/map-toolbar.test.tsx — PLAN-RUN-002
@@ -80,12 +80,12 @@ is parked, and show which of them live weather or darkness rules out.
 | Candidate search | PLAN-FIND-001 to 011 | 9 | 0 | 2 |
 | Live checks | PLAN-FLAG-001 to 010 | 8 | 0 | 2 |
 | Terrain along a leg | PLAN-TERR-001 to 008 | 6 | 0 | 2 |
-| Planner form | PLAN-FORM-001 to 012 | 9 | 0 | 3 |
+| Planner form | PLAN-FORM-001 to 013 | 10 | 0 | 3 |
 | Results in the card | PLAN-LIST-001 to 010 | 9 | 0 | 1 |
 | Plan lifecycle | PLAN-RUN-001 to 007 | 7 | 0 | 0 |
 | Planner layers on the map | PLAN-DRAW-001 to 006 | 6 | 0 | 0 |
 
-**Summary:** 82 of 92 specs implemented; 10 gaps; none deferred. 36 specs have tests; the other 46
+**Summary:** 83 of 93 specs implemented; 10 gaps; none deferred. 37 specs have tests; the other 46
 implemented specs have none.
 
 ## Key Findings
