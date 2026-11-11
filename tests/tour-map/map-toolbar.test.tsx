@@ -9,8 +9,8 @@ import type { HazardKind } from "../../src/client/types.ts";
 type Extra = Partial<Omit<MapToolbarProps, "basemap" | "onBasemap" | "nightOn" | "onToggleNight" | "hazards" | "onToggleHazard" | "layersOpen" | "onLayersOpenChange">>;
 
 /** The toolbar with its own view state, as the page keeps it. */
-function Harness(extra: Extra & { initialHazards?: HazardKind[]; initialNight?: boolean }) {
-  const [basemap, setBasemap] = useState<Basemap>("dark");
+function Harness(extra: Extra & { initialHazards?: HazardKind[]; initialNight?: boolean; initialBasemap?: Basemap }) {
+  const [basemap, setBasemap] = useState<Basemap>(extra.initialBasemap ?? "dark");
   const [nightOn, setNightOn] = useState(extra.initialNight ?? false);
   const [hazards, setHazards] = useState(new Set<HazardKind>(extra.initialHazards ?? []));
   const [open, setOpen] = useState(false);
@@ -52,7 +52,7 @@ describe("the map toolbar", () => {
     render(<Harness />);
     expect(layersButton().getAttribute("aria-expanded")).toBe("false");
     expect(screen.getByRole("button", { name: "Fit all" })).toBeTruthy();
-    for (const name of ["Dark", "Light", "Satellite", "Night shading", "Ice", "Storms"]) {
+    for (const name of ["Dark", "Light", "Topo", "Satellite", "Hybrid", "Sectional", "Night shading", "Ice", "Storms"]) {
       expect(screen.queryByRole("button", { name })).toBeNull();
     }
   });
@@ -62,9 +62,11 @@ describe("the map toolbar", () => {
     render(<Harness />);
     fireEvent.click(layersButton());
     const menu = screen.getByRole("dialog", { name: "Layers" });
-    for (const name of ["Dark", "Light", "Satellite", "Night shading", "Ice", "Turb", "IFR", "Storms"]) {
+    for (const name of ["Dark", "Light", "Topo", "Satellite", "Hybrid", "Sectional", "Night shading", "Ice", "Turb", "IFR", "Storms"]) {
       expect(within(menu).getByRole("button", { name })).toBeTruthy();
     }
+    const basemaps = Array.from(menu.querySelectorAll(".seg button")).map((b) => b.textContent);
+    expect(basemaps).toEqual(["Dark", "Light", "Topo", "Satellite", "Hybrid", "Sectional"]);
     for (const covers of ["Icing", "Turbulence", "IFR and mountain obscuration", "Convective, volcanic ash, tropical cyclones"]) {
       expect(menu.textContent).toContain(covers);
     }
@@ -82,6 +84,45 @@ describe("the map toolbar", () => {
     fireEvent.click(within(screen.getByRole("dialog", { name: "Layers" })).getByRole("button", { name: "Night shading" }));
     expect(pressed("Night shading")).toBe("true");
     expect(screen.getByRole("dialog", { name: "Layers" })).toBeTruthy();
+  });
+
+  // @spec MAP-VIEW-006
+  it("shows one basemap as chosen, whichever of the six it is", () => {
+    render(<Harness />);
+    fireEvent.click(layersButton());
+    const names = ["Dark", "Light", "Topo", "Satellite", "Hybrid", "Sectional"];
+    for (const name of names) {
+      fireEvent.click(within(screen.getByRole("dialog", { name: "Layers" })).getByRole("button", { name }));
+      expect(names.filter((n) => pressed(n) === "true")).toEqual([name]);
+    }
+  });
+
+  // @spec MAP-VIEW-010
+  it("says under the basemap choice that the sectional covers the US and appears on zooming in, for Sectional alone", () => {
+    render(<Harness />);
+    fireEvent.click(layersButton());
+    const menu = screen.getByRole("dialog", { name: "Layers" });
+    const note = () => menu.querySelector(".layers-note");
+    for (const name of ["Dark", "Light", "Topo", "Satellite", "Hybrid"]) {
+      fireEvent.click(within(menu).getByRole("button", { name }));
+      expect(note()).toBeNull();
+    }
+    fireEvent.click(within(menu).getByRole("button", { name: "Sectional" }));
+    expect(note()?.textContent).toMatch(/US only/);
+    expect(note()?.textContent).toMatch(/zoom in/);
+    // Under the basemap choice, ahead of night shading.
+    const group = note()!.closest(".layers-group")!;
+    expect(group.querySelector(".seg")).not.toBeNull();
+    expect(group.querySelector(".seg")!.compareDocumentPosition(note()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(within(menu).getByRole("button", { name: "Dark" }));
+    expect(note()).toBeNull();
+  });
+
+  // @spec MAP-VIEW-010
+  it("shows the sectional's note when the menu opens on a remembered Sectional", () => {
+    render(<Harness initialBasemap="sectional" />);
+    fireEvent.click(layersButton());
+    expect(screen.getByRole("dialog", { name: "Layers" }).querySelector(".layers-note")).not.toBeNull();
   });
 
   // @spec MAP-HAZ-005

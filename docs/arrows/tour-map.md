@@ -39,12 +39,15 @@ the facts the map's intent rests on are the HLD's System Design.
 - tests/tour-map/copies.test.ts — MAP-GEO-013 to 017, MAP-GEO-020, MAP-GEO-021, MAP-HAZ-010, MAP-NIGHT-001
 - tests/tour-map/fit.test.ts — MAP-GEO-018, MAP-ZOOM-007 to 011
 - tests/tour-map/ring-outline.test.ts — MAP-GEO-021, MAP-GEO-022 (the planner's ring placed as its outline, the zoom box fitted to it)
-- tests/tour-map/map-toolbar.test.tsx — MAP-VIEW-006, MAP-VIEW-007, MAP-HAZ-005, MAP-HAZ-008, MAP-HL-002
+- tests/tour-map/basemaps.test.ts — MAP-VIEW-001, MAP-VIEW-002, MAP-VIEW-008 (the credits' wording), MAP-VIEW-009, MAP-VIEW-010
+- tests/tour-map/map-toolbar.test.tsx — MAP-VIEW-006, MAP-VIEW-007, MAP-VIEW-010, MAP-HAZ-005, MAP-HAZ-008, MAP-HL-002
 - tests/tour-map/hop-tip.test.tsx — MAP-PATH-003
 - tests/e2e/layout.spec.ts — MAP-VIEW-005, MAP-ZOOM-007
+- tests/e2e/basemaps.spec.ts — MAP-VIEW-001, MAP-VIEW-002, MAP-VIEW-008 (the credits shown), MAP-VIEW-009 (which tiles the page asks for; the browser tests block the tiles themselves)
 - tests/e2e/world-copies.spec.ts — MAP-GEO-013, MAP-GEO-014, MAP-GEO-016, MAP-GEO-019, MAP-VIEW-004, MAP-DOT-003, MAP-HAZ-008, MAP-HAZ-010
 
 ### Code
+- src/client/basemaps.ts — the six basemaps (tiles, levels, credits, Sectional's note), `parseBasemap`
 - src/client/paths.ts — geometry, placing shapes, world copies (`copiesInView`, `copyShifts`, `shiftLine`)
 - src/client/geo.ts
 - src/client/components/WorldCopies.tsx — the copies in view, shared with every layer
@@ -82,12 +85,13 @@ parked and when airports were visited, and overlay daylight and weather hazards.
 | Parked markers | MAP-PARK-001 to 002 | 2 | 0 | 0 |
 | Highlighting and the marked hop | MAP-HL-001 to 005 | 5 | 0 | 0 |
 | Zooming | MAP-ZOOM-001 to 011 | 11 | 0 | 0 |
-| Basemaps and view | MAP-VIEW-001 to 008 | 7 | 0 | 1 |
+| Basemaps and view | MAP-VIEW-001 to 010 | 9 | 0 | 1 |
 | Night shading | MAP-NIGHT-001 to 002 | 2 | 0 | 0 |
 | Weather hazards | MAP-HAZ-001 to 012 | 8 | 0 | 4 |
 
-**Summary:** 64 of 70 specs implemented; 6 gaps; none deferred. 44 specs have tests, all of them
-implemented; 20 implemented specs have none.
+**Summary:** 66 of 72 specs implemented; 6 gaps; none deferred. 49 specs have tests, 48 of them
+implemented (MAP-VIEW-008's credits are tested, its links in a new tab still a gap); 18 implemented
+specs have none.
 
 ## Key Findings
 
@@ -98,12 +102,13 @@ implemented; 20 implemented specs have none.
    all-failed set is cached for 10 minutes and the toolbar says "0 areas" (MAP-HAZ-004, MAP-HAZ-011,
    MAP-HAZ-012).
 2. **Basemap tiles in a distributed app** — the Light basemap loads from tile.openstreetmap.org
-   (MapView.tsx:52), whose tile usage policy treats a distributed app as heavy use needing
-   permission; whether Esri's terms allow its keyless ArcGIS Online services (Dark, Satellite, and
-   Light Gray Canvas, the candidate to replace Light) in a distributed app has not been checked. An
+   (basemaps.ts), whose tile usage policy treats a distributed app as heavy use needing
+   permission; whether Esri's terms allow its keyless ArcGIS Online services (Dark, Topo, Satellite,
+   Hybrid, the tiles beneath Sectional, and Light Gray Canvas, the candidate to replace Light) in a
+   distributed app has not been checked, nor whether the FAA sets terms for its sectional tiles. An
    open question in the LLD for the user, to settle before the first public release.
 3. **Attribution links navigate the page away in a browser tab** — Leaflet's own link and the
-   OpenStreetMap link (MapView.tsx:53) have no target; the installed app's window sends them to the
+   OpenStreetMap link (basemaps.ts) have no target; the installed app's window sends them to the
    default browser, a browser tab loses the page. The credit itself is in place (MAP-VIEW-008).
    Across segments: once MAP-VIEW-008's links open in a new tab, they reach the desktop shell's
    new-window rule (DESK-SHELL-WIN-007, which lists the map's attribution) rather than its navigation

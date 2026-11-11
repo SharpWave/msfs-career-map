@@ -150,7 +150,7 @@ flowchart LR
   API -- "terrain, winds aloft" --> OM["Open-Meteo"]
   API -- photos, blurbs --> WP["Wikipedia"]
   API -- latest plan, types --> SB["SimBrief"]
-  Page -- "map tiles, photos" --> Tiles["Esri, OpenStreetMap,<br/>Wikimedia"]
+  Page -- "map tiles, photos" --> Tiles["Esri, OpenStreetMap,<br/>FAA, Wikimedia"]
   Browser -- dispatch links --> SB
   Shell -- new versions --> GH["GitHub Releases"]
 ```

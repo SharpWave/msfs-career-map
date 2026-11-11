@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { Circle, CircleMarker, MapContainer, Marker, Polygon, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
+import { BASEMAPS, MAX_ZOOM, type Basemap } from "../basemaps";
 import { bearing, type LatLng } from "../geo";
 import { aircraftLabel, airportTypeLabel, airportWhere, fmtDateTime, fmtDuration, fmtFt, fmtNm, hopDurationMin, runwaySummary } from "../format";
 import { CATEGORY_COLORS, categoryFor, isFresh, metarBrief, metarStation, type FlightCategory, type MetarMap } from "../metar";
@@ -29,36 +30,7 @@ import { WorldCopies, useWorldCopies } from "./WorldCopies";
 /** How strongly everything that is not the highlighted aircraft fades back. */
 const DIM = { path: 0.45, casing: 0.25, head: 0.6, airport: 0.5 };
 
-export type Basemap = "dark" | "light" | "satellite";
-
-interface TileSpec {
-  url: string;
-  attribution: string;
-  maxZoom: number;
-  /** Optional label overlay drawn above the base tiles. */
-  labels?: string;
-}
-
-const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services";
-
-const TILES: Record<Basemap, TileSpec> = {
-  dark: {
-    url: `${ESRI}/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
-    labels: `${ESRI}/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`,
-    attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ",
-    maxZoom: 16,
-  },
-  light: {
-    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19,
-  },
-  satellite: {
-    url: `${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`,
-    attribution: "Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
-    maxZoom: 19,
-  },
-};
+export type { Basemap };
 
 /**
  * Dot fill by runway surface. Chosen to stay clear of the flight-category ring colors
@@ -154,13 +126,22 @@ const copyRange = ({ lo, hi }: Copies) => Array.from({ length: hi - lo + 1 }, (_
  */
 // @spec MAP-VIEW-004
 export function MapView(props: Props) {
-  const tiles = TILES[props.basemap];
+  const tiles = BASEMAPS[props.basemap];
   // Vector layers are rendered a quarter of the view beyond each edge, as far as the copies in view reach.
   const renderer = useMemo(() => L.svg({ padding: 0.25 }), []);
   return (
     <MapContainer center={[39, -96]} zoom={4} minZoom={2} renderer={renderer} className="map" zoomControl={false}>
-      <TileLayer key={props.basemap} url={tiles.url} attribution={tiles.attribution} maxNativeZoom={tiles.maxZoom} maxZoom={19} />
-      {tiles.labels && <TileLayer key={`${props.basemap}-labels`} url={tiles.labels} maxNativeZoom={tiles.maxZoom} maxZoom={19} zIndex={2} />}
+      {tiles.layers.map((l, i) => (
+        <TileLayer
+          key={`${props.basemap}-${i}`}
+          url={l.url}
+          attribution={i === 0 ? tiles.attribution : undefined}
+          minZoom={l.minZoom}
+          maxNativeZoom={l.maxNativeZoom}
+          maxZoom={MAX_ZOOM}
+          zIndex={i + 1}
+        />
+      ))}
       <PopupPadding clear={props.clear} />
       <Resizer />
       <WorldCopies>

@@ -814,7 +814,8 @@ accent. The map is the picture; the panels are the instruments laid over it.
 menus, flight panel, map popups and tooltips, toast and banner — is frosted glass: a dark tint over
 a blur of the map behind it, a hairline light edge and a soft shadow. The tint is set so text keeps
 its contrast on any basemap: thicker in the drawers, whose forms are dense, and thicker on every
-panel while the Light basemap is shown, since a light tint over white tiles turns grey. Fields
+panel while a bright basemap — Light, Topo or Sectional — is shown, since a light tint over pale
+tiles turns grey. Fields
 inside a panel are a shade darker than the panel. Nothing inside a panel is glass again: what pops
 up within one — airport suggestions, the profile chart's readout — is solid.
 
@@ -1133,7 +1134,7 @@ logbook in a folder of its own, and the data locations as the server's inputs gi
 | Panels over the map | The map keeps its full size; zooms fit into the part the panels leave clear | Shrink the map to the uncovered area | The glass needs the map behind it, and a map that resized whenever a panel opened would jump under the user. |
 | Working out the clear part | From which panels are open and their set sizes, at zoom time | Measuring the panels' boxes after layout | Opening a hop opens the flight panel and asks for the zoom in one update; a measurement taken then would miss the panel that is opening and fit the hop under it. |
 | Left column | One column showing the open drawer, else the sidebar; the toggle hides whichever it shows | A drawer layered over a visible sidebar; separate toggles | Glass over glass would blur the sidebar's cards through the drawer, and one column gives the clear part one left edge. |
-| Glass tint | Thicker in drawers and over the Light basemap | One tint everywhere | Text has to stay legible over white tiles and in dense forms; the dark and satellite basemaps allow a lighter tint. |
+| Glass tint | Thicker in drawers and over the bright basemaps (Light, Topo, Sectional) | One tint everywhere | Text has to stay legible over pale tiles and in dense forms; the dark and imagery basemaps (Dark, Satellite, Hybrid) allow a lighter tint. |
 | Blur | Capped at 12 px; none while reduced transparency is asked for | A stronger blur; blur always | The page shares the GPU with the sim, and the panels are recomposited on every pan and live redraw. |
 | Typeface | B612 and B612 Mono, packaged with the app | The system font; Barlow with B612 Mono; fonts from a font service | Drawn for legibility on cockpit displays, which suits a flight-sim instrument panel; packaging them keeps the app keyless, local and working offline and in tests. |
 | Icons | One inline SVG set | Emoji and unicode glyphs; an icon library | Glyphs render differently by font and platform and mix styles; a dozen icons do not need a dependency. |

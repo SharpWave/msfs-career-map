@@ -395,8 +395,8 @@ start-up work is coming; a window already showing the page when quitting begins 
 An address bound for the default browser is parsed first: only an http or https address with a host is
 handed on, and only in its re-serialised form.
 
-**What the page keeps.** The page's own requests are not filtered: map tiles from Esri and
-OpenStreetMap, Wikimedia photos and aircraft icons from any http or https address (fleet, FLEET-REC-018)
+**What the page keeps.** The page's own requests are not filtered: map tiles from Esri,
+OpenStreetMap and the FAA, Wikimedia photos and aircraft icons from any http or https address (fleet, FLEET-REC-018)
 load as they do in a browser tab. The window sends Chromium's referrer, which OpenStreetMap's tile servers require of a browser, and
 Chromium's user agent with Electron's token replaced by the app's own,
 `MSFSCareerMap/<version> (+https://github.com/SharpWave/msfs-career-map)` — the form the server's own

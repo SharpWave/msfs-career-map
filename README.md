@@ -285,8 +285,10 @@ reloads itself.
   Wikipedia lead image and blurb, the live METAR with flight category (via aviationweather.gov),
   runways, and links to Wikipedia, the official site, SkyVector and the decoded METAR/TAF page.
   Wikipedia summaries are cached in the database for a month; METARs for five minutes.
-- **Basemaps** (in **Layers**): Dark (Esri), Light (OpenStreetMap), Satellite (Esri imagery). All
-  keyless; the panels darken over the Light map so they stay readable.
+- **Basemaps** (in **Layers**): Dark (Esri), Light (OpenStreetMap), Topo (Esri), Satellite (Esri
+  imagery), Hybrid (the imagery with borders and place names) and Sectional (the FAA's VFR charts:
+  US only, from zoom level 8 inward, over the Topo map everywhere else). All keyless; the panels
+  darken over the Light, Topo and Sectional maps so they stay readable.
 - **Look**: the interface is set in B612, the typeface Airbus drew for cockpit displays (bundled
   with the app, so nothing is fetched from a font service). Status colors follow the cockpit
   convention: green normal, amber caution, red warning; orange marks actions. When the browser

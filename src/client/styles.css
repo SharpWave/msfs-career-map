@@ -59,8 +59,9 @@
   }
 }
 
-/* A light tint over white tiles turns grey; the glass thickens so text keeps its contrast. */
-.app[data-basemap="light"] {
+/* A light tint over pale tiles turns grey; the glass thickens so text keeps its contrast. */
+/* @spec APP-UI-023 */
+.app[data-bright] {
   --glass: rgba(12, 17, 24, 0.86);
   --glass-heavy: rgba(12, 17, 24, 0.93);
 }
@@ -991,6 +992,27 @@ label.check span {
 
 .seg button:last-child {
   border-radius: 0 var(--r-control) var(--r-control) 0;
+}
+
+/* Six basemaps do not fit one row of the Layers menu: three to a row, each a button of its own. */
+.seg.seg-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.seg.seg-grid button,
+.seg.seg-grid button:first-child,
+.seg.seg-grid button:last-child {
+  margin-left: 0;
+  border-radius: var(--r-control);
+}
+
+.layers-note {
+  margin-top: 8px;
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .seg button.on,

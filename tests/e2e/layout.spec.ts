@@ -156,7 +156,7 @@ test.describe("the covered part of the map", () => {
 
 test.describe("the look", () => {
   // @spec APP-UI-023
-  test("panels are frosted glass, blurred at most 12 px, with a heavier tint in drawers and over the Light basemap", async ({ page }) => {
+  test("panels are frosted glass, blurred at most 12 px, with a heavier tint in drawers and over the bright basemaps", async ({ page }) => {
     await page.goto("/");
     const blur = await style(page, ".card-plan", "backdrop-filter");
     const px = Number(blur.match(/blur\(([\d.]+)px\)/)?.[1]);
@@ -171,9 +171,15 @@ test.describe("the look", () => {
     await page.getByRole("button", { name: "Close" }).click();
 
     await page.getByRole("button", { name: "Layers" }).click();
-    await page.getByRole("dialog", { name: "Layers" }).getByRole("button", { name: "Light" }).click();
-    expect(alphaOf(await style(page, ".card-plan", "background-color"))).toBeGreaterThan(card);
-    await page.getByRole("dialog", { name: "Layers" }).getByRole("button", { name: "Dark" }).click();
+    const layers = page.getByRole("dialog", { name: "Layers" });
+    for (const bright of ["Light", "Topo", "Sectional"]) {
+      await layers.getByRole("button", { name: bright }).click();
+      expect(alphaOf(await style(page, ".card-plan", "background-color")), bright).toBeGreaterThan(card);
+    }
+    for (const other of ["Satellite", "Hybrid", "Dark"]) {
+      await layers.getByRole("button", { name: other }).click();
+      expect(alphaOf(await style(page, ".card-plan", "background-color")), other).toBe(card);
+    }
   });
 
   // @spec APP-UI-024

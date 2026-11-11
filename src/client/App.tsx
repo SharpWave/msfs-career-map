@@ -9,6 +9,7 @@ import { useTracker } from "./tracker";
 import { fmtDuration } from "./format";
 import { aircraftPanelRoom, clearInsets, columnReducer, initialColumn, listScrollsAlone, type DrawerKey, type OpenPanels } from "./layout";
 import { readPref, writePref } from "./prefs";
+import { BASEMAPS, parseBasemap } from "./basemaps";
 import { clearFragment, parseFragment, reloadPage } from "./navigation";
 import { PAGE_TIMING, airportNotice, startingText, versionNotice, type AirportDataReport } from "./notices";
 import { PAGE_VERSION } from "./version";
@@ -38,7 +39,7 @@ const RELOADED_FOR = "msfs-career-map.reloadedFor";
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const readBasemap = () => readPref<Basemap>("basemap", "dark", (v) => (v === "light" || v === "satellite" ? v : "dark"));
+const readBasemap = () => readPref<Basemap>("basemap", "dark", parseBasemap);
 const windowSize = () => ({ width: window.innerWidth, height: window.innerHeight });
 
 /**
@@ -718,6 +719,7 @@ export function App() {
     <div
       className={`app${column.hidden ? " column-hidden" : ""}${panel && state ? " panel-open" : ""}${panelAircraft ? " aircraft-panel-open" : ""}`}
       data-basemap={basemap}
+      data-bright={BASEMAPS[basemap].bright ? "" : undefined}
       style={vars}
     >
       <header className="top-bar">

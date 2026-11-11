@@ -223,22 +223,42 @@ window as in a browser), the map jumps to the request's view instead of flying.
 
 ## Basemaps and View Preferences
 
-- **Basemaps** ([MapView.tsx:44-63](../../../src/client/components/MapView.tsx#L44-L63)): Dark
-  (Esri dark gray with a label overlay), Light (OpenStreetMap), Satellite (Esri imagery), all
-  keyless. Every basemap zooms to 19, over-zooming tiles past their native maximum. The page loads
-  tiles straight from their hosts, in the installed app's window as in a browser tab (HLD System
-  Design). Whether each provider's terms allow its tiles in an app distributed to anyone who
-  installs it is open (Open Questions).
+- **Basemaps** ([basemaps.ts](../../../src/client/basemaps.ts)), six, all
+  keyless:
+
+  | Basemap | Tiles | Native levels |
+  |---|---|---|
+  | Dark | Esri dark gray canvas, with its label overlay | to 16 |
+  | Light | OpenStreetMap | to 19 |
+  | Topo | Esri World Topographic Map | to 19 |
+  | Satellite | Esri World Imagery | to 19 |
+  | Hybrid | Esri World Imagery, with Esri's boundaries-and-places overlay (borders and place names made for imagery) | to 19 |
+  | Sectional | The FAA's VFR sectional charts, drawn over the Topo tiles | 8 to 12 |
+
+  Every basemap zooms to 19, enlarging tiles past their native maximum. The page loads tiles
+  straight from their hosts, in the installed app's window as in a browser tab (HLD System Design).
+  Whether each provider's terms allow its tiles in an app distributed to anyone who installs it is
+  open (Open Questions).
+- **Sectional.** The FAA publishes its charts as tiles for levels 8 to 12 only, covering the United
+  States with Alaska, Hawaii, the Caribbean and the Pacific territories. The chart is drawn from
+  level 8 inward — at 13 and beyond by enlarging level 12, which stays readable for two or three
+  levels and blurs after that. Zoomed out past level 8, and wherever the FAA has no chart, the Topo
+  tiles beneath are what shows: a chart tile the FAA does not have is simply not drawn. While
+  Sectional is chosen, the Layers menu says under the basemap choice that the chart covers the US
+  and appears on zooming in, so a pilot looking at Europe or at the whole country is not left
+  wondering where it is. The charts are whatever edition the FAA serves that day.
 - **Attribution.** The map credits the shown basemap's providers at its bottom right, which the
-  page keeps above the flight panel (app-shell): Esri's sources for Dark and Satellite,
-  "© OpenStreetMap contributors" linked to OpenStreetMap's copyright page for Light, after Leaflet's
-  own link. Every link there opens in a new tab, like the page's other outside links; from the
-  installed app's window, outside links open in the pilot's default browser (HLD System Design).
+  page keeps above the flight panel (app-shell), after Leaflet's own link: Esri's sources for Dark,
+  Topo, Satellite and Hybrid; "© OpenStreetMap contributors" linked to OpenStreetMap's copyright
+  page for Light; and for Sectional the FAA's Aeronautical Information Services beside Esri's
+  sources for the Topo tiles beneath. Every link there opens in a new tab, like the page's other
+  outside links; from the installed app's window, outside links open in the pilot's default browser
+  (HLD System Design).
 - **Initial view** centres on the continental US at zoom 4 until the first fit; minimum zoom 2;
   panning carries on across the antimeridian onto the next world copy, without limit.
 - **Remembered choices**: basemap (default Dark), night shading (default on) and the hazard toggles
   (default off), kept in the page's local storage; storage that is empty or cannot be read gives the
-  defaults ([App.tsx:29-89](../../../src/client/App.tsx#L29-L89),
+  defaults, and so does a remembered basemap this version does not offer ([App.tsx:29-89](../../../src/client/App.tsx#L29-L89),
   [prefs.ts:3-18](../../../src/client/prefs.ts#L3-L18)). Local storage belongs to an origin —
   scheme, host and port — in one browser, so each place the page is shown remembers its own:
   - the installed app's window, on `http://127.0.0.1:3380`, a fixed port of the installed app's
@@ -265,7 +285,8 @@ highlight**, **Clear plan** (planner) and **Show all planes** (fleet) while they
 
 **Layers menu.** One menu holds the choices made once a session and then left alone:
 
-- **Basemap** — Dark, Light or Satellite, one at a time.
+- **Basemap** — Dark, Light, Topo, Satellite, Hybrid or Sectional, one at a time, with Sectional's
+  note on its coverage while it is chosen.
 - **Night shading** — on or off.
 - **Weather hazards** — the four hazard toggles, each with what it covers, and the hazards' source.
 
@@ -347,7 +368,10 @@ a failure is cached, so the next request asks the sources again.
 | Highlight | Fade every other aircraft rather than hide it | Hide others; no highlight | [inferred] Keeps the whole fleet in context while one tour stands out. |
 | A highlighted aircraft that is hidden | Fades nothing | Fade the others as for any highlight; clear the highlight when its aircraft is hidden | The fade exists to make one tour stand out; with that tour not drawn it would only dim the rest of the fleet around nothing. The highlight itself has to stay, since the aircraft panel shows the highlighted aircraft and is where it is unhidden. |
 | Marking a hop from the aircraft panel | Its path drawn again on top with a white casing, the view left alone | Zoom to the hop; fade every other hop | Pointing at rows is done in passing, down a list; a view that moved with the pointer could not be read. A casing over the path's own color finds the hop without changing what any other path looks like. |
-| Basemaps | Esri and OpenStreetMap tiles, no API keys | Keyed providers (Mapbox etc.) | Nothing to sign up for or configure (HLD tenet Keyless and local). Whether each provider's terms allow its tiles in a distributed app is open (Open Questions). |
+| Basemaps | Esri, OpenStreetMap and FAA tiles, no API keys | Keyed providers (Mapbox etc.); keyless OpenTopoMap for Topo | Nothing to sign up for or configure (HLD tenet Keyless and local). Topo comes from Esri, whose services the map already leans on, rather than a volunteer-run host that is slower and stops at level 17. Whether each provider's terms allow its tiles in a distributed app is open (Open Questions). |
+| Satellite with place names | Hybrid, a basemap of its own beside Satellite | Labels always on Satellite; a labels toggle for every basemap | Plain imagery stays one click away for looking at terrain and airports unmarked, and the choice stays one list of basemaps rather than a list and a switch that only means something for one of them. |
+| Sectional outside its tiles | Topo beneath: zoomed out past level 8 and wherever the FAA has no chart | Dark beneath; level-8 tiles shrunk for levels 6 and 7; a blank map | The chart exists for five levels over one country, and a tour may be anywhere at any zoom, so something must show. Topo is a light paper map like the chart, so the chart's edge and the change at level 8 are mild and the panels keep one tint for the whole basemap; over Dark the chart would arrive as a bright sheet on a black map. Shrinking level 8 asks for up to 16 times the tiles for text too small to read. |
+| Sectional past level 12 | The chart enlarged, to 19 like every basemap | Hand over to the tiles beneath a few levels in | One rule for every basemap, and the pilot who chose a chart keeps a chart; sharp close-in views are a click away on Topo or Satellite. |
 | Attribution links | Opened in a new tab, like the page's other outside links | Leaflet's default, a link that navigates the page itself | Navigating away throws the page away — open panels, a half-typed form — in a browser tab. In the installed app's window outside links open in the pilot's default browser either way (HLD System Design), so the new tab costs nothing there. |
 | Night shading | Two overlapping layers at 0° and −6° sun elevation, every world copy in view, minute refresh | One terminator line; no shading | [inferred] Shows dusk and full night apart, which matters for VFR planning, without visual noise. |
 | Hazard sources | aviationweather.gov G-AIRMET and SIGMETs, cached 10 minutes | A commercial weather API; none | [inferred] Free and keyless; the same areas SimBrief briefs. |
@@ -370,15 +394,19 @@ a failure is cached, so the next request asks the sources again.
      The app meets the policy's other asks: the credit on the map (MAP-VIEW-008) and, from the
      installed app's window, a valid referrer and a User-Agent naming the app and the project's
      address (desktop shell).
-   - **Esri** (Dark and Satellite, ArcGIS Online's tile services): whether Esri's terms allow
-     these services, used without an account or key, in a distributed app has not been checked; the
-     same question decides Esri's Light Gray Canvas below.
+   - **Esri** (Dark, Topo, Satellite, Hybrid and the tiles beneath Sectional, ArcGIS Online's tile
+     services): whether Esri's terms allow these services, used without an account or key, in a
+     distributed app has not been checked; the same question decides Esri's Light Gray Canvas below.
+   - **FAA** (Sectional, the tile services of its Aeronautical Information Services, hosted on
+     ArcGIS Online): the charts are a work of the US government and the services are open to
+     anyone without an account; whether the FAA sets terms for an app loading them has not been
+     checked.
 
    The choices for Light: (A) keep OpenStreetMap's tiles, accepting the policy's risk for a hobby
    app with a handful of pilots; (B) serve Light from a keyless light layer whose terms allow use in
    a distributed app — Esri's Light Gray Canvas, the twin of the Dark basemap, is the candidate;
    (C) ask the Operations Working Group. B is the suggestion, if Esri's terms allow it. If they do
-   not, Dark and Satellite need another keyless source as well, and B falls with them. It matters
+   not, every Esri basemap needs another keyless source as well, and B falls with them. It matters
    from the first public release, when every installed copy starts loading these tiles.
 
 ### Known gaps
@@ -422,7 +450,8 @@ Shortfalls of the code against the design above, each an active gap in the specs
 
 ## References
 
-- Code: [src/client/paths.ts](../../../src/client/paths.ts), [src/client/geo.ts](../../../src/client/geo.ts),
+- Code: [src/client/basemaps.ts](../../../src/client/basemaps.ts) (the basemaps: tiles, levels,
+  credits, `parseBasemap`), [src/client/paths.ts](../../../src/client/paths.ts), [src/client/geo.ts](../../../src/client/geo.ts),
   [src/client/components/WorldCopies.tsx](../../../src/client/components/WorldCopies.tsx) (the copies in view),
   [src/client/components/MapView.tsx](../../../src/client/components/MapView.tsx) (all but
   `CandidateLayer` and the plan ring and popup, which are planner's, and `PopupPadding`, which is
@@ -437,7 +466,8 @@ Shortfalls of the code against the design above, each an active gap in the specs
   overlay preferences, URL view options), [src/server/routes.ts](../../../src/server/routes.ts)
   (`/state` 826-840, `/hazards` 800)
 - External: Esri ArcGIS Online and OpenStreetMap tiles (OpenStreetMap's tile usage policy, Esri's
-  terms of use);
+  terms of use); the FAA's VFR sectional tile service (Aeronautical Information Services, on
+  ArcGIS Online);
   aviationweather.gov G-AIRMET / AIRMET-SIGMET / ISIGMET APIs
 - Context: [Desktop](../desktop/desktop-design.md) — details behind the HLD's System Design: the
   installed app's fixed port (3380), test mode's port (3280) and Electron's own folder, where the

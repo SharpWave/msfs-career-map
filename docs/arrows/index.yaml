@@ -50,7 +50,7 @@ arrows:
     blocks: [planner, live-tracking, simbrief, aircraft-panel]
     blockedBy: [logbook, fleet, airports]
     detail: tour-map.md
-    next: "Put the basemap-tiles question (LLD Open Questions 1: OpenStreetMap's tile usage policy, Esri's terms) to the user before the first public release; close the 6 gaps test-first — the earlier hazard set served as fetched, bounded to 3 hours, flagged and timed, and the all-failed set shown as unavailable (MAP-HAZ-004, MAP-HAZ-011, MAP-HAZ-012), attribution links in a new tab (MAP-VIEW-008), then arc zoom (MAP-GEO-012) and partial hazard outages (MAP-HAZ-009); add tests for the 20 implemented MAP specs that have none and for MAP-ZOOM-008's repeat and replacement clauses"
+    next: "Put the basemap-tiles question (LLD Open Questions 1: OpenStreetMap's tile usage policy, Esri's terms) to the user before the first public release; close the 6 gaps test-first — the earlier hazard set served as fetched, bounded to 3 hours, flagged and timed, and the all-failed set shown as unavailable (MAP-HAZ-004, MAP-HAZ-011, MAP-HAZ-012), attribution links in a new tab (MAP-VIEW-008), then arc zoom (MAP-GEO-012) and partial hazard outages (MAP-HAZ-009); add tests for the 18 implemented MAP specs that have none and for MAP-ZOOM-008's repeat and replacement clauses"
     drift: null
 
   planner:

@@ -144,7 +144,7 @@ airport lists `airports.csv` and `runways.csv` with their `.downloaded` times (A
 
 ## The Look
 
-- [x] **APP-UI-023**: The page shall draw every panel over the map — the menu button, the sidebar's cards, drawers, toolbar, menus, flight panel, map popups and tooltips, toast and banner — as frosted glass: a dark tint over a blur of the map of at most 12 px, with a hairline edge; the tint shall be heavier in the drawers and on every panel while the Light basemap is shown, and anything that pops up inside a panel (airport suggestions, the profile chart's readout) shall be solid.
+- [x] **APP-UI-023**: The page shall draw every panel over the map — the menu button, the sidebar's cards, drawers, toolbar, menus, flight panel, map popups and tooltips, toast and banner — as frosted glass: a dark tint over a blur of the map of at most 12 px, with a hairline edge; the tint shall be heavier in the drawers and on every panel while a bright basemap — Light, Topo or Sectional — is shown, and anything that pops up inside a panel (airport suggestions, the profile chart's readout) shall be solid.
 - [x] **APP-UI-024**: While the page is asked for reduced transparency (Windows' transparency effects turned off, as the window or the browser reports them), the page shall draw its panels in their tint, fully opaque, without blur.
 - [x] **APP-UI-025**: The page shall set its text in B612 and its airport codes, times and numeric readouts in B612 Mono, both served by the app itself.
 - [x] **APP-UI-026**: The page shall draw its interface icons from one inline SVG set, and give every button that shows only an icon an accessible name matching its tooltip.

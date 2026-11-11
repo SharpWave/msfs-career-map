@@ -2,14 +2,8 @@ import { useCallback, useRef, type CSSProperties, type Ref } from "react";
 import type { HazardKind } from "../types";
 import { HAZARD_STYLE } from "./HazardLayer";
 import { Icon } from "./Icon";
-import type { Basemap } from "./MapView";
+import { BASEMAPS, BASEMAP_ORDER, type Basemap } from "../basemaps";
 import { useDismiss } from "./useDismiss";
-
-const BASEMAPS: { key: Basemap; label: string }[] = [
-  { key: "dark", label: "Dark" },
-  { key: "light", label: "Light" },
-  { key: "satellite", label: "Satellite" },
-];
 
 /** The four hazard toggles; IFR also draws mountain obscuration, Storms also ash and cyclones. */
 export const HAZARD_TOGGLES: { key: HazardKind; label: string; covers: string }[] = [
@@ -99,13 +93,15 @@ export function MapToolbar(p: MapToolbarProps) {
           <div className="layers-menu glass" role="dialog" aria-label="Layers">
             <div className="layers-group">
               <div className="layers-title">Basemap</div>
-              <div className="seg">
-                {BASEMAPS.map((b) => (
-                  <button type="button" key={b.key} aria-pressed={p.basemap === b.key} className={p.basemap === b.key ? "on" : ""} onClick={() => p.onBasemap(b.key)}>
-                    {b.label}
+              <div className="seg seg-grid">
+                {BASEMAP_ORDER.map((key) => (
+                  <button type="button" key={key} aria-pressed={p.basemap === key} className={p.basemap === key ? "on" : ""} onClick={() => p.onBasemap(key)}>
+                    {BASEMAPS[key].label}
                   </button>
                 ))}
               </div>
+              {/* @spec MAP-VIEW-010 */}
+              {BASEMAPS[p.basemap].note && <div className="layers-note">{BASEMAPS[p.basemap].note}</div>}
             </div>
             <div className="layers-group layer-row">
               <button type="button" className={`layer-toggle${p.nightOn ? " on" : ""}`} aria-pressed={p.nightOn} onClick={p.onToggleNight}>
