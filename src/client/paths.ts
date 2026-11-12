@@ -17,7 +17,10 @@ export interface RenderHop {
   aircraft: Aircraft;
   from: Airport;
   to: Airport;
-  /** Placed points, first = origin at its own longitude, last = destination: the recorded track when the hop has one, else a great circle. */
+  /**
+   * Placed points: the recorded track alone, first sample to last, when the hop has one, else a great
+   * circle from the origin at its own longitude to the destination.
+   */
   pts: LatLng[];
   /** Direct distance between the two airports. */
   nm: number;
@@ -176,9 +179,11 @@ export function buildRenderData(state: AppState | null): RenderData {
       const A: LatLng = [from.lat, from.lon];
       const track = parseTrack(h.track);
       const tracked = track.length >= 2;
-      // A recorded track is tied to the airport dots at both ends so the line never floats free.
-      const pts = tracked ? placeLine([A, ...track.map((p): LatLng => [p[0], p[1]]), [to.lat, to.lon]]) : greatCircle(A, [to.lat, to.lon]);
-      const r: RenderHop = { hop: h, aircraft: a, from, to, pts, nm: distanceNm(A, pts[pts.length - 1]), tracked, flownNm: tracked ? pathNm(pts) : null };
+      // A recorded track is drawn alone: nothing joins its ends to the airport dots, which the aircraft
+      // never flew. It is placed from the origin's longitude, so it lies beside its origin's dot.
+      // @spec MAP-GEO-003
+      const pts = tracked ? placeLine([A, ...track.map((p): LatLng => [p[0], p[1]])]).slice(1) : greatCircle(A, [to.lat, to.lon]);
+      const r: RenderHop = { hop: h, aircraft: a, from, to, pts, nm: distanceNm(A, [to.lat, to.lon]), tracked, flownNm: tracked ? pathNm(pts) : null };
       hops.push(r);
 
       const nf = node(from);
@@ -338,9 +343,14 @@ export function focusPoints(data: RenderData, filter?: { aircraftId?: number; ho
   for (const r of data.hops) {
     if (filter?.aircraftId != null && r.aircraft.id !== filter.aircraftId) continue;
     if (filter?.hopId != null && r.hop.id !== filter.hopId) continue;
-    pts.push(r.pts[0], r.pts[r.pts.length - 1]);
-    // A recorded track can wander well off the direct line; sample it so the fit includes the detour.
-    if (r.tracked) for (let i = 0; i < r.pts.length; i += 10) pts.push(r.pts[i]);
+    const last = r.pts[r.pts.length - 1];
+    pts.push(r.pts[0], last);
+    if (r.tracked) {
+      // A track stops short of its airports; both dots belong in the fit, beside the path.
+      pts.push([r.from.lat, r.from.lon], [r.to.lat, nearLon(r.to.lon, last[1])]);
+      // A recorded track can wander well off the direct line; sample it so the fit includes the detour.
+      for (let i = 0; i < r.pts.length; i += 10) pts.push(r.pts[i]);
+    }
   }
   return pts;
 }

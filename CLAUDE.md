@@ -145,7 +145,7 @@ description, API table and roadmap.
 - `hops.track` is a JSON array of `[lat, lon, alt_ft, unix_seconds, gs_kts, vs_fpm, ias_kts,
   fuel_lb]` (0.7 rows have four fields), written only by the tracker (one sample per 5 s).
   `parseTrack()` in `src/client/tracker.ts` reads it and `paths.ts` draws it in place of the
-  great circle, with the airport positions prepended/appended. `hops.landings` and `hops.stats`
+  great circle, first sample to last, with nothing joining its ends to the airport dots. `hops.landings` and `hops.stats`
   are JSON too (`Landing[]`, `HopStats`); readers must tolerate null for hand-logged hops.
 - Aircraft rows carry `sim_title` / `sim_livery` (the sim's `TITLE` and `LIVERY NAME`); the
   tracker matches on both, with a blank `sim_livery` meaning any livery.

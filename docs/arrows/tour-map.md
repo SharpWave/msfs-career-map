@@ -35,7 +35,7 @@ the facts the map's intent rests on are the HLD's System Design.
   User-Agent the window's tile requests carry
 
 ### Tests
-- tests/tour-map/paths.test.ts — MAP-GEO-002 to 009, MAP-GEO-011, MAP-GEO-015, MAP-GEO-016
+- tests/tour-map/paths.test.ts — MAP-GEO-002 to 009, MAP-GEO-011, MAP-GEO-015, MAP-GEO-016, MAP-PATH-003 (the direct and flown distances)
 - tests/tour-map/copies.test.ts — MAP-GEO-013 to 017, MAP-GEO-020, MAP-GEO-021, MAP-HAZ-010, MAP-NIGHT-001
 - tests/tour-map/fit.test.ts — MAP-GEO-018, MAP-ZOOM-007 to 011
 - tests/tour-map/ring-outline.test.ts — MAP-GEO-021, MAP-GEO-022 (the planner's ring placed as its outline, the zoom box fitted to it)

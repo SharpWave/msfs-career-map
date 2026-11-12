@@ -40,7 +40,7 @@ describe("hop paths", () => {
   });
 
   // @spec MAP-GEO-003, MAP-GEO-015
-  it("follow a recorded track across the antimeridian, tied to the airports at both ends", () => {
+  it("follow a recorded track across the antimeridian, first sample to last, with nothing joining it to the airports", () => {
     const track: TrackPoint[] = [
       [21.4, -158.2, 3000, 1],
       [10, -170, 9000, 2],
@@ -52,14 +52,74 @@ describe("hop paths", () => {
     const [r] = data.hops;
     expect(r.tracked).toBe(true);
     expect(r.pts).toEqual([
-      [PHNL.lat, PHNL.lon],
       [21.4, -158.2],
       [10, -170],
       [0, 179 - 360],
       [-10, 178.5 - 360],
       [-17.6, 177.5 - 360],
-      [NFFN.lat, NFFN.lon - 360],
     ]);
+  });
+
+  // @spec MAP-GEO-003
+  it("leave the gap of a track that began and ended in the air, far from its airports", () => {
+    const track: TrackPoint[] = [
+      [15, -165, 9000, 1],
+      [10, -170, 9000, 2],
+      [5, -175, 9000, 3],
+    ];
+    const [r] = buildRenderData(stateOf([plane(1)], [hop(1, 1, 1, "PHNL", "NFFN", track)])).hops;
+    expect(r.pts).toEqual([
+      [15, -165],
+      [10, -170],
+      [5, -175],
+    ]);
+  });
+
+  // @spec MAP-GEO-003, MAP-GEO-015
+  it("place a track from its origin's longitude, when its first sample lies across the antimeridian from it", () => {
+    // Out of Nadi westbound... the first sample already east of 180°.
+    const track: TrackPoint[] = [
+      [-17.7, -179.9, 500, 1],
+      [-17.6, -179.5, 900, 2],
+    ];
+    const far = airport("FAR", -17.75, 179.95);
+    const st = { ...stateOf([plane(1)], [hop(1, 1, 1, "FAR", "NFFN", track)]), airports: { FAR: far, NFFN } } as unknown as AppState;
+    const [r] = buildRenderData(st).hops;
+    expect(r.pts).toEqual([
+      [-17.7, -179.9 + 360],
+      [-17.6, -179.5 + 360],
+    ]);
+  });
+
+  // @spec MAP-PATH-003
+  it("give a tracked hop its direct distance between its airports and the length of its track as flown", () => {
+    const track: TrackPoint[] = [
+      [15, -165, 9000, 1],
+      [10, -170, 9000, 2],
+      [5, -175, 9000, 3],
+    ];
+    const [r] = buildRenderData(stateOf([plane(1)], [hop(1, 1, 1, "PHNL", "NFFN", track)])).hops;
+    const [direct] = buildRenderData(stateOf([plane(1)], [hop(1, 1, 1, "PHNL", "NFFN")])).hops;
+    expect(r.nm).toBeCloseTo(direct.nm, 6);
+    expect(r.nm).toBeGreaterThan(2500);
+    // Two legs of about 420 nm each, nothing added for the way to either airport.
+    expect(r.flownNm).toBeGreaterThan(800);
+    expect(r.flownNm).toBeLessThan(900);
+  });
+
+  // @spec MAP-GEO-011
+  it("fit a tracked hop to its airports, placed beside its path, as well as its track", () => {
+    const track: TrackPoint[] = [
+      [10, -170, 9000, 1],
+      [0, 179, 9000, 2],
+      [-10, 178.5, 9000, 3],
+    ];
+    const data = buildRenderData(stateOf([plane(1)], [hop(1, 1, 1, "PHNL", "NFFN", track)]));
+    const pts = focusPoints(data, { hopId: 1 });
+    expect(pts).toContainEqual([PHNL.lat, PHNL.lon]);
+    expect(pts).toContainEqual([NFFN.lat, NFFN.lon - 360]);
+    expect(pts).toContainEqual([10, -170]);
+    expect(pts).toContainEqual([-10, 178.5 - 360]);
   });
 
   // @spec MAP-GEO-005

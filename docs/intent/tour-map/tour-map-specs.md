@@ -16,14 +16,14 @@ source).
 
 - [x] **MAP-GEO-001**: When building the map, the system shall draw each visible aircraft's hops as one chain in logbook order, and draw nothing for aircraft hidden from the map.
 - [x] **MAP-GEO-002**: When building a hop's path, the system shall start it at the origin's own position and place it point by point (MAP-GEO-015), independently of the aircraft's other hops.
-- [x] **MAP-GEO-003**: When a hop has a recorded track of at least two samples, the system shall draw its path through the track's samples, with the origin and destination positions as its first and last points.
+- [x] **MAP-GEO-003**: When a hop has a recorded track of at least two samples, the system shall draw its path through the track's samples alone, from the first sample to the last, placed from the origin's longitude (MAP-GEO-015), drawing no segment between either end of the track and an airport's position, however far apart they are.
 - [x] **MAP-GEO-004**: When a hop has no usable recorded track, the system shall draw its path as a great circle with a point about every 25 nm (2 to 96 segments), or as a straight segment when its airports are less than 1 nm apart.
 - [x] **MAP-GEO-005**: The system shall end each hop path exactly at the destination's position on the world copy the placed path reaches, where that copy's dot for the destination sits.
 - [x] **MAP-GEO-006**: If a hop's origin or destination is missing from the map state, then the system shall skip that hop.
 - [x] **MAP-GEO-007**: The system shall place one dot per visited airport, at the airport's own position, holding every departure from and arrival at that airport.
 - [x] **MAP-GEO-008**: When an aircraft has drawn hops, the system shall place its parked marker at its last drawn hop's destination airport, at that airport's own position.
 - [x] **MAP-GEO-009**: When several aircraft are parked at the same airport, the system shall place the first on the dot and each next one 30 px from it, stepping 60° clockwise from straight up.
-- [x] **MAP-GEO-011**: When fitting the view to hops, the system shall use each hop's first and last points and, for tracked hops, every 10th point of the path.
+- [x] **MAP-GEO-011**: When fitting the view to hops, the system shall use each hop's origin and destination positions, placed beside its path, the path's first and last points and, for tracked hops, every 10th point of the path.
 - [ ] **MAP-GEO-012**: When fitting the view to great-circle hops, the system shall include points along each arc so its full extent is in view.
 - [x] **MAP-GEO-013**: When a planner candidate lies across the 180° meridian from the plan's origin, the system shall show it beside the range ring on every copy of the ring in view.
 - [x] **MAP-GEO-014**: The system shall draw every map layer — hop paths and chevrons, airport dots, parked markers, the planner's range ring and candidates, SimBrief routes, the live aircraft, its track and the casual path, hazard areas and night shading — on every world copy in view, at each shift of whole turns of 360° that brings part of the shape into those copies.
@@ -40,7 +40,7 @@ source).
 
 - [x] **MAP-PATH-001**: The system shall draw every hop as a colored line over a dark casing, in its aircraft's path color for odd-numbered hops and a 38% lighter shade of it for even-numbered hops.
 - [x] **MAP-PATH-002**: When a hop's direct distance is at least 8 nm and its aircraft is not faded by a highlight, the system shall draw a direction chevron in the path's color at the middle point of the hop's path, pointing along the path.
-- [x] **MAP-PATH-003**: When the user hovers a hop's path, the system shall show the aircraft; origin → destination, hop number and direct distance, plus the flown distance for a tracked hop; the departure, arrival and duration when known; the badge and G of the first touchdown of its final landing when the hop has touchdowns; the notes; and "Click for the flight profile" for a tracked hop.
+- [x] **MAP-PATH-003**: When the user hovers a hop's path, the system shall show the aircraft; origin → destination, hop number and direct distance (origin to destination), plus the flown distance for a tracked hop (the length of its track, first sample to last); the departure, arrival and duration when known; the badge and G of the first touchdown of its final landing when the hop has touchdowns; the notes; and "Click for the flight profile" for a tracked hop.
 - [x] **MAP-PATH-004**: When the user clicks a hop's path, the system shall open that hop in the flight panel, highlight its aircraft, open the aircraft panel on it (ACP-OPEN-001) and zoom to the hop.
 - [x] **MAP-PATH-005**: The system shall draw map layers from bottom to top: hazard areas and night shading; planner ring and candidates; SimBrief routes; path casings; paths; the marked hop (MAP-HL-004); chevrons; airport dots; parked markers; the live aircraft.
 - [x] **MAP-PATH-006**: While there are no hops at all, the system shall show "Nothing on the map yet" over the map with how to add an aircraft and log a first hop.

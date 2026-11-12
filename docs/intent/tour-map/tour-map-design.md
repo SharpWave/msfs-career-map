@@ -95,9 +95,13 @@ draw nothing. A hop whose airport is unknown to the map state is skipped, and th
 parked position comes from its last drawn hop.
 
 **Hop paths.** Each hop is placed on its own, starting at its origin's own longitude. A hop with a
-recorded track of at least two samples is drawn along the track, with the two airport positions
-first and last so the line is tied to the dots at both ends. Any other hop is drawn as a great
-circle from the origin to the destination: points about every 25 nm (2–96 segments), a straight
+recorded track of at least two samples is drawn along the track and nowhere else, from its first
+sample to its last: the map shows where the aircraft went in the sim, so nothing joins the track's
+ends to the airport dots — not the few hundred metres from a runway or a parking spot to the
+airport's listed position, and not the gap a leg that began or ended in the air leaves between its
+track and its airport. The track is placed from the origin's longitude, so it lies beside its
+origin's dot rather than a world away. Any other hop — logged by hand, with no track — is drawn as
+a great circle from the origin to the destination: points about every 25 nm (2–96 segments), a straight
 pair under 1 nm ([geo.ts](../../../src/client/geo.ts)). Either way the path is placed point by
 point, so a Pacific crossing is one short line, not a jump across the map, and the path ends at the
 destination's position on whichever copy it reaches, where that copy's dot sits. Each hop also carries its direct
@@ -123,8 +127,9 @@ zoom anywhere else; its zoom points run along the box's
 edges no more than 30° of longitude apart, so a box wider than 180° is gathered whole (see
 Highlighting and Zooming) rather than the other way round the globe.
 
-**Zoom points.** Fitting to hops uses each hop's first and last point plus, for tracked hops, every
-10th point so detours are included. A long great circle contributes only its endpoints, so its
+**Zoom points.** Fitting to hops uses each hop's two airports, placed beside its path, and the
+path's first and last point plus, for tracked hops, every 10th point so detours are included; the
+airports keep both dots in a fit whose track stops short of them. A long great circle contributes only its endpoints, so its
 poleward bulge can fall outside the fit. Which world copy a zoom lands on is the zoom's choice
 (see Highlighting and Zooming), not the points'.
 
@@ -361,7 +366,7 @@ a failure is cached, so the next request asks the sources again.
 | When the copies are recomputed | When the map comes to rest, plus the target's copies before a zoom moves | On every frame of a pan or flight | Leaflet redraws vector layers only at rest anyway; recomputing every frame would rebuild thousands of planner candidates in the middle of a flight. |
 | Zooms across world copies | Gather the points onto their narrowest band of longitude, then use the copy nearest the view | Zoom to the points as placed | Points placed shape by shape can sit on either side of the meridian; gathering them fits a Pacific tour as one region, and the nearest copy means a zoom never travels around the world to a copy that looks the same as one close by. |
 | One geometry module | `paths.ts` computes every drawn position and the zoom points | Each layer computes its own | Paths, dots, parked markers and zoom-to-fit must agree; a shared computation keeps them in sync. |
-| Tracked hop geometry | The recorded track, pinned to both airport dots | The track alone; always a great circle | The real flown path is the point of tracking; pinning keeps the line attached to the airports. |
+| Tracked hop geometry | The recorded track alone, first sample to last | The track with both airport positions added as its first and last points; always a great circle | The real flown path is the point of tracking. A segment from the track's end to the airport's listed position was never flown, and zoomed in on an airport it reads as a taxi or a flight across the field that did not happen; the dot beside the track's end already says which airport it is. A hand-logged hop has no path of its own, so the great circle stands in for it. |
 | Consecutive hops | Alternate the aircraft color with a 38% lighter shade by hop number | One color per aircraft; per-hop random colors | Two legs meeting at an airport stay distinguishable while the tour still reads as one aircraft. |
 | Airport dots | One per airport, drawn on every world copy in view, colored by the sole visitor or white | One per airport per world copy a chain reaches | Every copy shows every path, so one dot per airport meets them all; a dot per copy reached would stack copies of the same dot, each with part of the airport's visits. |
 | Several aircraft parked together | Fan out around the dot | Stack | Every parked aircraft stays visible and clickable. |
